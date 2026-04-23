@@ -13,7 +13,10 @@ export const MOCK_STOCK_BATCHES = [
     receivedDate: "2024-03-05",
     storageLocation: "Warehouse A",
     vendor: "Aluminium Corp",
-    attachments: 2,
+    attachments: [
+      { id: "att-1", file: { name: "receipt-proof-completed.pdf" }, description: "Proof Document" },
+      { id: "att-2", file: { name: "packing-list.pdf" }, description: "Packing List" }
+    ],
     status: "Received"
   },
   {
@@ -30,7 +33,9 @@ export const MOCK_STOCK_BATCHES = [
     receivedDate: "2024-03-14",
     storageLocation: "Warehouse B",
     vendor: "Global Metal",
-    attachments: 1,
+    attachments: [
+      { id: "att-3", file: { name: "receipt-proof-completed.pdf" }, description: "Proof Document" }
+    ],
     status: "Requested"
   },
   {
@@ -47,7 +52,7 @@ export const MOCK_STOCK_BATCHES = [
     receivedDate: "2024-02-10",
     storageLocation: "Warehouse A",
     vendor: "Steel Works",
-    attachments: 0,
+    attachments: [],
     status: "Delayed"
   }
 ];

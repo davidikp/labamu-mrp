@@ -231,6 +231,51 @@ const DocumentTypeBadge = ({ fileName = "" }) => {
   );
 };
 
+const TableAttachmentCard = ({ attachments = [] }) => {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%", padding: "8px 0" }}>
+      {attachments.map((att, i) => (
+        <div key={att.id || i} style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          width: "100%",
+          minWidth: 0
+        }}>
+          <DocumentTypeBadge fileName={att.file?.name || "proof.pdf"} />
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "2px",
+            minWidth: 0,
+            flex: 1
+          }}>
+            <span style={{
+              fontSize: "var(--text-title-3)",
+              fontWeight: "var(--font-weight-bold)",
+              color: "var(--feature-brand-primary)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis"
+            }}>
+              {att.description || "Proof Document"}
+            </span>
+            <span style={{
+              fontSize: "12px",
+              color: "var(--feature-brand-primary)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis"
+            }}>
+              {att.file?.name || "receipt-proof-completed.pdf"}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const FileCard = ({ attachment, onRemove, onDescriptionChange }) => (
   <div style={{
     border: "1px solid var(--neutral-line-separator-1)",
@@ -493,6 +538,8 @@ export const StockBatchesTab = ({ materialId }) => {
   const [openFilterKey, setOpenFilterKey] = useState(null);
   const [popoverTriggerRect, setPopoverTriggerRect] = useState(null);
   
+  const [localBatches, setLocalBatches] = useState(MOCK_STOCK_BATCHES);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [drawerMode, setDrawerMode] = useState(null); // 'add' | 'edit' | null
   const [formData, setFormData] = useState({
     id: null,
@@ -562,8 +609,32 @@ export const StockBatchesTab = ({ materialId }) => {
 
   const handleSave = () => {
     if (validate()) {
-      // Mock saving logic
-      console.log("Saving batch:", formData);
+      const newBatch = {
+        id: formData.id || `batch-${Date.now()}`,
+        materialId,
+        batchNo: formData.id ? localBatches.find(b => b.id === formData.id)?.batchNo : `BN-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+        initialQty: parseInt(formData.quantity.replace(/,/g, ''), 10),
+        currentQty: parseInt(formData.quantity.replace(/,/g, ''), 10),
+        reservedQty: 0,
+        costPerUnit: parseInt(formData.costPerPcs.replace(/,/g, ''), 10),
+        purchaseDate: formData.purchaseDate,
+        expiryDate: formData.expiryDate,
+        expectedDate: formData.expectedDate,
+        receivedDate: formData.receivedDate,
+        storageLocation: formData.storageLocation,
+        vendor: formData.vendor,
+        attachments: formData.attachments,
+        status: formData.status
+      };
+
+      if (drawerMode === "add") {
+        setLocalBatches(prev => [newBatch, ...prev]);
+      } else {
+        setLocalBatches(prev => prev.map(b => b.id === formData.id ? newBatch : b));
+      }
+
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
       closeDrawer();
     }
   };
@@ -632,7 +703,7 @@ export const StockBatchesTab = ({ materialId }) => {
   };
 
   const batches = React.useMemo(() => {
-    let result = MOCK_STOCK_BATCHES.filter(b => b.materialId === materialId);
+    let result = localBatches.filter(b => b.materialId === materialId);
 
     // Search filter
     if (searchQuery) {
@@ -662,7 +733,7 @@ export const StockBatchesTab = ({ materialId }) => {
     // Note: expiration status filter would require date logic, leaving as placeholder for now or mapping specific labels
 
     return result;
-  }, [materialId, searchQuery, showEmptyBatches, activeFilters]);
+  }, [materialId, searchQuery, showEmptyBatches, activeFilters, localBatches]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -713,7 +784,7 @@ export const StockBatchesTab = ({ materialId }) => {
     { label: "Received Date", key: "receivedDate", width: "130px" },
     { label: "Storage Location", key: "storageLocation", width: "160px" },
     { label: "Vendor", key: "vendor", width: "160px" },
-    { label: "Attachments", key: "attachments", width: "120px" },
+    { label: "Attachments", key: "attachments", width: "240px" },
     { label: "Status", key: "status", width: "100px" },
     { label: "Actions", key: "actions", width: "100px", sticky: true }
   ];
@@ -904,7 +975,8 @@ export const StockBatchesTab = ({ materialId }) => {
                       : (isStickyRightStatus && scrollShadows.right)
                       ? "-4px 0 8px -4px rgba(0,0,0,0.12)"
                       : "none",
-                    transition: "box-shadow 0.2s ease"
+                    transition: "box-shadow 0.2s ease",
+                    alignSelf: (isStickyLeft || isStickyRightStatus || isStickyRightActions) ? "stretch" : "auto",
                   }}>
                     {col.label}
                   </div>
@@ -921,14 +993,12 @@ export const StockBatchesTab = ({ materialId }) => {
                     display: "flex", 
                     borderBottom: "1px solid var(--neutral-line-separator-1)",
                     background: "var(--neutral-surface-primary)",
-                    height: "64px",
+                    minHeight: "64px",
                     alignItems: "center",
                     transition: "background 0.12s ease",
                     cursor: "pointer",
                     width: "100%"
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--neutral-surface-grey-lighter)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "var(--neutral-surface-primary)")}
                 >
                   {/* Batch No (Sticky Left) */}
                   <div 
@@ -942,7 +1012,8 @@ export const StockBatchesTab = ({ materialId }) => {
                       left: 0,
                       background: "inherit",
                       zIndex: 2,
-                      height: "100%",
+                      height: "auto",
+                      alignSelf: "stretch",
                       display: "flex",
                       alignItems: "center",
                       boxSizing: "border-box",
@@ -980,14 +1051,10 @@ export const StockBatchesTab = ({ materialId }) => {
                     padding: "0 12px",
                     display: "flex", 
                     alignItems: "center", 
-                    gap: "4px",
                     flexShrink: 0
                   }}>
-                    {row.attachments > 0 ? (
-                      <>
-                        <AttachmentIcon size={16} color="var(--neutral-on-surface-secondary)" />
-                        <span style={{ fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-primary)" }}>{row.attachments}</span>
-                      </>
+                    {row.attachments?.length > 0 ? (
+                      <TableAttachmentCard attachments={row.attachments} />
                     ) : (
                       <span style={{ fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-primary)" }}>-</span>
                     )}
@@ -999,9 +1066,10 @@ export const StockBatchesTab = ({ materialId }) => {
                     padding: "0 12px",
                     position: "sticky",
                     right: "140px",
-                    background: "inherit",
+                    background: "var(--neutral-surface-primary)",
                     zIndex: 2,
-                    height: "100%",
+                    height: "auto",
+                    alignSelf: "stretch",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "flex-start",
@@ -1028,23 +1096,30 @@ export const StockBatchesTab = ({ materialId }) => {
                     gap: "8px",
                     position: "sticky",
                     right: 0,
-                    background: "inherit",
+                    background: "var(--neutral-surface-primary)",
                     zIndex: 2,
-                    height: "100%",
+                    height: "auto",
+                    alignSelf: "stretch",
                     alignItems: "center",
                     justifyContent: "center",
                     boxSizing: "border-box",
                     flexShrink: 0
                   }}>
                     <Tooltip content="Edit">
-                      <button onClick={() => openEditDrawer(row)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--feature-brand-primary)" }}>
-                        <EditIcon size={18} />
-                      </button>
+                      <IconButton 
+                        icon={EditIcon} 
+                        onClick={() => openEditDrawer(row)} 
+                        size="small" 
+                        color="var(--feature-brand-primary)" 
+                      />
                     </Tooltip>
                     <Tooltip content="Dispose">
-                      <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--status-red-primary)" }}>
-                        <DisposeIcon size={18} />
-                      </button>
+                      <IconButton 
+                        icon={DisposeIcon} 
+                        onClick={() => {}} 
+                        size="small" 
+                        color="var(--status-red-primary)" 
+                      />
                     </Tooltip>
                   </div>
                 </div>
@@ -1252,6 +1327,30 @@ export const StockBatchesTab = ({ materialId }) => {
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div style={{
+          position: "fixed",
+          bottom: "24px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "var(--neutral-on-surface-primary)",
+          color: "var(--neutral-surface-primary)",
+          padding: "12px 24px",
+          borderRadius: "8px",
+          boxShadow: "var(--elevation-sm)",
+          zIndex: 20000,
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          fontSize: "var(--text-body)",
+          fontWeight: "var(--font-weight-bold)"
+        }}>
+          <CheckIcon size={20} color="var(--status-green-primary)" />
+          Batch successfully saved
         </div>
       )}
     </div>

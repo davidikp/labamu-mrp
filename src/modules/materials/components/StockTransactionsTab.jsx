@@ -468,8 +468,6 @@ export const StockTransactionsTab = ({ materialId, onNavigate }) => {
                     cursor: "pointer",
                     width: "100%"
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--neutral-surface-grey-lighter)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "var(--neutral-surface-primary)")}
                 >
                   {/* Date (Non-Sticky) */}
                   <div style={{ 
