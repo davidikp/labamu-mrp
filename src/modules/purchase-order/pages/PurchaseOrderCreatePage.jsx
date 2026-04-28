@@ -569,7 +569,13 @@ const PhoneInputField = ({
           type="text"
           placeholder="Input phone number"
           value={parsedValue.number}
-          onChange={(e) => emitChange(selectedOption.code, e.target.value)}
+          onChange={(e) => {
+            let nextValue = e.target.value;
+            if (nextValue.startsWith("0")) {
+              nextValue = nextValue.slice(1);
+            }
+            emitChange(selectedOption.code, nextValue);
+          }}
           disabled={disabled}
           style={{
             flex: 1,
@@ -1216,6 +1222,8 @@ const InputField = ({
   disabled,
   icon: Icon,
   max,
+  maxLength,
+  showCounter,
   multiline = false,
   error,
   helperText,
@@ -1234,10 +1242,11 @@ const InputField = ({
           value={value}
           onChange={onChange}
           disabled={disabled}
+          maxLength={maxLength}
           {...rest}
           style={{
-            minHeight: "88px",
-            padding: "12px 16px",
+            minHeight: "100px",
+            padding: showCounter ? "12px 16px 32px 16px" : "12px 16px",
             width: "100%",
             resize: "vertical",
             border: "1px solid transparent",
@@ -1279,10 +1288,11 @@ const InputField = ({
           }}
           disabled={disabled}
           max={max}
+          maxLength={maxLength}
           {...rest}
           style={{
             height: "48px",
-            padding: Icon ? "0 40px 0 16px" : "0 16px",
+            padding: Icon ? "0 40px 0 16px" : showCounter ? "0 60px 0 16px" : "0 16px",
             border: "1px solid transparent",
             background: disabled
               ? "var(--neutral-surface-grey-lighter)"
@@ -1294,6 +1304,22 @@ const InputField = ({
           onFocus={(e) => focusInputFrame(e.currentTarget)}
           onBlur={(e) => blurInputFrame(e.currentTarget, disabled, !!error)}
         />
+      )}
+      {showCounter && maxLength && (
+        <div
+          style={{
+            position: "absolute",
+            right: "12px",
+            bottom: multiline ? "12px" : "50%",
+            transform: multiline ? "none" : "translateY(50%)",
+            fontSize: "12px",
+            color: "var(--neutral-on-surface-tertiary)",
+            pointerEvents: "none",
+            zIndex: 10,
+          }}
+        >
+          {String(value || "").length}/{maxLength}
+        </div>
       )}
       {Icon && type !== "date" ? (
         <Icon
@@ -2179,9 +2205,10 @@ const summaryTotalValueStyle = {
 
 export const PurchaseOrderCreatePage = ({
   onNavigate,
-  isSidebarCollapsed,
+  isSidebarCollapsed = false,
   initialData,
   poApprovalSettings,
+  showPoSnackbar,
 }) => {
   const scrollToTop = () => {
     if (typeof window !== "undefined") {
@@ -2230,6 +2257,7 @@ export const PurchaseOrderCreatePage = ({
   const isFromWorkOrderAssignment =
     initialData?.source === "work_order_vendor_assignment";
   const isEditMode = initialData?.source === "edit_purchase_order";
+  const isReviseMode = initialData?.source === "revise_purchase_order";
   const editFormData = initialData?.formData || null;
   const prefilledVendor = initialData?.vendorData || null;
   const linkedWorkOrder =
@@ -2309,7 +2337,7 @@ export const PurchaseOrderCreatePage = ({
   });
   const [isVendorLocked, setIsVendorLocked] = useState(
     (!!prefilledVendor && isFromWorkOrderAssignment) ||
-    (isEditMode && MOCK_VENDORS.some((v) => v.name === editFormData?.vendorName))
+    ((isEditMode || isReviseMode) && MOCK_VENDORS.some((v) => v.name === editFormData?.vendorName))
   );
   const [showVendorSuggestions, setShowVendorSuggestions] = useState(false);
   const [isVendorFieldFocused, setIsVendorFieldFocused] = useState(false);
@@ -2342,8 +2370,12 @@ export const PurchaseOrderCreatePage = ({
   const [formErrors, setFormErrors] = useState({});
   const [showEmptyDraftModal, setShowEmptyDraftModal] = useState(false);
   const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState(false);
+  const [revisionReason, setRevisionReason] = useState("");
+  const [revisionReasonError, setRevisionReasonError] = useState("");
   const [showDiscardChangesModal, setShowDiscardChangesModal] = useState(false);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [isVendorEditingEnabled, setIsVendorEditingEnabled] = useState(false);
+  const [showVendorEditConfirm, setShowVendorEditConfirm] = useState(false);
   const [productLineType, setProductLineType] = useState("manual");
   const [productModalForm, setProductModalForm] = useState({
     manualName: "",
@@ -2643,11 +2675,14 @@ export const PurchaseOrderCreatePage = ({
     });
   };
 
-  const handleAddFeeLine = () =>
-    setFeeLines((prev) => [
-      ...prev,
-      { id: `fee-${Date.now()}`, name: "", amount: "" },
-    ]);
+  const handleAddFeeLine = () => {
+    if (feeLines.length < 5) {
+      setFeeLines((prev) => [
+        ...prev,
+        { id: `fee-${Date.now()}`, name: "", amount: "" },
+      ]);
+    }
+  };
   const handleFeeChange = (feeId, key, value) =>
     setFeeLines((prev) =>
       prev.map((fee) => (fee.id === feeId ? { ...fee, [key]: value } : fee))
@@ -2675,6 +2710,21 @@ export const PurchaseOrderCreatePage = ({
     setProductModalFieldErrors({});
     setProductModalError("");
     setShowAddProductModal(true);
+  };
+
+  const handleEditVendorClick = () => {
+    const hasWoLines = lines.some((line) => line.type === "wo");
+    if (hasWoLines) {
+      setShowVendorEditConfirm(true);
+    } else {
+      setIsVendorEditingEnabled(true);
+    }
+  };
+
+  const handleConfirmVendorEdit = () => {
+    setLines(lines.filter((line) => line.type !== "wo"));
+    setIsVendorEditingEnabled(true);
+    setShowVendorEditConfirm(false);
   };
 
   const handleEditLine = (line) => {
@@ -2736,8 +2786,8 @@ export const PurchaseOrderCreatePage = ({
       const nextErrors = {};
       if (!productModalForm.manualName.trim())
         nextErrors.manualName = "Field cannot be empty";
-      if (!productModalForm.manualQty)
-        nextErrors.manualQty = "Field cannot be empty";
+      if (!productModalForm.manualQty || parseInt(productModalForm.manualQty, 10) <= 0)
+        nextErrors.manualQty = "Quantity must be greater than 0";
       if (!productModalForm.manualPrice)
         nextErrors.manualPrice = "Field cannot be empty";
       setProductModalFieldErrors(nextErrors);
@@ -2781,8 +2831,10 @@ export const PurchaseOrderCreatePage = ({
         nextErrors.selectedMaterialLineId = "Field cannot be empty";
       if (!productModalForm.manualPrice)
         nextErrors.manualPrice = "Field cannot be empty";
-      if (!productModalForm.manualQty)
-        nextErrors.manualQty = "Field cannot be empty";
+      if (!productModalForm.manualQty || parseInt(productModalForm.manualQty, 10) <= 0)
+        nextErrors.manualQty = "Quantity must be greater than 0";
+      if (!productModalForm.manualPrice)
+        nextErrors.manualPrice = "Field cannot be empty";
       setProductModalFieldErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0 || !targetLine) return;
 
@@ -2825,8 +2877,10 @@ export const PurchaseOrderCreatePage = ({
       nextErrors.selectedWorkOrderLineId = "Field cannot be empty";
     if (!productModalForm.manualPrice)
       nextErrors.manualPrice = "Field cannot be empty";
-    if (!productModalForm.manualQty)
-      nextErrors.manualQty = "Field cannot be empty";
+    if (!productModalForm.manualQty || parseInt(productModalForm.manualQty, 10) <= 0)
+      nextErrors.manualQty = "Quantity must be greater than 0";
+    if (!productModalForm.manualPrice)
+      nextErrors.manualPrice = "Field cannot be empty";
     setProductModalFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0 || !targetLine) return;
 
@@ -2879,8 +2933,8 @@ export const PurchaseOrderCreatePage = ({
 
     const payload = {
       ...buildPoPayload(
-        isEditMode ? (initialData?.status || "Draft") : "Draft",
-        isEditMode ? (initialData?.sBadge || "grey-light") : "grey-light"
+        isEditMode || isReviseMode ? (initialData?.status || "Draft") : "Draft",
+        isEditMode || isReviseMode ? (initialData?.sBadge || "grey-light") : "grey-light"
       ),
       showDraftToast: true,
     };
@@ -2931,6 +2985,10 @@ export const PurchaseOrderCreatePage = ({
 
   const handleSubmitClick = () => {
     if (!validateMandatoryFields()) return;
+    if (isReviseMode) {
+      setRevisionReason("");
+      setRevisionReasonError("");
+    }
     setShowSubmitConfirmModal(true);
   };
 
@@ -2979,6 +3037,52 @@ export const PurchaseOrderCreatePage = ({
 
     if (nextStatus === "Issued") {
       syncPoToStockBatches(payload);
+    }
+
+    if (isReviseMode) {
+      const existingPo = MOCK_PO_TABLE_DATA.find(p => p.poNumber === payload.poNumber);
+      if (existingPo) {
+        if (!existingPo.versions) {
+          existingPo.versions = [
+            { 
+              version: 1, 
+              date: existingPo.createdDate || existingPo.poDate || new Date().toISOString().split("T")[0],
+              data: { ...existingPo, versions: undefined } 
+            }
+          ];
+        }
+        const nextVersionNumber = existingPo.versions.length + 1;
+        const newVersionEntry = {
+          version: nextVersionNumber,
+          date: new Date().toISOString().split("T")[0],
+          data: { ...payload }
+        };
+        existingPo.versions.push(newVersionEntry);
+        payload.currentVersion = nextVersionNumber;
+        payload.versions = existingPo.versions;
+        payload.revisionReason = revisionReason;
+
+        // Add to activity log
+        if (!payload.receiptLogs) payload.receiptLogs = [];
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const dd = String(now.getDate()).padStart(2, "0");
+        const hh = String(now.getHours()).padStart(2, "0");
+        const min = String(now.getMinutes()).padStart(2, "0");
+        const formattedTimestamp = `${yyyy}-${mm}-${dd} at ${hh}:${min}`;
+
+        payload.receiptLogs.unshift({
+          name: "Joko",
+          email: "joko@company.com",
+          title: `Purchase Order Revised to Version ${nextVersionNumber}.0`,
+          desc: revisionReason,
+          timestamp: formattedTimestamp
+        });
+      }
+      if (showPoSnackbar) {
+        showPoSnackbar("Purchase order successfully submitted", "success");
+      }
     }
 
     // Persist to global mock data
@@ -3203,7 +3307,7 @@ export const PurchaseOrderCreatePage = ({
                 color: "var(--neutral-on-surface-primary)",
               }}
             >
-              {isEditMode ? "Edit Purchase Order" : "Add New Purchase Order"}
+              {isReviseMode ? "Revise Purchase Order" : isEditMode ? "Edit Purchase Order" : "Add New Purchase Order"}
             </h1>
           </div>
           <div
@@ -3227,14 +3331,27 @@ export const PurchaseOrderCreatePage = ({
               /
             </span>
             <span style={{ color: "var(--neutral-on-surface-tertiary)" }}>
-              {isEditMode ? "Edit Purchase Order" : "Add New Purchase Order"}
+              {isReviseMode ? "Revise Purchase Order" : isEditMode ? "Edit Purchase Order" : "Add New Purchase Order"}
             </span>
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <div style={pageSectionStyle}>
-            {sectionHeader("Vendor Information")}
+            {sectionHeader(
+              "Vendor Information",
+              (isEditMode || isReviseMode) && initialData?.status === "Draft" && !isVendorEditingEnabled && (
+                <Button
+                  variant="tertiary"
+                  size="small"
+                  onClick={handleEditVendorClick}
+                  leftIcon={EditIcon}
+                  style={{ padding: "0 8px", height: "32px", fontWeight: "var(--font-weight-bold)" }}
+                >
+                  Edit
+                </Button>
+              )
+            )}
             <div
               style={{
                 padding: "18px 20px 20px 20px",
@@ -3266,31 +3383,45 @@ export const PurchaseOrderCreatePage = ({
                           setShowVendorSuggestions(true);
                         }
                       }}
-                      disabled={isFromWorkOrderAssignment}
+                      disabled={isFromWorkOrderAssignment || isEditMode || isReviseMode ? !isVendorEditingEnabled : false}
                       onBlur={() => {
                         setTimeout(() => {
                           setIsVendorFieldFocused(false);
                         }, 120);
                       }}
                       placeholder="Type to search or add vendor"
+                      maxLength={40}
                       style={{
                         ...fieldStyle(
-                          isFromWorkOrderAssignment,
+                          isFromWorkOrderAssignment || (isEditMode && !isVendorEditingEnabled),
                           !!vendorSearch,
                           false
                         ),
                         borderColor: isVendorFieldFocused
                           ? "var(--feature-brand-primary)"
                           : baseInputBorderColor,
-                        padding: "0 48px 0 16px",
-                        background: isFromWorkOrderAssignment
+                        padding: "0 80px 0 16px",
+                        background: (isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled
                           ? "var(--neutral-surface-grey-lighter)"
                           : "var(--neutral-surface-primary)",
-                        cursor: isFromWorkOrderAssignment
+                        cursor: (isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled
                           ? "not-allowed"
                           : "text",
                       }}
                     />
+                    <div
+                      style={{
+                        position: "absolute",
+                        right: "48px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        fontSize: "12px",
+                        color: "var(--neutral-on-surface-tertiary)",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      {vendorSearch.length}/40
+                    </div>
                     <ChevronDownIcon
                       size={20}
                       color="var(--neutral-on-surface-secondary)"
@@ -3412,7 +3543,7 @@ export const PurchaseOrderCreatePage = ({
                   onChange={(nextValue) =>
                     setVendorDetails({ ...vendorDetails, phone: nextValue })
                   }
-                  disabled={isVendorLocked}
+                  disabled={(isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled}
                 />
               </div>
 
@@ -3426,7 +3557,7 @@ export const PurchaseOrderCreatePage = ({
                       email: e.target.value,
                     })
                   }
-                  disabled={isVendorLocked}
+                  disabled={(isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled}
                   placeholder="Input email"
                 />
               </div>
@@ -3436,13 +3567,15 @@ export const PurchaseOrderCreatePage = ({
                 <InputField
                   multiline
                   value={vendorDetails.address}
+                  maxLength={400}
+                  showCounter
                   onChange={(e) =>
                     setVendorDetails({
                       ...vendorDetails,
                       address: e.target.value,
                     })
                   }
-                  disabled={isVendorLocked}
+                  disabled={(isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled}
                   placeholder="Input vendor address"
                 />
               </div>
@@ -3554,6 +3687,8 @@ export const PurchaseOrderCreatePage = ({
                 )}
                 <InputField
                   value={shipToInfo.name}
+                  maxLength={40}
+                  showCounter
                   onChange={(e) =>
                     setShipToInfo({ ...shipToInfo, name: e.target.value })
                   }
@@ -3586,6 +3721,8 @@ export const PurchaseOrderCreatePage = ({
                 )}
                 <InputField
                   multiline
+                  maxLength={400}
+                  showCounter
                   value={shipToInfo.address}
                   onChange={(e) =>
                     setShipToInfo({ ...shipToInfo, address: e.target.value })
@@ -3833,7 +3970,13 @@ export const PurchaseOrderCreatePage = ({
                                 variant="tertiary"
                                 size="small"
                                 onClick={() => handleEditLine(line)}
-                                style={{ color: "var(--feature-brand-primary)", padding: "0 4px" }}
+                                disabled={isReviseMode && line.type === "wo"}
+                                style={{ 
+                                  color: (isReviseMode && line.type === "wo") 
+                                    ? "var(--neutral-on-surface-tertiary)" 
+                                    : "var(--feature-brand-primary)", 
+                                  padding: "0 4px" 
+                                }}
                               >
                                 Edit
                               </Button>
@@ -3841,9 +3984,9 @@ export const PurchaseOrderCreatePage = ({
                                 variant="tertiary"
                                 size="small"
                                 onClick={() => handleRemoveLine(line.id)}
-                                disabled={isLockedWorkOrderLine}
+                                disabled={isLockedWorkOrderLine || (isReviseMode && line.type === "wo")}
                                 style={{ 
-                                  color: isLockedWorkOrderLine 
+                                  color: (isLockedWorkOrderLine || (isReviseMode && line.type === "wo")) 
                                     ? "var(--neutral-on-surface-tertiary)" 
                                     : "var(--status-red-primary)",
                                   padding: "0 4px"
@@ -3972,11 +4115,13 @@ export const PurchaseOrderCreatePage = ({
                     <InputField
                       placeholder="Fee Name"
                       value={fee.name}
+                      maxLength={40}
+                      showCounter
                       onChange={(e) =>
                         handleFeeChange(
                           fee.id,
                           "name",
-                          e.target.value.slice(0, 40)
+                          e.target.value
                         )
                       }
                     />
@@ -4017,15 +4162,17 @@ export const PurchaseOrderCreatePage = ({
                   </div>
                 ))}
 
-                <Button
-                  variant="tertiary"
-                  size="small"
-                  leftIcon={AddIcon}
-                  onClick={handleAddFeeLine}
-                  style={{ alignSelf: "flex-start", padding: 0 }}
-                >
-                  Add Fee
-                </Button>
+                {feeLines.length < 5 && (
+                  <Button
+                    variant="tertiary"
+                    size="small"
+                    leftIcon={AddIcon}
+                    onClick={handleAddFeeLine}
+                    style={{ alignSelf: "flex-start", padding: 0 }}
+                  >
+                    Add Fee
+                  </Button>
+                )}
               </div>
 
               <div
@@ -4065,6 +4212,8 @@ export const PurchaseOrderCreatePage = ({
                 <InputField
                   multiline
                   value={notes}
+                  maxLength={1000}
+                  showCounter
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Input notes"
                 />
@@ -4077,6 +4226,8 @@ export const PurchaseOrderCreatePage = ({
                 <InputField
                   multiline
                   value={terms}
+                  maxLength={5000}
+                  showCounter
                   onChange={(e) => setTerms(e.target.value)}
                   placeholder="Input terms"
                 />
@@ -4111,9 +4262,11 @@ export const PurchaseOrderCreatePage = ({
           Cancel
         </Button>
         <div style={{ display: "flex", gap: "12px" }}>
-          <Button size="medium" variant="outlined" onClick={handleSaveDraft}>
-            {isEditMode ? "Save Changes" : "Save as Draft"}
-          </Button>
+          {!isReviseMode && (
+            <Button size="medium" variant="outlined" onClick={handleSaveDraft}>
+              {isEditMode ? "Save Changes" : "Save as Draft"}
+            </Button>
+          )}
           <Button size="medium" variant="filled" onClick={handleSubmitClick}>
             Submit PO
           </Button>
@@ -4247,8 +4400,21 @@ export const PurchaseOrderCreatePage = ({
                       key={option.key}
                       type="button"
                       onClick={() => {
-                        if (!isEditingLockedWorkOrderLine)
+                        if (!isEditingLockedWorkOrderLine) {
                           setProductLineType(option.key);
+                          setProductModalForm({
+                            manualName: "",
+                            manualCode: "",
+                            manualDesc: "",
+                            manualQty: "",
+                            manualPrice: "",
+                            selectedWorkOrderLineId: "",
+                            selectedMaterialLineId: "",
+                          });
+                          setProductModalImages([]);
+                          setProductModalFieldErrors({});
+                          setProductModalError("");
+                        }
                       }}
                       disabled={isEditingLockedWorkOrderLine}
                       style={{
@@ -4345,6 +4511,8 @@ export const PurchaseOrderCreatePage = ({
                       label="Name"
                       required
                       value={productModalForm.manualName}
+                      maxLength={100}
+                      showCounter
                       onChange={(e) => {
                         setProductModalForm({
                           ...productModalForm,
@@ -4415,6 +4583,8 @@ export const PurchaseOrderCreatePage = ({
                       label="Description"
                       multiline
                       value={productModalForm.manualDesc}
+                      maxLength={1000}
+                      showCounter
                       onChange={(e) =>
                         setProductModalForm({
                           ...productModalForm,
@@ -4540,10 +4710,19 @@ export const PurchaseOrderCreatePage = ({
                       searchable
                       searchPlaceholder="Search material..."
                       placeholder="Select material"
+                      showDivider
                       options={availableMaterialLines.map((line) => ({
                         value: line.id,
-                        label: `${line.item} · ${line.code}`,
+                        label: line.item,
+                        code: line.code
                       }))}
+                      renderOption={(option) => (
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", overflow: "hidden" }}>
+                          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{option.label}</span>
+                          <span style={{ color: "var(--neutral-on-surface-tertiary)", flexShrink: 0 }}>·</span>
+                          <span style={{ color: "var(--neutral-on-surface-tertiary)", flexShrink: 0 }}>{option.code}</span>
+                        </div>
+                      )}
                     />
                     {productModalFieldErrors.selectedMaterialLineId ? (
                       <span
@@ -4583,6 +4762,8 @@ export const PurchaseOrderCreatePage = ({
                         <InputField
                           label="Name"
                           value={productModalForm.manualName}
+                          maxLength={100}
+                          showCounter
                           disabled
                         />
                       </div>
@@ -4628,6 +4809,8 @@ export const PurchaseOrderCreatePage = ({
                           label="Description"
                           multiline
                           value={productModalForm.manualDesc}
+                          maxLength={1000}
+                          showCounter
                           onChange={(e) =>
                             setProductModalForm({
                               ...productModalForm,
@@ -4738,8 +4921,8 @@ export const PurchaseOrderCreatePage = ({
                               linkedRoutingStages // Pass current context stages or fallback
                             )
                             : targetLine?.desc || "",
-                          manualQty: "",
-                          manualPrice: targetLine ? String(targetLine.price) : "",
+                          manualQty: targetLine ? String(targetLine.qty) : "",
+                          manualPrice: "",
                         });
                         setProductModalImages(
                           targetLine?.image
@@ -4755,10 +4938,19 @@ export const PurchaseOrderCreatePage = ({
                       searchable
                       searchPlaceholder="Search work order..."
                       placeholder="Select work order"
+                      showDivider
                       options={availableWorkOrderLines.map((line) => ({
                         value: getWorkOrderSourceId(line),
-                        label: `${line.item} · ${line.woRef}`,
+                        label: line.item,
+                        woRef: line.woRef
                       }))}
+                      renderOption={(option) => (
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", overflow: "hidden" }}>
+                          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{option.label}</span>
+                          <span style={{ color: "var(--neutral-on-surface-tertiary)", flexShrink: 0 }}>·</span>
+                          <span style={{ color: "var(--neutral-on-surface-tertiary)", flexShrink: 0 }}>{option.woRef}</span>
+                        </div>
+                      )}
                     />
                     {productModalFieldErrors.selectedWorkOrderLineId ? (
                       <span
@@ -4807,6 +4999,8 @@ export const PurchaseOrderCreatePage = ({
                         <InputField
                           label="Name"
                           value={productModalForm.manualName}
+                          maxLength={100}
+                          showCounter
                           disabled
                         />
                       </div>
@@ -4851,6 +5045,8 @@ export const PurchaseOrderCreatePage = ({
                           label="Description"
                           multiline
                           value={productModalForm.manualDesc}
+                          maxLength={1000}
+                          showCounter
                           onChange={(e) =>
                             setProductModalForm({
                               ...productModalForm,
@@ -5013,19 +5209,29 @@ export const PurchaseOrderCreatePage = ({
       <GeneralModal
         isOpen={showSubmitConfirmModal}
         onClose={() => setShowSubmitConfirmModal(false)}
-        title="Submit PO?"
-        width="376px"
-        description={poApprovalSettings?.isApprovalActive
-          ? "This PO will be submitted for approval."
-          : "This PO will be automatically approved upon submission."}
+        title={isReviseMode ? "Confirm Revision" : "Submit PO?"}
+        width={isReviseMode ? "480px" : "376px"}
+        description={
+          isReviseMode
+            ? "Are you sure you want to revise this purchase order? Please provide a reason below."
+            : poApprovalSettings?.isApprovalActive
+              ? "This PO will be submitted for approval."
+              : "This PO will be automatically approved upon submission."
+        }
         footer={
           <>
             <Button
               size="large"
               style={{ width: "100%" }}
-              onClick={handleConfirmSubmit}
+              onClick={() => {
+                if (isReviseMode && !revisionReason.trim()) {
+                  setRevisionReasonError("Reason is mandatory");
+                  return;
+                }
+                handleConfirmSubmit();
+              }}
             >
-              Yes, Submit
+              {isReviseMode ? "Confirm Revision" : "Yes, Submit"}
             </Button>
             <Button
               variant="outlined"
@@ -5033,11 +5239,38 @@ export const PurchaseOrderCreatePage = ({
               style={{ width: "100%" }}
               onClick={() => setShowSubmitConfirmModal(false)}
             >
-              Keep Editing
+              {isReviseMode ? "Cancel" : "Keep Editing"}
             </Button>
           </>
         }
-      />
+      >
+        {isReviseMode && (
+          <div style={{ marginTop: "16px" }}>
+            <FormField label="Reason" required error={revisionReasonError}>
+              <textarea
+                value={revisionReason}
+                onChange={(e) => {
+                  setRevisionReason(e.target.value);
+                  if (e.target.value.trim()) setRevisionReasonError("");
+                }}
+                placeholder="Input revision reason"
+                style={{
+                  width: "100%",
+                  height: "100px",
+                  padding: "12px 16px",
+                  borderRadius: "10px",
+                  border: `1px solid ${revisionReasonError ? "var(--status-red-primary)" : "var(--neutral-line-outline)"}`,
+                  outline: "none",
+                  fontSize: "var(--text-subtitle-1)",
+                  fontFamily: "Lato, sans-serif",
+                  resize: "none",
+                  boxSizing: "border-box"
+                }}
+              />
+            </FormField>
+          </div>
+        )}
+      </GeneralModal>
 
       <GeneralModal
         isOpen={showDiscardChangesModal}
@@ -5066,7 +5299,35 @@ export const PurchaseOrderCreatePage = ({
             </Button>
           </>
         }
-      />
+      ></GeneralModal>
+      {showVendorEditConfirm && (
+        <GeneralModal
+          isOpen={showVendorEditConfirm}
+          onClose={() => setShowVendorEditConfirm(false)}
+          title="Confirm Edit Vendor"
+          width="376px"
+          description="Editing the vendor information will remove all linked work order lines in this purchase order. Are you sure you want to proceed?"
+          footer={
+            <>
+              <Button
+                size="large"
+                style={{ width: "100%" }}
+                onClick={handleConfirmVendorEdit}
+              >
+                Yes, Proceed
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                style={{ width: "100%" }}
+                onClick={() => setShowVendorEditConfirm(false)}
+              >
+                Cancel
+              </Button>
+            </>
+          }
+        />
+      )}
     </div>
   );
 };

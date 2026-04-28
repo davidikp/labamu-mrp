@@ -33,6 +33,11 @@ import {
   User,
   Users,
   ShieldCheck,
+  CheckCircle,
+  XCircle,
+  ShoppingCart,
+  TrendingUp,
+  CircleDollarSign,
 } from "lucide-react";
 
 import labamuMarkSrc from "../../labamu-mark.svg";
@@ -458,6 +463,9 @@ const CloudUploadIcon = ({
   </SvgIconBase>
 );
 
+const CheckCircleIcon = CheckCircle;
+const CanceledCircleIcon = XCircle;
+
 export {
   Bell,
   Box,
@@ -530,4 +538,9 @@ export {
   CloseIcon,
   NotificationCenterIcon,
   CloudUploadIcon,
+  CheckCircleIcon,
+  CanceledCircleIcon,
+  ShoppingCart,
+  TrendingUp,
+  CircleDollarSign,
 };

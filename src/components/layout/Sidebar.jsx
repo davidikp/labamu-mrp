@@ -25,6 +25,7 @@ const Sidebar = ({
   isCollapsed,
   onToggleCollapse,
   activeModule,
+  viewState,
   onModuleChange,
   language,
   onLanguageChange,
@@ -92,10 +93,10 @@ const Sidebar = ({
       label: t("sidebar.analytics"),
       hasChildren: true,
       children: [
-        { id: "financial_report", label: t("sidebar.financial_report") },
-        { id: "inventory_report", label: t("sidebar.inventory_report") },
-        { id: "sales_funnel_report", label: t("sidebar.sales_funnel_report") },
-        { id: "work_order_monitoring", label: t("sidebar.work_order_monitoring") },
+        { id: "analytics_financial_report", label: t("sidebar.financial_report") },
+        { id: "analytics_inventory_report", label: t("sidebar.inventory_report") },
+        { id: "analytics_sales_funnel_report", label: t("sidebar.sales_funnel_report") },
+        { id: "analytics_work_order_monitoring", label: t("sidebar.work_order_monitoring") },
       ],
     },
     { icon: FinancingIcon, id: "financing", label: t("sidebar.financing") },
@@ -226,8 +227,8 @@ const Sidebar = ({
       >
         {menuItems.map((item) => {
           const hasChildRows = !!item.children?.length;
-          const isChildSelected = !!item.children?.some(
-            (child) => child.id === activeModule
+          const isChildSelected = item.children?.some(
+            (child) => activeModule === child.id || (activeModule === "analytics" && child.id === `analytics_${viewState?.view}`)
           );
           const isParentSelected = activeModule === item.id || isChildSelected;
           const isExpanded = hasChildRows
@@ -383,7 +384,7 @@ const Sidebar = ({
                   }}
                 >
                   {item.children.map((child) => {
-                    const isChildActive = activeModule === child.id;
+                    const isChildActive = activeModule === child.id || (activeModule === "analytics" && child.id === `analytics_${viewState.view}`);
                     return (
                       <button
                         key={child.id}

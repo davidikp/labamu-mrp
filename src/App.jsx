@@ -15,6 +15,10 @@ import { UserManagementPage } from "./modules/administration/pages/UserManagemen
 import { NotificationSettingsPage } from "./modules/administration/pages/NotificationSettingsPage.jsx";
 import { MaterialsListPage } from "./modules/materials/pages/MaterialsListPage.jsx";
 import { MaterialDetailPage } from "./modules/materials/pages/MaterialDetailPage.jsx";
+import { ProcurementAPReportPage } from "./modules/analytics/pages/ProcurementAPReportPage.jsx";
+import { POReportPage } from "./modules/analytics/pages/POReportPage.jsx";
+import { VendorLiabilityReportPage } from "./modules/analytics/pages/VendorLiabilityReportPage.jsx";
+import { APAgingReportPage } from "./modules/analytics/pages/APAgingReportPage.jsx";
 import { DEFAULT_SYSTEM_NOTIFICATIONS } from "./data/notification/systemNotifications.js";
 import { cloneNotificationSettings } from "./data/notification/notificationDefaults.js";
 import {
@@ -63,6 +67,7 @@ const TRANSLATIONS = {
       inventory_report: "Inventory Report",
       sales_funnel_report: "Sales Funnel Report",
       work_order_monitoring: "Work Order Monitoring",
+      procurement_ap_report: "Procurement & AP Report",
     },
     role: {
       owner: "Owner",
@@ -122,6 +127,7 @@ const TRANSLATIONS = {
       inventory_report: "Laporan Inventaris",
       sales_funnel_report: "Laporan Sales Funnel",
       work_order_monitoring: "Monitoring Perintah Kerja",
+      procurement_ap_report: "Laporan Pengadaan & AP",
     },
     role: {
       owner: "Pemilik",
@@ -406,16 +412,39 @@ export default function App() {
         setViewState({ view: view.replace("materials_", ""), data });
         return;
       }
+      if (view.startsWith("analytics_")) {
+        setActiveModule("analytics");
+        setViewState({ view: view.replace("analytics_", ""), data });
+        return;
+      }
     }
     setViewState({ view, data });
   };
 
   const handleModuleChange = (moduleId) => {
+    if (moduleId.startsWith("analytics_")) {
+      setActiveModule("analytics");
+      setViewState({ view: moduleId.replace("analytics_", ""), data: null });
+      return;
+    }
     setActiveModule(moduleId);
     navigateToView("list");
   };
 
   const renderContent = () => {
+    if (activeModule === "procurement_ap_report" || (activeModule === "analytics" && viewState.view === "procurement_ap_report")) {
+      return <ProcurementAPReportPage onNavigate={navigateToView} />;
+    }
+    if (activeModule === "po_report" || (activeModule === "analytics" && viewState.view === "po_report")) {
+      return <POReportPage onNavigate={navigateToView} t={t} />;
+    }
+    if (activeModule === "vendor_liability_report" || (activeModule === "analytics" && viewState.view === "vendor_liability_report")) {
+      return <VendorLiabilityReportPage onNavigate={navigateToView} t={t} />;
+    }
+    if (activeModule === "ap_aging_report" || (activeModule === "analytics" && viewState.view === "ap_aging_report")) {
+      return <APAgingReportPage onNavigate={navigateToView} t={t} />;
+    }
+
     if (activeModule === "user_guide") {
       return (
         <div
@@ -651,6 +680,7 @@ export default function App() {
             isSidebarCollapsed={isSidebarCollapsed}
             initialData={viewState.data}
             poApprovalSettings={poApprovalSettings}
+            showPoSnackbar={showPoSnackbar}
           />
         );
       }
@@ -662,6 +692,7 @@ export default function App() {
             initialData={viewState.data}
             poApprovalSettings={poApprovalSettings}
             isSidebarCollapsed={isSidebarCollapsed}
+            showPoSnackbar={showPoSnackbar}
           />
         );
       }
@@ -701,6 +732,7 @@ export default function App() {
             isSidebarCollapsed={isSidebarCollapsed}
             initialData={viewState.data}
             poApprovalSettings={poApprovalSettings}
+            showPoSnackbar={showPoSnackbar}
           />
         );
       }
@@ -712,6 +744,7 @@ export default function App() {
             initialData={viewState.data}
             poApprovalSettings={poApprovalSettings}
             isSidebarCollapsed={isSidebarCollapsed}
+            showPoSnackbar={showPoSnackbar}
           />
         );
       }
@@ -791,6 +824,7 @@ export default function App() {
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           activeModule={activeModule}
+          viewState={viewState}
           onModuleChange={handleModuleChange}
           language={language}
           onLanguageChange={setLanguage}
