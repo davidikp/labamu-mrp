@@ -97,6 +97,7 @@ const Sidebar = ({
         { id: "analytics_inventory_report", label: t("sidebar.inventory_report") },
         { id: "analytics_sales_funnel_report", label: t("sidebar.sales_funnel_report") },
         { id: "analytics_work_order_monitoring", label: t("sidebar.work_order_monitoring") },
+        { id: "analytics_procurement_ap_report", label: t("sidebar.procurement_ap_report") },
       ],
     },
     { icon: FinancingIcon, id: "financing", label: t("sidebar.financing") },

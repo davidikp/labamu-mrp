@@ -35,6 +35,7 @@ export const MaterialsListPage = ({ onNavigate, t }) => {
     classification: [], 
     type: [],
     stockRisk: [],
+    status: [],
   });
   const [openFilterKey, setOpenFilterKey] = useState(null);
   const [popoverTriggerRect, setPopoverTriggerRect] = useState(null);
@@ -90,8 +91,9 @@ export const MaterialsListPage = ({ onNavigate, t }) => {
     const matchesClassification = activeFilters.classification.length === 0 || activeFilters.classification.includes(row.abcClassification);
     const matchesType = activeFilters.type.length === 0 || activeFilters.type.includes(row.type);
     const matchesStockRisk = activeFilters.stockRisk.length === 0 || activeFilters.stockRisk.includes(row.stockRisk);
+    const matchesStatus = activeFilters.status.length === 0 || activeFilters.status.includes(row.status);
 
-    return matchesSearch && matchesCategory && matchesClassification && matchesType && matchesStockRisk;
+    return matchesSearch && matchesCategory && matchesClassification && matchesType && matchesStockRisk && matchesStatus;
   }).sort((a, b) => {
     const direction = sortDirection === "asc" ? 1 : -1;
     if (typeof a[sortBy] === "string") {
@@ -308,6 +310,15 @@ export const MaterialsListPage = ({ onNavigate, t }) => {
               />
             </div>
 
+            <div onClick={(e) => handleFilterClick("status", e)}>
+              <FilterPill
+                label="Status"
+                active={activeFilters.status.length > 0}
+                isOpen={openFilterKey === "status"}
+                count={activeFilters.status.length}
+              />
+            </div>
+
             {/* Filter Popovers - Fixed Positioned like PO Page */}
             {openFilterKey && (
               <>
@@ -335,7 +346,8 @@ export const MaterialsListPage = ({ onNavigate, t }) => {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ fontSize: "var(--text-title-2)", fontWeight: "var(--font-weight-bold)" }}>
                       {openFilterKey === "category" ? "Category" : 
-                       openFilterKey === "type" ? "Type" : "Stock Risk Status"}
+                       openFilterKey === "type" ? "Type" : 
+                       openFilterKey === "status" ? "Status" : "Stock Risk Status"}
                     </span>
                     <button
                       onClick={() => {
@@ -359,6 +371,7 @@ export const MaterialsListPage = ({ onNavigate, t }) => {
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                     {(openFilterKey === "category" ? ["Raw Material", "Chemicals", "Electronics", "Fasteners"] :
                       openFilterKey === "type" ? ["Raw", "Component", "Consumable"] :
+                      openFilterKey === "status" ? ["Active", "Inactive"] :
                       ["Healthy", "Low Stock", "Out of Stock", "Overstock"]
                     ).map((option) => (
                       <label

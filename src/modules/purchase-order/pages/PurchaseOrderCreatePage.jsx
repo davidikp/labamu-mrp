@@ -3543,7 +3543,7 @@ export const PurchaseOrderCreatePage = ({
                   onChange={(nextValue) =>
                     setVendorDetails({ ...vendorDetails, phone: nextValue })
                   }
-                  disabled={(isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled}
+                  disabled={isVendorLocked || (isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled}
                 />
               </div>
 
@@ -3557,7 +3557,7 @@ export const PurchaseOrderCreatePage = ({
                       email: e.target.value,
                     })
                   }
-                  disabled={(isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled}
+                  disabled={isVendorLocked || (isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled}
                   placeholder="Input email"
                 />
               </div>
@@ -3575,7 +3575,7 @@ export const PurchaseOrderCreatePage = ({
                       address: e.target.value,
                     })
                   }
-                  disabled={(isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled}
+                  disabled={isVendorLocked || (isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled}
                   placeholder="Input vendor address"
                 />
               </div>

@@ -5010,10 +5010,24 @@ export const PurchaseOrderDetailPage = ({
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab("invoices")}
+            style={tabButtonStyle(activeTab === "invoices")}
+          >
+            Invoices & Payments
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab("receipt")}
             style={tabButtonStyle(activeTab === "receipt")}
           >
             Receipt
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("3-ways-match")}
+            style={tabButtonStyle(activeTab === "3-ways-match")}
+          >
+            3-Ways Match
           </button>
           <button
             type="button"
@@ -8231,6 +8245,13 @@ export const PurchaseOrderDetailPage = ({
                   onClick={() => openDecisionModal("cancel")}
                 >
                   Cancel PO
+                </Button>
+                <Button
+                  size="medium"
+                  variant="outlined"
+                  onClick={handleRevisePo}
+                >
+                  Revise PO
                 </Button>
               </>
             ) : null}
