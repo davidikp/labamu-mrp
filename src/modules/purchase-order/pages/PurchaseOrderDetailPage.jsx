@@ -3367,6 +3367,7 @@ export const PurchaseOrderDetailPage = ({
         feeLines: hasDraftData ? formData?.feeLines || [] : [],
         notes: detailNotes !== "-" ? detailNotes : "",
         terms: detailTerms !== "-" ? detailTerms : "",
+        documents: documents,
       },
     });
   };
@@ -3426,6 +3427,7 @@ export const PurchaseOrderDetailPage = ({
         feeLines: hasDraftData ? formData?.feeLines || [] : [],
         notes: detailNotes !== "-" ? detailNotes : "",
         terms: detailTerms !== "-" ? detailTerms : "",
+        documents: documents,
       },
     });
   };
@@ -5010,24 +5012,10 @@ export const PurchaseOrderDetailPage = ({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("invoices")}
-            style={tabButtonStyle(activeTab === "invoices")}
-          >
-            Invoices & Payments
-          </button>
-          <button
-            type="button"
             onClick={() => setActiveTab("receipt")}
             style={tabButtonStyle(activeTab === "receipt")}
           >
             Receipt
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("3-ways-match")}
-            style={tabButtonStyle(activeTab === "3-ways-match")}
-          >
-            3-Ways Match
           </button>
           <button
             type="button"
@@ -6981,19 +6969,11 @@ export const PurchaseOrderDetailPage = ({
                       >
                         <span
                           style={{
-                            fontSize: "var(--text-title-2)",
-                            fontWeight: "var(--font-weight-bold)",
+                            fontSize: "14px",
+                            fontWeight: "normal",
                           }}
                         >
-                          No documents found
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "var(--text-title-3)",
-                            color: "var(--neutral-on-surface-secondary)",
-                          }}
-                        >
-                          Try changing your search or filter.
+                          No documents added
                         </span>
                       </div>
                     )}
@@ -7174,19 +7154,11 @@ export const PurchaseOrderDetailPage = ({
                   >
                     <span
                       style={{
-                        fontSize: "var(--text-title-2)",
-                        fontWeight: "var(--font-weight-bold)",
+                        fontSize: "14px",
+                        fontWeight: "normal",
                       }}
                     >
-                      No documents found
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "var(--text-title-3)",
-                        color: "var(--neutral-on-surface-secondary)",
-                      }}
-                    >
-                      Try changing your search or filter.
+                      No documents added
                     </span>
                   </div>
                 )}
@@ -7668,6 +7640,18 @@ export const PurchaseOrderDetailPage = ({
                         </div>
                       );
                     })}
+                    {receiptLines.length === 0 && (
+                      <div
+                        style={{
+                          padding: "48px",
+                          textAlign: "center",
+                          color: "var(--neutral-on-surface-tertiary)",
+                          fontSize: "14px",
+                        }}
+                      >
+                        No purchase order lines added
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

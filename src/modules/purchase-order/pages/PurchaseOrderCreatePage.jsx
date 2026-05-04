@@ -2234,13 +2234,11 @@ export const PurchaseOrderCreatePage = ({
       return;
     }
     if (
-      initialData?.source === "edit_purchase_order" &&
+      (initialData?.source === "edit_purchase_order" ||
+        initialData?.source === "revise_purchase_order") &&
       initialData?.poNumber
     ) {
-      onNavigate("po_detail", {
-        ...buildPoPayload("Draft", "grey-light"),
-        poNumber: initialData.poNumber,
-      });
+      onNavigate("po_detail", initialData);
       return;
     }
     onNavigate("list");
@@ -2609,6 +2607,7 @@ export const PurchaseOrderCreatePage = ({
       notes,
       terms,
       shipTo: shipToInfo,
+      documents: initialData?.formData?.documents || [],
     },
   });
 
@@ -2936,7 +2935,6 @@ export const PurchaseOrderCreatePage = ({
         isEditMode || isReviseMode ? (initialData?.status || "Draft") : "Draft",
         isEditMode || isReviseMode ? (initialData?.sBadge || "grey-light") : "grey-light"
       ),
-      showDraftToast: true,
     };
     const poLinkSnapshot = buildPoLinkSnapshot(payload);
 
@@ -2980,7 +2978,7 @@ export const PurchaseOrderCreatePage = ({
     }
 
     scrollToTop();
-    onNavigate("po_detail", payload);
+    onNavigate("po_detail", { ...payload, showDraftToast: true });
   };
 
   const handleSubmitClick = () => {
