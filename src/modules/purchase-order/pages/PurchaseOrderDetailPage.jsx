@@ -247,7 +247,6 @@ const Tooltip = ({ content, children, style = {}, checkTruncation = false }) => 
               fontSize: "var(--text-desc)",
               lineHeight: "1.6",
               boxShadow: "var(--elevation-sm)",
-              zIndex: 10000,
               textAlign: "left",
               pointerEvents: "none",
             }}
@@ -3367,7 +3366,6 @@ export const PurchaseOrderDetailPage = ({
         feeLines: hasDraftData ? formData?.feeLines || [] : [],
         notes: detailNotes !== "-" ? detailNotes : "",
         terms: detailTerms !== "-" ? detailTerms : "",
-        documents: documents,
       },
     });
   };
@@ -3427,7 +3425,6 @@ export const PurchaseOrderDetailPage = ({
         feeLines: hasDraftData ? formData?.feeLines || [] : [],
         notes: detailNotes !== "-" ? detailNotes : "",
         terms: detailTerms !== "-" ? detailTerms : "",
-        documents: documents,
       },
     });
   };
@@ -6970,7 +6967,8 @@ export const PurchaseOrderDetailPage = ({
                         <span
                           style={{
                             fontSize: "14px",
-                            fontWeight: "normal",
+                            fontWeight: "var(--font-weight-regular)",
+                            color: "var(--neutral-on-surface-secondary)",
                           }}
                         >
                           No documents added
@@ -7155,7 +7153,8 @@ export const PurchaseOrderDetailPage = ({
                     <span
                       style={{
                         fontSize: "14px",
-                        fontWeight: "normal",
+                        fontWeight: "var(--font-weight-regular)",
+                        color: "var(--neutral-on-surface-secondary)",
                       }}
                     >
                       No documents added
@@ -7643,10 +7642,11 @@ export const PurchaseOrderDetailPage = ({
                     {receiptLines.length === 0 && (
                       <div
                         style={{
-                          padding: "48px",
+                          padding: "48px 24px",
                           textAlign: "center",
-                          color: "var(--neutral-on-surface-tertiary)",
+                          color: "var(--neutral-on-surface-secondary)",
                           fontSize: "14px",
+                          fontWeight: "var(--font-weight-regular)",
                         }}
                       >
                         No purchase order lines added
