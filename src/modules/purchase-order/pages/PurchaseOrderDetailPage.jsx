@@ -8224,22 +8224,13 @@ export const PurchaseOrderDetailPage = ({
               </>
             ) : null}
             {showFooterIssuedCancel ? (
-              <>
-                <Button
-                  size="medium"
-                  variant="danger"
-                  onClick={() => openDecisionModal("cancel")}
-                >
-                  Cancel PO
-                </Button>
-                <Button
-                  size="medium"
-                  variant="outlined"
-                  onClick={handleRevisePo}
-                >
-                  Revise PO
-                </Button>
-              </>
+              <Button
+                size="medium"
+                variant="danger"
+                onClick={() => openDecisionModal("cancel")}
+              >
+                Cancel PO
+              </Button>
             ) : null}
           </div>
         </div>
