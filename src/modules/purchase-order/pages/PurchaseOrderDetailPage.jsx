@@ -5007,6 +5007,7 @@ export const PurchaseOrderDetailPage = ({
           >
             PO Detail
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab("receipt")}
@@ -5014,6 +5015,7 @@ export const PurchaseOrderDetailPage = ({
           >
             Receipt
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab("documents")}
