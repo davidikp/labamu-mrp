@@ -258,6 +258,7 @@ const FormField = ({
   children,
   error,
   helperText,
+  rightLabel,
 }) => (
   <div
     style={{
@@ -272,17 +273,20 @@ const FormField = ({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: "2px",
+          justifyContent: "space-between",
           fontSize: "var(--text-body)",
           fontWeight: "var(--font-weight-regular)",
         }}
       >
-        {required ? (
-          <span style={{ color: "var(--status-red-primary)" }}>*</span>
-        ) : null}
-        <span style={{ color: "var(--neutral-on-surface-primary)" }}>
-          {label}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
+          {required ? (
+            <span style={{ color: "var(--status-red-primary)" }}>*</span>
+          ) : null}
+          <span style={{ color: "var(--neutral-on-surface-primary)" }}>
+            {label}
+          </span>
+        </div>
+        {rightLabel && <div>{rightLabel}</div>}
       </div>
     ) : null}
     {children}
@@ -299,7 +303,7 @@ const FormField = ({
     {!error && helperText ? (
       <span
         style={{
-          fontSize: "var(--text-desc)",
+          fontSize: "var(--text-body)",
           color: "var(--neutral-on-surface-secondary)",
         }}
       >
@@ -1234,6 +1238,18 @@ const InputField = ({
     required={required}
     error={error}
     helperText={helperText}
+    rightLabel={
+      showCounter && maxLength ? (
+        <div
+          style={{
+            fontSize: "12px",
+            color: "var(--neutral-on-surface-tertiary)",
+          }}
+        >
+          {String(value || "").length}/{maxLength}
+        </div>
+      ) : null
+    }
   >
     <div style={{ position: "relative", width: "100%" }}>
       {multiline ? (
@@ -1246,7 +1262,7 @@ const InputField = ({
           {...rest}
           style={{
             minHeight: "100px",
-            padding: showCounter ? "12px 16px 32px 16px" : "12px 16px",
+            padding: "12px 16px",
             width: "100%",
             resize: "vertical",
             border: "1px solid transparent",
@@ -1292,7 +1308,7 @@ const InputField = ({
           {...rest}
           style={{
             height: "48px",
-            padding: Icon ? "0 40px 0 16px" : showCounter ? "0 60px 0 16px" : "0 16px",
+            padding: Icon ? "0 40px 0 16px" : "0 16px",
             border: "1px solid transparent",
             background: disabled
               ? "var(--neutral-surface-grey-lighter)"
@@ -1305,22 +1321,7 @@ const InputField = ({
           onBlur={(e) => blurInputFrame(e.currentTarget, disabled, !!error)}
         />
       )}
-      {showCounter && maxLength && (
-        <div
-          style={{
-            position: "absolute",
-            right: "12px",
-            bottom: multiline ? "12px" : "50%",
-            transform: multiline ? "none" : "translateY(50%)",
-            fontSize: "12px",
-            color: "var(--neutral-on-surface-tertiary)",
-            pointerEvents: "none",
-            zIndex: 10,
-          }}
-        >
-          {String(value || "").length}/{maxLength}
-        </div>
-      )}
+
       {Icon && type !== "date" ? (
         <Icon
           size={20}
