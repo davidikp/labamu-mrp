@@ -2945,11 +2945,11 @@ export const PurchaseOrderDetailPage = ({
     : "Payment within 30 days from invoice date. Vendor must deliver goods according to the agreed schedule and quantity.";
   const currencyLabel = hasDraftData
     ? formData?.currency === "USD"
-      ? "USD"
+      ? "USD - US Dollar"
       : formData?.currency === "IDR"
-        ? "IDR"
+        ? "IDR - Indonesian Rupiah"
         : displayValue(formData?.currency)
-    : "IDR";
+    : "IDR - Indonesian Rupiah";
   const expectedDeliveryDate = hasDraftData
     ? displayValue(formData?.deliveryDate)
     : "2026-04-10";

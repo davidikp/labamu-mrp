@@ -1422,21 +1422,34 @@ const NewPOModal = ({ isOpen, onClose, selectedMaterials, onNavigate, showSnackb
       <GeneralModal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
-        width="400px"
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "8px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span style={{ fontSize: "18px", fontWeight: "bold", color: "var(--neutral-on-surface-primary)" }}>Confirm Submission</span>
-            <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-tertiary)", lineHeight: "1.5" }}>
-              Some materials have 0 quantity and will not be included in the purchase order. Do you want to proceed?
-            </span>
+        title="Confirm Submission"
+        width="420px"
+        description="Some materials have a quantity of 0 and won’t be included in this purchase order. Do you want to continue?"
+        descriptionStyle={{ fontSize: "14px" }}
+        footer={
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "24px" }}>
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setShowConfirmModal(false);
+                processSubmit();
+              }}
+            >
+              Continue
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => setShowConfirmModal(false)}
+            >
+              Cancel
+            </Button>
           </div>
-          <div style={{ display: "flex", gap: "12px" }}>
-            <Button variant="outlined" style={{ flex: 1 }} onClick={() => setShowConfirmModal(false)}>Cancel</Button>
-            <Button variant="filled" style={{ flex: 1 }} onClick={() => { setShowConfirmModal(false); processSubmit(); }}>Proceed</Button>
-          </div>
-        </div>
-      </GeneralModal>
+        }
+      />
     </GeneralModal>
   );
 };

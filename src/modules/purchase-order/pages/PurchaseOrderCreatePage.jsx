@@ -3772,8 +3772,8 @@ export const PurchaseOrderCreatePage = ({
                     value={currency}
                     onChange={(nextValue) => setCurrency(nextValue)}
                     options={[
-                      { value: "IDR", label: "IDR" },
-                      { value: "USD", label: "USD" },
+                      { value: "IDR", label: "IDR - Indonesian Rupiah" },
+                      { value: "USD", label: "USD - US Dollar" },
                     ]}
                   />
                   {formErrors.currency ? (
