@@ -163,15 +163,16 @@ import { Sidebar } from "../../../components/layout/Sidebar.jsx";
 import { TablePaginationFooter } from "../../../components/table/TablePaginationFooter.jsx";
 import { TableSearchField } from "../../../components/table/TableSearchField.jsx";
 
-const Tooltip = ({ content, children }) => {
+const Tooltip = ({ content, children, style = {} }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
     <div
       style={{
         position: "relative",
-        display: "inline-flex",
-        alignItems: "center",
+        display: "block",
+        width: "100%",
+        ...style,
       }}
       onMouseEnter={() => setIsVisible(true)}
       onMouseLeave={() => setIsVisible(false)}
@@ -1266,7 +1267,7 @@ const InputField = ({
               ? "var(--neutral-surface-grey-lighter)"
               : "var(--neutral-surface-primary)",
             ...inputFrameStyle(disabled, !!error),
-            ...inputControlStyle(disabled, !!value),
+            ...inputControlStyle(disabled, value),
             cursor: disabled ? "not-allowed" : "text",
           }}
           onFocus={(e) => focusInputFrame(e.currentTarget)}
@@ -1310,7 +1311,7 @@ const InputField = ({
               ? "var(--neutral-surface-grey-lighter)"
               : "var(--neutral-surface-primary)",
             ...inputFrameStyle(disabled, !!error),
-            ...inputControlStyle(disabled, !!value),
+            ...inputControlStyle(disabled, value),
             cursor: disabled ? "not-allowed" : "text",
           }}
           onFocus={(e) => focusInputFrame(e.currentTarget)}
@@ -1955,7 +1956,7 @@ const InputGroup = ({
             fontSize: "var(--text-subtitle-1)",
             color: disabled
               ? "var(--neutral-on-surface-tertiary)"
-              : value
+              : (value !== "" && value !== null && value !== undefined)
                 ? "var(--neutral-on-surface-primary)"
                 : "var(--neutral-on-surface-tertiary)",
             fontFamily: "Lato, sans-serif",
@@ -2246,11 +2247,13 @@ export const PurchaseOrderCreatePage = ({
       return;
     }
     if (
-      (initialData?.source === "edit_purchase_order" ||
-        initialData?.source === "revise_purchase_order") &&
-      initialData?.poNumber
+      initialData?.source === "order_detail_material_add" &&
+      initialData?.returnTo
     ) {
-      onNavigate("po_detail", initialData);
+      onNavigate(
+        initialData.returnTo.view || "detail",
+        initialData.returnTo.data
+      );
       return;
     }
     onNavigate("list");
@@ -2393,6 +2396,7 @@ export const PurchaseOrderCreatePage = ({
   const [formErrors, setFormErrors] = useState({});
   const [showEmptyDraftModal, setShowEmptyDraftModal] = useState(false);
   const [showSubmitConfirmModal, setShowSubmitConfirmModal] = useState(false);
+  const [showZeroPriceWarningModal, setShowZeroPriceWarningModal] = useState(false);
   const [revisionReason, setRevisionReason] = useState("");
   const [revisionReasonError, setRevisionReasonError] = useState("");
   const [showDiscardChangesModal, setShowDiscardChangesModal] = useState(false);
@@ -2416,16 +2420,30 @@ export const PurchaseOrderCreatePage = ({
 
   const [lines, setLines] = useState(() => {
     if (editFormData?.lines?.length) return editFormData.lines;
+    if (initialData?.materials?.length) {
+      return initialData.materials.map((m, idx) => ({
+        id: `mat-${Date.now()}-${idx}`,
+        type: "material",
+        item: m.name || m.item || "Unknown Material",
+        code: m.sku || m.code || "-",
+        desc: m.description || m.desc || "",
+        qty: m.purchaseQty || 1,
+        price: m.price || m.averageCost || 0,
+        uom: m.unit || m.uom || "pcs",
+        image: m.image || null,
+        sourceMaterialLineId: m.id
+      }));
+    }
     if (isFromWorkOrderAssignment) {
       return [
         {
           id: 1,
           type: "wo",
-          item: linkedWorkOrder?.product || "Cabinet Premium",
+          item: `Outsourced - ${linkedWorkOrder?.product || "Cabinet Premium"}`,
           code: linkedWorkOrder?.sku || "-",
           desc: generatedWorkOrderDescription,
           qty: linkedAssignedOutput,
-          price: 250000,
+          price: 0,
           woRef: linkedWorkOrder?.wo || "-",
           lockedFromWorkOrder: true,
           sourceWorkOrderLineId: "generated-work-order-line",
@@ -2840,7 +2858,7 @@ export const PurchaseOrderCreatePage = ({
       manualCode: line.code || "",
       manualDesc: line.desc || "",
       manualQty: line.qty ? String(line.qty) : "",
-      manualPrice: line.price ? String(line.price) : "",
+      manualPrice: (line.price !== undefined && line.price !== null && line.price !== "") ? String(line.price) : "",
       selectedWorkOrderLineId: isWo
         ? getWorkOrderSourceId(matchedWorkOrderLine) ||
         line.sourceWorkOrderLineId ||
@@ -2871,7 +2889,7 @@ export const PurchaseOrderCreatePage = ({
         nextErrors.manualName = "Field cannot be empty";
       if (!productModalForm.manualQty || parseInt(productModalForm.manualQty, 10) <= 0)
         nextErrors.manualQty = "Quantity must be greater than 0";
-      if (!productModalForm.manualPrice)
+      if (productModalForm.manualPrice === "")
         nextErrors.manualPrice = "Field cannot be empty";
       setProductModalFieldErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0) return;
@@ -2912,11 +2930,11 @@ export const PurchaseOrderCreatePage = ({
       const nextErrors = {};
       if (!productModalForm.selectedMaterialLineId)
         nextErrors.selectedMaterialLineId = "Field cannot be empty";
-      if (!productModalForm.manualPrice)
+      if (productModalForm.manualPrice === "")
         nextErrors.manualPrice = "Field cannot be empty";
       if (!productModalForm.manualQty || parseInt(productModalForm.manualQty, 10) <= 0)
         nextErrors.manualQty = "Quantity must be greater than 0";
-      if (!productModalForm.manualPrice)
+      if (productModalForm.manualPrice === "")
         nextErrors.manualPrice = "Field cannot be empty";
       setProductModalFieldErrors(nextErrors);
       if (Object.keys(nextErrors).length > 0 || !targetLine) return;
@@ -2928,8 +2946,8 @@ export const PurchaseOrderCreatePage = ({
         code: targetLine.code,
         desc: productModalForm.manualDesc || targetLine.desc,
         woRef: "-",
-        qty: parseInt(productModalForm.manualQty, 10) || targetLine.qty,
-        price: parseInt(productModalForm.manualPrice, 10) || targetLine.price,
+        qty: productModalForm.manualQty !== "" ? parseInt(productModalForm.manualQty, 10) : targetLine.qty,
+        price: productModalForm.manualPrice !== "" ? parseInt(productModalForm.manualPrice, 10) : targetLine.price,
         image: productModalImages[0] || (targetLine.image ? createImageUploadRecord(targetLine.image) : null),
         uom: targetLine.uom || "",
         lockedFromWorkOrder: false,
@@ -2958,11 +2976,11 @@ export const PurchaseOrderCreatePage = ({
     const nextErrors = {};
     if (!productModalForm.selectedWorkOrderLineId)
       nextErrors.selectedWorkOrderLineId = "Field cannot be empty";
-    if (!productModalForm.manualPrice)
+    if (productModalForm.manualPrice === "")
       nextErrors.manualPrice = "Field cannot be empty";
     if (!productModalForm.manualQty || parseInt(productModalForm.manualQty, 10) <= 0)
       nextErrors.manualQty = "Quantity must be greater than 0";
-    if (!productModalForm.manualPrice)
+    if (productModalForm.manualPrice === "")
       nextErrors.manualPrice = "Field cannot be empty";
     setProductModalFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0 || !targetLine) return;
@@ -2970,12 +2988,12 @@ export const PurchaseOrderCreatePage = ({
     const nextLine = {
       id: editingLineId || `wo-${Date.now()}`,
       type: "wo",
-      item: targetLine.item,
+      item: `Outsourced - ${targetLine.item}`,
       code: targetLine.code,
       desc: productModalForm.manualDesc || targetLine.desc,
       woRef: targetLine.woRef,
-      qty: parseInt(productModalForm.manualQty, 10) || targetLine.qty,
-      price: parseInt(productModalForm.manualPrice, 10) || targetLine.price,
+      qty: productModalForm.manualQty !== "" ? parseInt(productModalForm.manualQty, 10) : targetLine.qty,
+      price: productModalForm.manualPrice !== "" ? parseInt(productModalForm.manualPrice, 10) : targetLine.price,
       image: productModalImages[0] || (targetLine.image ? createImageUploadRecord(targetLine.image) : null),
       uom: "",
       lockedFromWorkOrder: editingLineId
@@ -3017,7 +3035,7 @@ export const PurchaseOrderCreatePage = ({
     const payload = {
       ...buildPoPayload(
         isEditMode || isReviseMode ? (initialData?.status || "Draft") : "Draft",
-        isEditMode || isReviseMode ? (initialData?.sBadge || "grey-light") : "grey-light"
+        isEditMode || isReviseMode ? (initialData?.sBadge || "grey") : "grey"
       ),
     };
     const poLinkSnapshot = buildPoLinkSnapshot(payload);
@@ -3037,7 +3055,7 @@ export const PurchaseOrderCreatePage = ({
     };
 
     if (
-      initialData?.source === "work_order_vendor_assignment" &&
+      (initialData?.source === "work_order_vendor_assignment" || initialData?.source === "order_detail_material_add") &&
       initialData?.returnTo?.data
     ) {
       const targetPoNumber = payload.poNumber;
@@ -3060,7 +3078,7 @@ export const PurchaseOrderCreatePage = ({
         }),
       };
 
-      navigationPayload.from = "work_order_detail";
+      navigationPayload.from = initialData?.source === "order_detail_material_add" ? "order_detail" : "work_order_detail";
       navigationPayload.returnTo = {
         ...initialData.returnTo,
         data: updatedReturnData,
@@ -3077,7 +3095,13 @@ export const PurchaseOrderCreatePage = ({
       setRevisionReason("");
       setRevisionReasonError("");
     }
-    setShowSubmitConfirmModal(true);
+    
+    const hasZeroPriceItem = lines.some(line => (parseFloat(line.price) || 0) === 0);
+    if (hasZeroPriceItem) {
+      setShowZeroPriceWarningModal(true);
+    } else {
+      setShowSubmitConfirmModal(true);
+    }
   };
 
   const syncPoToStockBatches = (poPayload) => {
@@ -3182,7 +3206,7 @@ export const PurchaseOrderCreatePage = ({
     }
 
     if (
-      initialData?.source === "work_order_vendor_assignment" &&
+      (initialData?.source === "work_order_vendor_assignment" || initialData?.source === "order_detail_material_add") &&
       initialData?.returnTo?.data
     ) {
       const targetPoNumber = payload.poNumber;
@@ -3205,7 +3229,7 @@ export const PurchaseOrderCreatePage = ({
         }),
       };
 
-      payload.from = "work_order_detail";
+      payload.from = initialData?.source === "order_detail_material_add" ? "order_detail" : "work_order_detail";
       payload.returnTo = {
         ...initialData.returnTo,
         data: updatedReturnData,
@@ -3284,7 +3308,7 @@ export const PurchaseOrderCreatePage = ({
           style={{
             fontSize: "var(--text-title-3)",
             color: "var(--neutral-on-surface-primary)",
-            fontWeight: "var(--font-weight-bold)",
+            fontWeight: "var(--font-weight-regular)",
           }}
         >
           {label}
@@ -3748,8 +3772,8 @@ export const PurchaseOrderCreatePage = ({
                     value={currency}
                     onChange={(nextValue) => setCurrency(nextValue)}
                     options={[
-                      { value: "IDR", label: "IDR · Indonesian Rupiah" },
-                      { value: "USD", label: "USD · US Dollar" },
+                      { value: "IDR", label: "IDR" },
+                      { value: "USD", label: "USD" },
                     ]}
                   />
                   {formErrors.currency ? (
@@ -3992,50 +4016,53 @@ export const PurchaseOrderCreatePage = ({
                               </div>
                             </div>
                             <div style={{ minWidth: 0 }}>
-                              <span
-                                style={{
-                                  display: "block",
-                                  fontSize: "var(--text-title-3)",
-                                  fontWeight: "var(--font-weight-bold)",
-                                  color: "var(--neutral-on-surface-primary)",
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                                title={line.item}
-                              >
-                                {line.item}
-                              </span>
+                              <Tooltip content={line.item}>
+                                <span
+                                  style={{
+                                    display: "block",
+                                    fontSize: "var(--text-title-3)",
+                                    fontWeight: "var(--font-weight-bold)",
+                                    color: "var(--neutral-on-surface-primary)",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {line.item}
+                                </span>
+                              </Tooltip>
                             </div>
                             <div style={{ minWidth: 0 }}>
-                              <span
-                                style={{
-                                  display: "block",
-                                  fontSize: "var(--text-title-3)",
-                                  color: "var(--neutral-on-surface-secondary)",
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                                title={line.code}
-                              >
-                                {line.code}
-                              </span>
+                              <Tooltip content={line.code}>
+                                <span
+                                  style={{
+                                    display: "block",
+                                    fontSize: "var(--text-title-3)",
+                                    color: "var(--neutral-on-surface-secondary)",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {line.code}
+                                </span>
+                              </Tooltip>
                             </div>
                             <div style={{ minWidth: 0 }}>
-                              <span
-                                style={{
-                                  display: "block",
-                                  fontSize: "var(--text-title-3)",
-                                  color: "var(--neutral-on-surface-secondary)",
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                                title={line.desc || "-"}
-                              >
-                                {line.desc || "-"}
-                              </span>
+                              <Tooltip content={line.desc || "-"}>
+                                <span
+                                  style={{
+                                    display: "block",
+                                    fontSize: "var(--text-title-3)",
+                                    color: "var(--neutral-on-surface-secondary)",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {line.desc || "-"}
+                                </span>
+                              </Tooltip>
                             </div>
                             <span
                               style={{
@@ -4239,7 +4266,7 @@ export const PurchaseOrderCreatePage = ({
                       onChange={(e) =>
                         handleFeeChange(fee.id, "amount", e.target.value)
                       }
-                      placeholder="0"
+                      placeholder="Enter amount"
                       prefix={currencyPrefixLabel}
                       inputStyle={{ textAlign: "right" }}
                       containerStyle={{ width: "100%" }}
@@ -4673,7 +4700,7 @@ export const PurchaseOrderCreatePage = ({
                             manualQty: "",
                           }));
                       }}
-                      placeholder="0"
+                      placeholder="Enter quantity"
                     />
                     {productModalFieldErrors.manualQty ? (
                       <span
@@ -4737,7 +4764,7 @@ export const PurchaseOrderCreatePage = ({
                             manualPrice: "",
                           }));
                       }}
-                      placeholder="0"
+                      placeholder="Enter unit price"
                       prefix={currencyPrefixLabel}
                       hasError={!!productModalFieldErrors.manualPrice}
                     />
@@ -4897,7 +4924,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualQty: "",
                               }));
                           }}
-                          placeholder="0"
+                          placeholder="Enter quantity"
                           suffix={selectedMaterialLine?.uom || ""}
                           hasError={!!productModalFieldErrors.manualQty}
                         />
@@ -4963,7 +4990,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualPrice: "",
                               }));
                           }}
-                          placeholder="0"
+                          placeholder="Enter unit price"
                           prefix={currencyPrefixLabel}
                           hasError={!!productModalFieldErrors.manualPrice}
                         />
@@ -5009,57 +5036,97 @@ export const PurchaseOrderCreatePage = ({
                       </span>
                       <span>Work Order</span>
                     </div>
-                    <DropdownSelect
-                      value={productModalForm.selectedWorkOrderLineId}
-                      disabled={isEditingLockedWorkOrderLine}
-                      hasError={!!productModalFieldErrors.selectedWorkOrderLineId}
-                      onChange={(selectedId) => {
-                        const targetLine = availableWorkOrderLines.find(
-                          (line) => getWorkOrderSourceId(line) === selectedId
-                        );
-                        setProductModalForm({
-                          ...productModalForm,
-                          selectedWorkOrderLineId: selectedId,
-                          manualName: targetLine?.item || "",
-                          manualCode: targetLine?.code || "",
-                          manualDesc: targetLine?.outsourceSteps?.length
-                            ? buildLinkedWorkOrderDescription(
-                              targetLine.woRef,
-                              targetLine.outsourceSteps,
-                              linkedRoutingStages // Pass current context stages or fallback
-                            )
-                            : targetLine?.desc || "",
-                          manualQty: targetLine ? String(targetLine.qty) : "",
-                          manualPrice: "",
-                        });
-                        setProductModalImages(
-                          targetLine?.image
-                            ? [createImageUploadRecord(targetLine.image)]
-                            : []
-                        );
-                        if (productModalFieldErrors.selectedWorkOrderLineId)
-                          setProductModalFieldErrors((prev) => ({
-                            ...prev,
-                            selectedWorkOrderLineId: "",
-                          }));
-                      }}
-                      searchable
-                      searchPlaceholder="Search work order..."
-                      placeholder="Select work order"
-                      showDivider
-                      options={availableWorkOrderLines.map((line) => ({
-                        value: getWorkOrderSourceId(line),
-                        label: line.item,
-                        woRef: line.woRef
-                      }))}
-                      renderOption={(option) => (
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px", overflow: "hidden" }}>
-                          <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{option.label}</span>
-                          <span style={{ color: "var(--neutral-on-surface-tertiary)", flexShrink: 0 }}>·</span>
-                          <span style={{ color: "var(--neutral-on-surface-tertiary)", flexShrink: 0 }}>{option.woRef}</span>
-                        </div>
-                      )}
-                    />
+                    {(() => {
+                      const selectedWoIds = lines
+                        .filter((l) => l.type === "wo" && l.id !== editingLineId)
+                        .map((l) => l.sourceWorkOrderLineId);
+                      const filteredWoOptions = availableWorkOrderLines.filter(
+                        (line) => !selectedWoIds.includes(getWorkOrderSourceId(line))
+                      );
+
+                      return (
+                        <DropdownSelect
+                          value={productModalForm.selectedWorkOrderLineId}
+                          disabled={isEditingLockedWorkOrderLine}
+                          hasError={!!productModalFieldErrors.selectedWorkOrderLineId}
+                          onChange={(selectedId) => {
+                            const targetLine = availableWorkOrderLines.find(
+                              (line) => getWorkOrderSourceId(line) === selectedId
+                            );
+                            setProductModalForm({
+                              ...productModalForm,
+                              selectedWorkOrderLineId: selectedId,
+                              manualName: targetLine?.item || "",
+                              manualCode: targetLine?.code || "",
+                              manualDesc: targetLine?.outsourceSteps?.length
+                                ? buildLinkedWorkOrderDescription(
+                                  targetLine.woRef,
+                                  targetLine.outsourceSteps,
+                                  linkedRoutingStages // Pass current context stages or fallback
+                                )
+                                : targetLine?.desc || "",
+                              manualQty: targetLine ? String(targetLine.qty) : "",
+                              manualPrice: "",
+                            });
+                            setProductModalImages(
+                              targetLine?.image
+                                ? [createImageUploadRecord(targetLine.image)]
+                                : []
+                            );
+                            if (productModalFieldErrors.selectedWorkOrderLineId)
+                              setProductModalFieldErrors((prev) => ({
+                                ...prev,
+                                selectedWorkOrderLineId: "",
+                              }));
+                          }}
+                          searchable
+                          searchPlaceholder="Search work order..."
+                          placeholder="Select work order"
+                          showDivider
+                          options={filteredWoOptions.map((line) => ({
+                            value: getWorkOrderSourceId(line),
+                            label: line.item,
+                            woRef: line.woRef,
+                          }))}
+                          renderOption={(option) => (
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                overflow: "hidden",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {option.label}
+                              </span>
+                              <span
+                                style={{
+                                  color: "var(--neutral-on-surface-tertiary)",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                ·
+                              </span>
+                              <span
+                                style={{
+                                  color: "var(--neutral-on-surface-tertiary)",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {option.woRef}
+                              </span>
+                            </div>
+                          )}
+                        />
+                      );
+                    })()}
                     {productModalFieldErrors.selectedWorkOrderLineId ? (
                       <span
                         style={{
@@ -5135,7 +5202,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualQty: "",
                               }));
                           }}
-                          placeholder="0"
+                          placeholder="Enter quantity"
                         />
                         {productModalFieldErrors.manualQty ? (
                           <span
@@ -5199,7 +5266,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualPrice: "",
                               }));
                           }}
-                          placeholder="0"
+                          placeholder="Enter unit price"
                           prefix={currencyPrefixLabel}
                           hasError={!!productModalFieldErrors.manualPrice}
                         />
@@ -5313,6 +5380,38 @@ export const PurchaseOrderCreatePage = ({
           </div>
         </div>
       ) : null}
+
+      <GeneralModal
+        isOpen={showZeroPriceWarningModal}
+        onClose={() => setShowZeroPriceWarningModal(false)}
+        title="Zero Unit Price Detected"
+        width="420px"
+        description="Some items have a unit price of 0. Please review them before submitting, or continue if this is intentional."
+        descriptionStyle={{ fontSize: "14px" }}
+        footer={
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "24px" }}>
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setShowZeroPriceWarningModal(false);
+                setShowSubmitConfirmModal(true);
+              }}
+            >
+              Continue to Submit
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => setShowZeroPriceWarningModal(false)}
+            >
+              Go Back to Edit
+            </Button>
+          </div>
+        }
+      />
 
       <GeneralModal
         isOpen={showSubmitConfirmModal}

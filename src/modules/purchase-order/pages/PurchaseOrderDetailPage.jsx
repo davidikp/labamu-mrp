@@ -2297,14 +2297,14 @@ export const PurchaseOrderDetailPage = ({
     displayData?.status || "Draft"
   );
   const [currentBadge, setCurrentBadge] = useState(
-    displayData?.sBadge || "grey-light"
+    displayData?.sBadge || "grey"
   );
   const formData = displayData?.formData || null;
 
   useEffect(() => {
     if (displayData) {
       setCurrentStatus(displayData.status || "Draft");
-      setCurrentBadge(displayData.sBadge || "grey-light");
+      setCurrentBadge(displayData.sBadge || "grey");
       setReceiptLogs(displayData.receiptLogs || []);
       setReceiptLines(displayData.receiptLines || []);
       setDocuments(displayData.formData?.documents || MOCK_PO_DOCUMENTS);
@@ -2355,6 +2355,7 @@ export const PurchaseOrderDetailPage = ({
   const [showSubmitGuardModal, setShowSubmitGuardModal] = useState(false);
   const [showDetailSubmitConfirmModal, setShowDetailSubmitConfirmModal] =
     useState(false);
+  const [showZeroPriceWarningModal, setShowZeroPriceWarningModal] = useState(false);
   const [documents, setDocuments] = useState(
     displayData?.formData?.documents || MOCK_PO_DOCUMENTS
   );
@@ -2944,11 +2945,11 @@ export const PurchaseOrderDetailPage = ({
     : "Payment within 30 days from invoice date. Vendor must deliver goods according to the agreed schedule and quantity.";
   const currencyLabel = hasDraftData
     ? formData?.currency === "USD"
-      ? "USD - US Dollar"
+      ? "USD"
       : formData?.currency === "IDR"
-        ? "IDR - Indonesian Rupiah"
+        ? "IDR"
         : displayValue(formData?.currency)
-    : "IDR - Indonesian Rupiah";
+    : "IDR";
   const expectedDeliveryDate = hasDraftData
     ? displayValue(formData?.deliveryDate)
     : "2026-04-10";
@@ -3156,7 +3157,13 @@ export const PurchaseOrderDetailPage = ({
       setShowSubmitGuardModal(true);
       return;
     }
-    setShowDetailSubmitConfirmModal(true);
+    
+    const hasZeroPriceItem = mockLines.some(line => (parseFloat(line.price) || 0) === 0);
+    if (hasZeroPriceItem) {
+      setShowZeroPriceWarningModal(true);
+    } else {
+      setShowDetailSubmitConfirmModal(true);
+    }
   };
 
   const getApprovedVendorReturnState = (vendor) => {
@@ -3565,6 +3572,10 @@ export const PurchaseOrderDetailPage = ({
         }),
       };
       onNavigate(initialData.returnTo.view || "detail", nextReturnData);
+      return;
+    }
+    if (initialData?.from === "order_detail" && initialData?.returnTo) {
+      onNavigate(initialData.returnTo.view || "detail", initialData.returnTo.data);
       return;
     }
     if (initialData?.from === "material_detail" && initialData?.returnTo) {
@@ -4984,7 +4995,7 @@ export const PurchaseOrderDetailPage = ({
             label="Expected Delivery Date"
             value={expectedDeliveryDate ?? null}
           />
-          <LabelValue label="Currency" value="IDR - Indonesian Rupiah" />
+          <LabelValue label="Currency" value={currencyLabel} />
           <LabelValue label="Created By" value="Joko" />
         </div>
       </div>
@@ -7439,6 +7450,38 @@ export const PurchaseOrderDetailPage = ({
           ))}
         </div>
       </GeneralModal>
+
+      <GeneralModal
+        isOpen={showZeroPriceWarningModal}
+        onClose={() => setShowZeroPriceWarningModal(false)}
+        title="Zero Unit Price Detected"
+        width="420px"
+        description="Some items have a unit price of 0. Please review them before submitting, or continue if this is intentional."
+        descriptionStyle={{ fontSize: "14px" }}
+        footer={
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "24px" }}>
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setShowZeroPriceWarningModal(false);
+                setShowDetailSubmitConfirmModal(true);
+              }}
+            >
+              Continue to Submit
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => setShowZeroPriceWarningModal(false)}
+            >
+              Go Back to Edit
+            </Button>
+          </div>
+        }
+      />
 
       <GeneralModal
         isOpen={showDetailSubmitConfirmModal}

@@ -471,12 +471,14 @@ export default function App() {
         return;
       }
       if (view === "detail" || view === "po_detail") {
-        const id = (data?.sku || data?.poNumber || data?.wo || data?.id || "detail");
+        const id = (data?.orderNo || data?.sku || data?.poNumber || data?.wo || data?.id || "detail");
         let targetModule = currentModuleRoute;
         
         // Ensure POs always use the purchase-order module route
         if (view === "po_detail" || (typeof id === "string" && id.startsWith("PO-"))) {
           targetModule = "purchase-order";
+        } else if ((view === "detail" || view === "order_detail") && (typeof id === "string" && id.startsWith("ORD-"))) {
+          targetModule = "orders";
         } else if (view === "detail" && (typeof id === "string" && id.startsWith("WO-"))) {
           targetModule = "work-order";
         }
@@ -877,6 +879,7 @@ export default function App() {
           <OrderDetailPage
             onNavigate={onNavigate}
             initialData={viewState.data}
+            showSnackbar={showPoSnackbar}
           />
         );
       }
