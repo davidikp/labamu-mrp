@@ -620,6 +620,8 @@ const DateInputControl = ({
   borderRadius = "10px",
   fontSize = "var(--text-subtitle-1)",
   style = {},
+  minDate,
+  maxDate,
 }) => {
   const triggerRef = useRef(null);
   const popoverRef = useRef(null);
@@ -914,12 +916,15 @@ const DateInputControl = ({
                 {calendarDays.map((day) => {
                   const isSelected = day.iso === value;
                   const isToday = day.iso === todayIso;
+                  const isDisabled = (minDate && day.iso < minDate) || (maxDate && day.iso > maxDate);
                   
                   return (
                     <button
                       key={day.iso}
                       type="button"
+                      disabled={isDisabled}
                       onClick={() => {
+                        if (isDisabled) return;
                         onChange?.(createSyntheticInputEvent(day.iso));
                         setIsOpen(false);
                       }}
@@ -934,17 +939,20 @@ const DateInputControl = ({
                           : isToday
                             ? "var(--feature-brand-container)"
                             : "transparent",
-                        color: isSelected
-                          ? "var(--feature-brand-on-primary)"
-                          : isToday
-                            ? "var(--feature-brand-primary)"
-                            : day.isCurrentMonth
-                              ? "var(--neutral-on-surface-primary)"
-                              : "var(--neutral-line-separator-2)",
+                        color: isDisabled
+                          ? "var(--neutral-line-separator-2)"
+                          : isSelected
+                            ? "var(--feature-brand-on-primary)"
+                            : isToday
+                              ? "var(--feature-brand-primary)"
+                              : day.isCurrentMonth
+                                ? "var(--neutral-on-surface-primary)"
+                                : "var(--neutral-line-separator-2)",
                         fontSize: "var(--text-subtitle-1)",
                         fontWeight: isToday || isSelected ? "var(--font-weight-bold)" : "var(--font-weight-regular)",
-                        cursor: "pointer",
+                        cursor: isDisabled ? "not-allowed" : "pointer",
                         position: "relative",
+                        opacity: isDisabled ? 0.5 : 1
                       }}
                     >
                       {day.day}
@@ -1280,6 +1288,8 @@ const InputField = ({
           disabled={disabled}
           hasError={!!error}
           placeholder={placeholder || "yyyy-mm-dd"}
+          minDate={rest.min}
+          maxDate={max}
         />
       ) : (
         <input
@@ -3735,6 +3745,7 @@ export const PurchaseOrderCreatePage = ({
                     type="date"
                     value={poDate}
                     onChange={(e) => setPoDate(e.target.value)}
+                    max={formatIsoDateString(new Date())}
                   />
                   {formErrors.poDate ? (
                     <span
@@ -3893,43 +3904,45 @@ export const PurchaseOrderCreatePage = ({
                   width: "100%",
                 }}
               >
-                <div style={{ overflowX: "auto", width: "100%" }}>
+                <div style={{ overflowX: lines.length > 0 ? "auto" : "hidden", width: "100%" }}>
                   <div
                     style={{
-                      minWidth: "1466px",
+                      minWidth: lines.length > 0 ? "1466px" : "100%",
                       width: "100%",
                       display: "flex",
                       flexDirection: "column",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "84px 112px minmax(220px, 1.5fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px 200px 180px",
-                        gap: "0",
-                        width: "100%",
-                        minWidth: "1466px",
-                        height: "49px",
-                        alignItems: "center",
-                        background: "var(--neutral-surface-primary)",
-                        borderBottom:
-                          "1px solid var(--neutral-line-separator-1)",
-                        fontSize: "var(--text-title-3)",
-                        fontWeight: "var(--font-weight-bold)",
-                        color: "var(--neutral-on-surface-primary)",
-                      }}
-                    >
-                      <span style={{ paddingLeft: "16px" }}>Type</span>
-                      <span>Image</span>
-                      <span>Name</span>
-                      <span>SKU</span>
-                      <span>Description</span>
-                      <span style={{ textAlign: "left" }}>Qty</span>
-                      <span style={{ textAlign: "right" }}>Unit Price</span>
-                      <span style={{ textAlign: "right" }}>Subtotal</span>
-                      <span style={{ textAlign: "right", paddingRight: "16px" }}>Action</span>
-                    </div>
+                    {lines.length > 0 && (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "84px 112px minmax(220px, 1.5fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px 200px 180px",
+                          gap: "0",
+                          width: "100%",
+                          minWidth: "1466px",
+                          height: "49px",
+                          alignItems: "center",
+                          background: "var(--neutral-surface-primary)",
+                          borderBottom:
+                            "1px solid var(--neutral-line-separator-1)",
+                          fontSize: "var(--text-title-3)",
+                          fontWeight: "var(--font-weight-bold)",
+                          color: "var(--neutral-on-surface-primary)",
+                        }}
+                      >
+                        <span style={{ paddingLeft: "16px" }}>Type</span>
+                        <span>Image</span>
+                        <span>Name</span>
+                        <span>SKU</span>
+                        <span style={{ paddingRight: "24px" }}>Description</span>
+                        <span style={{ textAlign: "left" }}>Qty</span>
+                        <span style={{ textAlign: "right" }}>Unit Price</span>
+                        <span style={{ textAlign: "right" }}>Subtotal</span>
+                        <span style={{ textAlign: "right", paddingRight: "16px" }}>Action</span>
+                      </div>
+                    )}
 
                       {lines.length > 0 ? (
                       lines.map((line, idx) => {
@@ -4015,54 +4028,43 @@ export const PurchaseOrderCreatePage = ({
                                 )}
                               </div>
                             </div>
-                            <div style={{ minWidth: 0 }}>
-                              <Tooltip content={line.item}>
-                                <span
-                                  style={{
-                                    display: "block",
-                                    fontSize: "var(--text-title-3)",
-                                    fontWeight: "var(--font-weight-bold)",
-                                    color: "var(--neutral-on-surface-primary)",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  }}
-                                >
-                                  {line.item}
-                                </span>
-                              </Tooltip>
+                            <div style={{ minWidth: 0, padding: "12px 0" }}>
+                              <span
+                                style={{
+                                  display: "block",
+                                  fontSize: "var(--text-title-3)",
+                                  fontWeight: "var(--font-weight-bold)",
+                                  color: "var(--neutral-on-surface-primary)",
+                                  wordBreak: "break-word"
+                                }}
+                              >
+                                {line.item}
+                              </span>
                             </div>
-                            <div style={{ minWidth: 0 }}>
-                              <Tooltip content={line.code}>
-                                <span
-                                  style={{
-                                    display: "block",
-                                    fontSize: "var(--text-title-3)",
-                                    color: "var(--neutral-on-surface-secondary)",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  }}
-                                >
-                                  {line.code}
-                                </span>
-                              </Tooltip>
+                            <div style={{ minWidth: 0, padding: "12px 0" }}>
+                              <span
+                                style={{
+                                  display: "block",
+                                  fontSize: "var(--text-title-3)",
+                                  color: "var(--neutral-on-surface-secondary)",
+                                  wordBreak: "break-word"
+                                }}
+                              >
+                                {line.code}
+                              </span>
                             </div>
-                            <div style={{ minWidth: 0 }}>
-                              <Tooltip content={line.desc || "-"}>
-                                <span
-                                  style={{
-                                    display: "block",
-                                    fontSize: "var(--text-title-3)",
-                                    color: "var(--neutral-on-surface-secondary)",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  }}
-                                >
-                                  {line.desc || "-"}
-                                </span>
-                              </Tooltip>
+                            <div style={{ minWidth: 0, padding: "12px 0", paddingRight: "24px" }}>
+                              <span
+                                style={{
+                                  display: "block",
+                                  fontSize: "var(--text-title-3)",
+                                  color: "var(--neutral-on-surface-secondary)",
+                                  wordBreak: "break-word",
+                                  whiteSpace: "pre-wrap"
+                                }}
+                              >
+                                {line.desc || "-"}
+                              </span>
                             </div>
                             <span
                               style={{
@@ -4136,15 +4138,20 @@ export const PurchaseOrderCreatePage = ({
                     ) : (
                       <div
                         style={{
-                          padding: "32px",
+                          padding: "48px 24px",
                           textAlign: "center",
                           color: "var(--neutral-on-surface-tertiary)",
                           fontSize: "var(--text-title-3)",
                           background: "var(--neutral-surface-primary)",
+                          border: "1.5px dashed var(--neutral-line-separator-1)",
+                          borderRadius: "16px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          minHeight: "120px",
                         }}
                       >
-                        No purchase order lines added yet. Click “Add PO Line”
-                        to get started.
+                        No purchase order lines added yet. Click “Add PO Line” to get started.
                       </div>
                     )}
                   </div>

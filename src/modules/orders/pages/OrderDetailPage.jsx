@@ -28,6 +28,7 @@ import {
 import { MOCK_WO_TABLE_DATA } from "../../work-order/mock/workOrderMocks.js";
 import { MOCK_ORDER_MATERIALS_DATA } from "../mock/orderMocks.js";
 import { MOCK_PO_TABLE_DATA } from "../../../modules/purchase-order/mock/purchaseOrderMocks.js";
+import { TraceabilityTab } from "../components/TraceabilityTab.jsx";
 
 
 // Mock Data for Attachments (Updated to match PO screenshot)
@@ -2147,9 +2148,7 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar }) => {
           />
         )}
         {activeTab === "traceability" && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "300px", color: "var(--neutral-on-surface-tertiary)" }}>
-            Traceability Content (Coming Soon)
-          </div>
+          <TraceabilityTab onNavigate={onNavigate} showSnackbar={showSnackbar} />
         )}
         {activeTab === "invoices" && (
           <InvoicesTab onNavigate={onNavigate} />
