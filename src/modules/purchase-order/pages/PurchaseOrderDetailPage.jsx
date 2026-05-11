@@ -323,37 +323,45 @@ const FormField = ({
       width: "100%",
     }}
   >
-    {label ? (
+    {(label || headerRight) && (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+        }}
+      >
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: headerRight ? "space-between" : "flex-start",
-            gap: "12px",
-            fontSize: labelFontSize ? labelFontSize : (headerRight ? "var(--text-desc)" : "var(--text-body)"),
+            gap: "2px",
+            fontSize: labelFontSize || "var(--text-body)",
             fontWeight: "var(--font-weight-regular)",
           }}
         >
-        <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
-          {required ? (
+          {required && (
             <span style={{ color: "var(--status-red-primary)" }}>*</span>
-          ) : null}
-          <span style={{ color: "var(--neutral-on-surface-primary)" }}>
-            {label}
-          </span>
+          )}
+          {label && (
+            <span style={{ color: "var(--neutral-on-surface-primary)" }}>
+              {label}
+            </span>
+          )}
         </div>
-        {headerRight ? (
+        {headerRight && (
           <span
             style={{
-              fontSize: headerRightFontSize ? headerRightFontSize : "var(--text-desc)",
-              color: headerRightColor ? headerRightColor : "var(--neutral-on-surface-tertiary)",
+              fontSize: headerRightFontSize || "var(--text-desc)",
+              color: headerRightColor || "var(--neutral-on-surface-tertiary)",
             }}
           >
             {headerRight}
           </span>
-        ) : null}
+        )}
       </div>
-    ) : null}
+    )}
     {children}
     {error ? (
       <span
@@ -1314,7 +1322,7 @@ const InputField = ({
           disabled={disabled}
           {...rest}
           style={{
-            minHeight: "88px",
+            minHeight: "120px",
             padding: "12px 16px",
             width: "100%",
             resize: "vertical",
@@ -5016,7 +5024,6 @@ export const PurchaseOrderDetailPage = ({
           >
             PO Detail
           </button>
-
           <button
             type="button"
             onClick={() => setActiveTab("receipt")}
@@ -5024,7 +5031,6 @@ export const PurchaseOrderDetailPage = ({
           >
             Receipt
           </button>
-
           <button
             type="button"
             onClick={() => setActiveTab("documents")}
@@ -5334,12 +5340,13 @@ export const PurchaseOrderDetailPage = ({
                                     style={{
                                       display: "block",
                                       fontSize: "var(--text-title-3)",
-                                      color: "var(--feature-brand-primary)",
-                                      textDecoration: "underline",
-                                      cursor: "pointer",
+                                      color: line.type === "manual" ? "var(--neutral-on-surface-secondary)" : "var(--feature-brand-primary)",
+                                      textDecoration: line.type === "manual" ? "none" : "underline",
+                                      cursor: line.type === "manual" ? "default" : "pointer",
                                       wordBreak: "break-word"
                                     }}
                                     onClick={() => {
+                                      if (line.type === "manual") return;
                                       const materialData = MOCK_MATERIALS_DATA.find(m => m.sku === line.code) || MOCK_MATERIALS_DATA[0];
                                       onNavigate("materials_detail", {
                                         ...materialData,
@@ -6499,6 +6506,17 @@ export const PurchaseOrderDetailPage = ({
                   </span>
                 </div>
               ) : null}
+              {receiptErrors._global ? (
+                <span
+                  style={{
+                    marginBottom: "16px",
+                    fontSize: "var(--text-body)",
+                    color: "var(--status-red-primary)",
+                  }}
+                >
+                  {receiptErrors._global}
+                </span>
+              ) : null}
               <div style={poReferenceTableFrameStyle}>
                 <div style={{ ...poReferenceTableScrollerStyle, overflowX: receiptLines.length > 0 ? "auto" : "hidden" }}>
                   <div style={poReferenceTableInnerStyle("100%")}>
@@ -6619,32 +6637,33 @@ export const PurchaseOrderDetailPage = ({
                               >
                                 {displayValue(line.item)}
                               </span>
-                              <span
-                                style={{
-                                  display: "block",
-                                  fontSize: "var(--text-title-3)",
-                                  color: "var(--feature-brand-primary)",
-                                  textDecoration: "underline",
-                                  cursor: "pointer",
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                                title={displayValue(line.code)}
-                                onClick={() => {
-                                  const materialData = MOCK_MATERIALS_DATA.find(m => m.sku === line.code) || MOCK_MATERIALS_DATA[0];
-                                  onNavigate("materials_detail", {
-                                    ...materialData,
-                                    from: "purchase_order_detail",
-                                    returnTo: {
-                                      view: "purchase_order_detail",
-                                      data: initialData
-                                    }
-                                  });
-                                }}
-                              >
-                                {displayValue(line.code)}
-                              </span>
+                               <span
+                                 style={{
+                                   display: "block",
+                                   fontSize: "var(--text-title-3)",
+                                   color: line.type === "manual" ? "var(--neutral-on-surface-secondary)" : "var(--feature-brand-primary)",
+                                   textDecoration: line.type === "manual" ? "none" : "underline",
+                                   cursor: line.type === "manual" ? "default" : "pointer",
+                                   whiteSpace: "nowrap",
+                                   overflow: "hidden",
+                                   textOverflow: "ellipsis",
+                                 }}
+                                 title={displayValue(line.code)}
+                                 onClick={() => {
+                                   if (line.type === "manual") return;
+                                   const materialData = MOCK_MATERIALS_DATA.find(m => m.sku === line.code) || MOCK_MATERIALS_DATA[0];
+                                   onNavigate("materials_detail", {
+                                     ...materialData,
+                                     from: "purchase_order_detail",
+                                     returnTo: {
+                                       view: "purchase_order_detail",
+                                       data: initialData
+                                     }
+                                   });
+                                 }}
+                               >
+                                 {displayValue(line.code)}
+                               </span>
                             </div>
                           </div>
                           <div
@@ -6814,17 +6833,6 @@ export const PurchaseOrderDetailPage = ({
                   </div>
                 </div>
               </div>
-              {receiptErrors._global ? (
-                <span
-                  style={{
-                    marginTop: "12px",
-                    fontSize: "var(--text-body)",
-                    color: "var(--status-red-primary)",
-                  }}
-                >
-                  {receiptErrors._global}
-                </span>
-              ) : null}
             </div>
           </div>
 
@@ -7749,48 +7757,21 @@ export const PurchaseOrderDetailPage = ({
               </span>
             </div>
           )}
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "2px",
-                fontSize: "var(--text-body)",
-                fontWeight: "var(--font-weight-regular)",
-              }}
-            >
-              <span style={{ color: "var(--status-red-primary)" }}>*</span>
-              <span style={{ color: "var(--neutral-on-surface-primary)" }}>
-                Received By
-              </span>
-            </div>
-            <input
-              type="text"
-              value={receiptReceivedBy}
-              onChange={(e) => setReceiptReceivedBy(e.target.value)}
-              placeholder="Enter receiver name"
-              style={{
-                height: "48px",
-                border: "1px solid var(--neutral-line-separator-1)",
-                borderRadius: "8px",
-                padding: "0 16px",
-                background: "var(--neutral-surface-primary)",
-                fontSize: "var(--text-subtitle-1)",
-                color: "var(--neutral-on-surface-primary)",
-                width: "100%",
-                outline: "none",
-                fontFamily: "Lato, sans-serif",
-              }}
-            />
-          </div>
+          <InputField
+            label="Received By"
+            required
+            value={receiptReceivedBy}
+            onChange={(e) => setReceiptReceivedBy(e.target.value)}
+            placeholder="Enter receiver name"
+          />
           <InputField
             label="Notes"
             multiline
             placeholder="Add note for this receipt"
             value={receiptNotes}
-            onChange={(e) => setReceiptNotes(e.target.value)}
+            onChange={(e) => setReceiptNotes(e.target.value.slice(0, 1000))}
+            maxLength={1000}
+            headerRight={`${receiptNotes.length}/1000`}
           />
           <div
             style={{ display: "flex", flexDirection: "column", gap: "8px" }}
@@ -8685,14 +8666,16 @@ export const PurchaseOrderDetailPage = ({
               </div>
 
               <InputField
-                label="Notes (Optional)"
+                label="Notes"
                 multiline
                 placeholder="Enter notes..."
                 value={addInvoiceFormData.notes}
+                maxLength={1000}
+                headerRight={`${(addInvoiceFormData.notes || "").length}/1000`}
                 onChange={(e) =>
                   setAddInvoiceFormData({
                     ...addInvoiceFormData,
-                    notes: e.target.value,
+                    notes: e.target.value.slice(0, 1000),
                   })
                 }
               />
@@ -9011,14 +8994,16 @@ export const PurchaseOrderDetailPage = ({
 
 
               <InputField
-                label="Notes (Optional)"
+                label="Notes"
                 multiline
                 placeholder="Enter notes..."
                 value={paymentFormData.notes}
+                maxLength={1000}
+                headerRight={`${(paymentFormData.notes || "").length}/1000`}
                 onChange={(e) =>
                   setPaymentFormData({
                     ...paymentFormData,
-                    notes: e.target.value,
+                    notes: e.target.value.slice(0, 1000),
                   })
                 }
               />
