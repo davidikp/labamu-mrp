@@ -80,6 +80,7 @@ import {
   FILE_DESCRIPTION_MAX_LENGTH,
   LANGUAGE_OPTIONS,
   MAX_PROOF_UPLOAD_FILES,
+  MAX_PURCHASE_ORDER_DOCUMENTS,
   UPLOAD_MAX_FILE_SIZE_BYTES,
 } from "../../../constants/appConstants.js";
 import {
@@ -1576,6 +1577,7 @@ const UploadDescriptionCard = ({
   hideDescriptionField = false,
 }) => (
   <div
+    id={file?.id}
     style={{
       border: "1px solid var(--neutral-line-separator-1)",
       borderRadius: "24px",
@@ -2259,6 +2261,7 @@ export const PurchaseOrderDetailPage = ({
   initialData,
   poApprovalSettings,
   isSidebarCollapsed = false,
+  showPoSnackbar,
 }) => {
   const scrollToTop = () => {
     if (typeof window !== "undefined") {
@@ -2314,8 +2317,8 @@ export const PurchaseOrderDetailPage = ({
     if (displayData) {
       setCurrentStatus(displayData.status || "Draft");
       setCurrentBadge(displayData.sBadge || "grey");
-      setReceiptLogs(displayData.receiptLogs || []);
-      setReceiptLines(displayData.receiptLines || []);
+      setReceiptLogs(displayData.receiptLogs || displayData.formData?.receiptLogs || []);
+      setReceiptLines(displayData.receiptLines || displayData.formData?.receiptLines || []);
       setDocuments(displayData.formData?.documents || MOCK_PO_DOCUMENTS);
       setInvoices(displayData.invoices || []);
       setPayments(displayData.payments || []);
@@ -2365,12 +2368,16 @@ export const PurchaseOrderDetailPage = ({
   const [showDetailSubmitConfirmModal, setShowDetailSubmitConfirmModal] =
     useState(false);
   const [showZeroPriceWarningModal, setShowZeroPriceWarningModal] = useState(false);
+  const [showCanceledWOBlocker, setShowCanceledWOBlocker] = useState(false);
+  const [showFutureDateBlocker, setShowFutureDateBlocker] = useState(false);
+  const [canceledWOsFound, setCanceledWOsFound] = useState([]);
   const [documents, setDocuments] = useState(
     displayData?.formData?.documents || MOCK_PO_DOCUMENTS
   );
   const [openDocumentMenuId, setOpenDocumentMenuId] = useState(null);
   const [showDocumentToast, setShowDocumentToast] = useState(false);
   const [documentToastMessage, setDocumentToastMessage] = useState("");
+  const [documentToastVariant, setDocumentToastVariant] = useState("success");
   const [documentSearch, setDocumentSearch] = useState("");
   const [documentTypeFilters, setDocumentTypeFilters] = useState([]);
   const [documentView, setDocumentView] = useState("list");
@@ -2400,11 +2407,12 @@ export const PurchaseOrderDetailPage = ({
   const [showDeleteDocumentModal, setShowDeleteDocumentModal] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
   const [renameDocumentValue, setRenameDocumentValue] = useState("");
+  const [renameDocumentError, setRenameDocumentError] = useState("");
   const [editDocumentDescriptionValue, setEditDocumentDescriptionValue] =
     useState("");
   const [editDocumentTypeValue, setEditDocumentTypeValue] = useState("other");
-  const [receiptLogs, setReceiptLogs] = useState(displayData?.receiptLogs || []);
-  const [receiptLines, setReceiptLines] = useState(displayData?.receiptLines || []);
+  const [receiptLogs, setReceiptLogs] = useState(displayData?.receiptLogs || displayData?.formData?.receiptLogs || []);
+  const [receiptLines, setReceiptLines] = useState(displayData?.receiptLines || displayData?.formData?.receiptLines || []);
   const [showConfirmReceiptModal, setShowConfirmReceiptModal] = useState(false);
   const [receiptProofDocuments, setReceiptProofDocuments] = useState([]);
   const [receiptProofUploadError, setReceiptProofUploadError] = useState("");
@@ -2421,7 +2429,7 @@ export const PurchaseOrderDetailPage = ({
   }, [invoices]);
 
   const totalPaid = useMemo(() => {
-    return payments.reduce((sum, pay) => sum + (pay.amount || 0), 0);
+    return payments.filter(p => !p.isVoid).reduce((sum, pay) => sum + (pay.amount || 0), 0);
   }, [payments]);
 
   const outstandingAmount = Math.max(totalInvoiced - totalPaid, 0);
@@ -2429,8 +2437,10 @@ export const PurchaseOrderDetailPage = ({
 
   const getInvoiceMetrics = (invoice) => {
     if (!invoice) return { paid: 0, outstanding: 0, total: 0, payments: [], status: "Draft", isOverdue: false };
-    const invPayments = payments.filter((p) => p.invoiceId === invoice.id);
-    const paid = invPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const invPayments = payments
+      .filter((p) => p.invoiceId === invoice.id)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const paid = invPayments.filter(p => !p.isVoid).reduce((sum, p) => sum + (p.amount || 0), 0);
     const total = invoice.amount || 0;
     const outstanding = Math.max(total - paid, 0);
     const isOverdue = new Date(invoice.dueDate) < new Date() && outstanding > 0;
@@ -2490,6 +2500,8 @@ export const PurchaseOrderDetailPage = ({
   const [invoiceSearch, setInvoiceSearch] = useState("");
   const [invoiceRowsPerPage, setInvoiceRowsPerPage] = useState(25);
   const [invoiceCurrentPage, setInvoiceCurrentPage] = useState(1);
+  const [threeWaysMatchCurrentPage, setThreeWaysMatchCurrentPage] = useState(1);
+  const [threeWaysMatchRowsPerPage, setThreeWaysMatchRowsPerPage] = useState(25);
   const [formErrors, setFormErrors] = useState({});
 
   const [showAddInvoiceDrawer, setShowAddInvoiceDrawer] = useState(false);
@@ -2502,10 +2514,16 @@ export const PurchaseOrderDetailPage = ({
     notes: "",
     attachments: [],
     itemLines: [{ id: "", qty: "", ocrRef: "" }],
+    bankName: "",
+    accountNumber: "",
+    accountName: "",
   });
+  const [isEditingInvoice, setIsEditingInvoice] = useState(false);
   const [autoPrefillInvoice, setAutoPrefillInvoice] = useState(false);
   const [autoPrefillPayment, setAutoPrefillPayment] = useState(false);
   const [invoicePaymentLogs, setInvoicePaymentLogs] = useState([]);
+  const [showVoidConfirmModal, setShowVoidConfirmModal] = useState(false);
+  const [paymentToVoid, setPaymentToVoid] = useState(null);
 
   const simulateInvoiceOcr = (file) => {
     if (!autoPrefillInvoice) return;
@@ -2573,6 +2591,28 @@ export const PurchaseOrderDetailPage = ({
     addInvoiceFormData.termsUnit,
   ]);
 
+  const handleEditInvoice = () => {
+    if (!selectedInvoiceForDetail) return;
+    const inv = selectedInvoiceForDetail;
+    const [termsVal, termsUnit] = inv.terms.split(" ");
+    setAddInvoiceFormData({
+      number: inv.number,
+      date: inv.date,
+      termsValue: termsVal,
+      termsUnit: termsUnit.charAt(0).toUpperCase() + termsUnit.slice(1),
+      amount: String(inv.amount),
+      notes: inv.notes || "",
+      attachments: inv.attachments || [],
+      itemLines: inv.itemLines.map(il => ({ ...il, qty: String(il.qty) })),
+      bankName: inv.bankName || "",
+      accountNumber: inv.accountNumber || "",
+      accountName: inv.accountName || "",
+    });
+    setIsEditingInvoice(true);
+    setShowInvoiceDetailDrawer(false);
+    setShowAddInvoiceDrawer(true);
+  };
+
   const handleAddInvoice = () => {
     const errors = {};
     if (!addInvoiceFormData.number.trim())
@@ -2603,8 +2643,7 @@ export const PurchaseOrderDetailPage = ({
     }
 
     setFormErrors({});
-    const newInvoice = {
-      id: `inv-${Date.now()}`,
+    const invoiceData = {
       number: addInvoiceFormData.number,
       date: addInvoiceFormData.date,
       terms: `${addInvoiceFormData.termsValue} ${addInvoiceFormData.termsUnit.toLowerCase()}`,
@@ -2615,10 +2654,34 @@ export const PurchaseOrderDetailPage = ({
       itemLines: addInvoiceFormData.itemLines
         .filter((il) => il.id && il.qty)
         .map((il) => ({ ...il, qty: Number(il.qty) })),
+      bankName: addInvoiceFormData.bankName,
+      accountNumber: addInvoiceFormData.accountNumber,
+      accountName: addInvoiceFormData.accountName,
     };
-    setInvoices((prev) => [newInvoice, ...prev]);
-    addInvoicePaymentLog("Invoice created", newInvoice.number);
+
+    if (isEditingInvoice) {
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          inv.id === selectedInvoiceForDetail.id ? { ...inv, ...invoiceData } : inv
+        )
+      );
+      setSelectedInvoiceForDetail(prev => ({ ...prev, ...invoiceData }));
+      addInvoicePaymentLog("Invoice Updated", invoiceData.number);
+      if (showPoSnackbar) showPoSnackbar("Invoice successfully saved", "success");
+      setShowInvoiceDetailDrawer(true);
+      setShowAddInvoiceDrawer(false);
+    } else {
+      const newInvoice = {
+        ...invoiceData,
+        id: `inv-${Date.now()}`,
+      };
+      setInvoices((prev) => [newInvoice, ...prev]);
+      addInvoicePaymentLog("Invoice Created", newInvoice.number);
+      if (showPoSnackbar) showPoSnackbar("Invoice successfully created", "success");
+    }
+
     setShowAddInvoiceDrawer(false);
+    setIsEditingInvoice(false);
     // Reset form
     setAddInvoiceFormData({
       number: "",
@@ -2627,8 +2690,11 @@ export const PurchaseOrderDetailPage = ({
       termsUnit: "Days",
       amount: "",
       notes: "",
-      itemLines: [{ id: "", qty: "", ocrRef: "" }],
       attachments: [],
+      itemLines: [{ id: "", qty: "", ocrRef: "" }],
+      bankName: "",
+      accountNumber: "",
+      accountName: "",
     });
   };
 
@@ -2674,17 +2740,19 @@ export const PurchaseOrderDetailPage = ({
     }
 
     const newPayment = {
-      id: `pay-${Date.now()}`,
+      id: `PAY/${new Date().getFullYear()}/${String(Date.now()).slice(-3)}`, // Generating a more readable ID
       date: paymentFormData.date,
       amount: amountVal,
       method: paymentFormData.method,
       proof: paymentFormData.attachments[0]?.name || "",
       notes: paymentFormData.notes,
       invoiceId: selectedInvoiceForPayment.id,
+      addedBy: "Natasha Smith", // Mock user
+      createdAt: new Date().toISOString(),
     };
 
     setPayments((prev) => [...prev, newPayment]);
-    addInvoicePaymentLog("Payment created", `Paid ${formatCurrency(newPayment.amount, currency)} to ${selectedInvoiceForPayment.number}`);
+    addInvoicePaymentLog("Payment Created", `Paid ${formatCurrency(newPayment.amount, currency)} to ${selectedInvoiceForPayment.number}`);
 
     setInvoices((prev) =>
       prev.map((inv) =>
@@ -2698,6 +2766,9 @@ export const PurchaseOrderDetailPage = ({
     );
 
     setShowAddPaymentDrawer(false);
+    setShowInvoiceDetailDrawer(true);
+    setActiveInvoiceTab("Payment History");
+    if (showPoSnackbar) showPoSnackbar("Payment successfully recorded.", "success");
     setPaymentFormErrors({});
     setPaymentFormData({
       date: formatIsoDateString(new Date()),
@@ -2708,9 +2779,28 @@ export const PurchaseOrderDetailPage = ({
     });
   };
 
+  const handleVoidPayment = () => {
+    if (!paymentToVoid) return;
+
+    setPayments((prev) =>
+      prev.map((p) => (p.id === paymentToVoid.id ? { ...p, isVoid: true } : p))
+    );
+
+    const associatedInv = invoices.find(i => i.id === paymentToVoid.invoiceId);
+    addInvoicePaymentLog(
+      "Payment Voided",
+      `${paymentToVoid.id} - ${associatedInv?.number || "Unknown"}`
+    );
+
+    if (showPoSnackbar) showPoSnackbar("Payment successfully voided", "black");
+    setShowVoidConfirmModal(false);
+    setPaymentToVoid(null);
+  };
+
   const handleDeleteInvoice = () => {
     if (selectedInvoiceForDetail) {
-      addInvoicePaymentLog("Invoice deleted", selectedInvoiceForDetail.number);
+      addInvoicePaymentLog("Invoice Deleted", selectedInvoiceForDetail.number);
+      if (showPoSnackbar) showPoSnackbar("Invoice successfully deleted", "black");
       setInvoices(prev => prev.filter(inv => inv.id !== selectedInvoiceForDetail.id));
       setShowInvoiceDetailDrawer(false);
       setShowDeleteInvoiceConfirm(false);
@@ -3013,8 +3103,8 @@ export const PurchaseOrderDetailPage = ({
     currentStatus === "Draft" || currentStatus === "Need Revision";
   const showFooterApprovalActions = currentStatus === "Waiting for Approval";
   const hasReceiptHistory =
-    receiptLogs.length > 0 ||
-    (!!formData?.receiptLogs && formData.receiptLogs.length > 0);
+    receiptLogs.some((log) => !!log.receiptNumber) ||
+    (formData?.receiptLogs || []).some((log) => !!log.receiptNumber);
   const showFooterIssuedCancel =
     currentStatus === "Issued" && !hasReceiptHistory;
   const resolvePoStatusKey = (status) => {
@@ -3166,6 +3256,31 @@ export const PurchaseOrderDetailPage = ({
       setShowSubmitGuardModal(true);
       return;
     }
+
+    // Check if PO date is in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(createdDate);
+    if (selectedDate > today) {
+      setShowFutureDateBlocker(true);
+      return;
+    }
+
+    // Check for canceled work orders
+    const canceledWOLines = mockLines.filter((line) => {
+      if (line.type !== "wo") return false;
+      const woData = MOCK_WO_TABLE_DATA.find((w) => w.wo === line.woRef);
+      return woData && woData.status === "Canceled";
+    });
+
+    if (canceledWOLines.length > 0) {
+      const canceledWoNumbers = Array.from(
+        new Set(canceledWOLines.map((l) => l.woRef))
+      );
+      setCanceledWOsFound(canceledWoNumbers);
+      setShowCanceledWOBlocker(true);
+      return;
+    }
     
     const hasZeroPriceItem = mockLines.some(line => (parseFloat(line.price) || 0) === 0);
     if (hasZeroPriceItem) {
@@ -3218,6 +3333,7 @@ export const PurchaseOrderDetailPage = ({
           storageLocation: "",
           vendor: vendorName,
           status: "Requested",
+          poRef: poNumber,
           attachments: 0
         };
         const existing = MOCK_STOCK_BATCHES.find(b => b.id === batchId);
@@ -3229,6 +3345,9 @@ export const PurchaseOrderDetailPage = ({
         if (batch) {
           const receivedNow = payload.receivedNowMap?.[line.id] || 0;
           batch.currentQty += Number(receivedNow);
+          if (batch.currentQty > 0) {
+            batch.status = "Received";
+          }
 
           // Record transaction
           if (receivedNow > 0) {
@@ -3385,6 +3504,20 @@ export const PurchaseOrderDetailPage = ({
 
   const handleRevisePo = () => {
     scrollToTop();
+    let logsToPass = [...receiptLogs];
+    const hasApprovedLog = logsToPass.some(
+      (l) => l.title === "Approved" || (l.title || "").startsWith("Revised to Version")
+    );
+    if (!hasApprovedLog && currentStatus === "Issued") {
+      logsToPass.push({
+        name: approvalEnabled ? approverList[0]?.name || "Approver" : "System",
+        email: approvalEnabled ? approverList[0]?.email || "-" : "-",
+        title: "Approved",
+        desc: approvalComment || "",
+        timestamp: `${createdDate} at 16:30`,
+      });
+    }
+
     onNavigate("create", {
       source: "revise_purchase_order",
       poNumber,
@@ -3394,28 +3527,28 @@ export const PurchaseOrderDetailPage = ({
       ...(initialData?.returnTo ? { returnTo: initialData.returnTo } : {}),
       ...(initialData?.from === "work_order_detail"
         ? {
-            workOrder: {
-              wo:
-                initialData?.returnTo?.data?.wo ||
-                mockLines.find((line) => line.type === "wo")?.woRef ||
-                "-",
-              product:
-                initialData?.returnTo?.data?.product ||
-                mockLines.find((line) => line.type === "wo")?.item ||
-                "",
-              sku:
-                initialData?.returnTo?.data?.sku ||
-                mockLines.find((line) => line.type === "wo")?.code ||
-                "",
-              image:
-                initialData?.returnTo?.data?.image ||
-                mockLines.find((line) => line.type === "wo")?.image ||
-                "",
-            },
-            assignedOutput:
-              mockLines.find((line) => line.type === "wo")?.qty || 0,
-            outsourceSteps: initialData?.returnTo?.data?.outsourceSteps || [],
-          }
+          workOrder: {
+            wo:
+              initialData?.returnTo?.data?.wo ||
+              mockLines.find((line) => line.type === "wo")?.woRef ||
+              "-",
+            product:
+              initialData?.returnTo?.data?.product ||
+              mockLines.find((line) => line.type === "wo")?.item ||
+              "",
+            sku:
+              initialData?.returnTo?.data?.sku ||
+              mockLines.find((line) => line.type === "wo")?.code ||
+              "",
+            image:
+              initialData?.returnTo?.data?.image ||
+              mockLines.find((line) => line.type === "wo")?.image ||
+              "",
+          },
+          assignedOutput:
+            mockLines.find((line) => line.type === "wo")?.qty || 0,
+          outsourceSteps: initialData?.returnTo?.data?.outsourceSteps || [],
+        }
         : {}),
       formData: {
         vendorName: vendorInfo.name !== "-" ? vendorInfo.name : "",
@@ -3438,6 +3571,7 @@ export const PurchaseOrderDetailPage = ({
         feeLines: hasDraftData ? formData?.feeLines || [] : [],
         notes: detailNotes !== "-" ? detailNotes : "",
         terms: detailTerms !== "-" ? detailTerms : "",
+        receiptLogs: logsToPass,
       },
     });
   };
@@ -3516,6 +3650,31 @@ export const PurchaseOrderDetailPage = ({
       setCanceledMessage("");
       setApprovalComment(trimmedComment);
 
+      const versionNum = versions.length > 0 ? versions.length : 1;
+      const logTitle = versions.length > 1 ? `Revised to Version ${versionNum}.0` : "Approved";
+
+      const approvalLog = {
+        name: "Natasha Smith",
+        email: "natasha.smith@company.com",
+        title: logTitle,
+        desc: trimmedComment || "",
+        timestamp: formatActivityTimestamp(new Date()),
+      };
+      const nextReceiptLogs = [approvalLog, ...receiptLogs];
+      setReceiptLogs(nextReceiptLogs);
+
+      // Persist to mock data
+      const poIndex = MOCK_PO_TABLE_DATA.findIndex(p => p.poNumber === poNumber);
+      if (poIndex !== -1) {
+        MOCK_PO_TABLE_DATA[poIndex] = {
+          ...MOCK_PO_TABLE_DATA[poIndex],
+          status: "Issued",
+          statusKey: resolvePoStatusKey("Issued"),
+          sBadge: "blue",
+          receiptLogs: nextReceiptLogs
+        };
+      }
+
       if (
         initialData?.from === "work_order_detail" &&
         initialData?.returnTo?.data
@@ -3524,18 +3683,19 @@ export const PurchaseOrderDetailPage = ({
           status: "Issued",
           statusKey: resolvePoStatusKey("Issued"),
           sBadge: "blue",
+          receiptLogs: nextReceiptLogs,
         });
         const updatedReturnData = {
           ...initialData.returnTo.data,
           vendors: (initialData.returnTo.data.vendors || []).map((vendor) =>
             vendor.poNumber === poNumber
               ? {
-                  ...getApprovedVendorReturnState(vendor),
-                  poStatus: "Issued",
-                  poBadge: "blue",
-                  poStatusKey: resolvePoStatusKey("Issued"),
-                  poDetailData: approvedPoSnapshot,
-                }
+                ...getApprovedVendorReturnState(vendor),
+                poStatus: "Issued",
+                poBadge: "blue",
+                poStatusKey: resolvePoStatusKey("Issued"),
+                poDetailData: approvedPoSnapshot,
+              }
               : vendor
           ),
         };
@@ -3630,7 +3790,7 @@ export const PurchaseOrderDetailPage = ({
     {
       name: "Joko",
       email: "joko@company.com",
-      title: "PO Created",
+      title: "Created",
       desc: "",
       timestamp: `${createdDate} at 14:30`,
     },
@@ -3642,7 +3802,7 @@ export const PurchaseOrderDetailPage = ({
         {
           name: "Joko",
           email: "joko@company.com",
-          title: "PO Submitted",
+          title: "Submitted",
           desc: "",
           timestamp: `${createdDate} at 15:15`,
         },
@@ -3661,7 +3821,7 @@ export const PurchaseOrderDetailPage = ({
         {
           name: "Joko",
           email: "joko@company.com",
-          title: "PO Submitted",
+          title: "Submitted",
           desc: "",
           timestamp: `${createdDate} at 15:15`,
         },
@@ -3669,28 +3829,27 @@ export const PurchaseOrderDetailPage = ({
     }
 
     if (currentStatus === "Issued") {
-      return [
-        {
+      const hasDynamicApproval = receiptLogs.some((l) => l.title === "Approved");
+      const logs = [];
+      if (!hasDynamicApproval) {
+        logs.push({
           name: approvalEnabled
             ? approverList[0]?.name || "Approver"
             : "System",
           email: approvalEnabled ? approverList[0]?.email || "-" : "-",
-          title: "PO Approved",
+          title: "Approved",
           desc: approvalComment || "",
           timestamp: `${createdDate} at 16:30`,
-        },
-        ...(approvalEnabled
-          ? [
-            {
-              name: "Joko",
-              email: "joko@company.com",
-              title: "PO Submitted",
-              desc: "",
-              timestamp: `${createdDate} at 15:15`,
-            },
-          ]
-          : []),
-      ];
+        });
+      }
+      logs.push({
+        name: "Joko",
+        email: "joko@company.com",
+        title: "Submitted",
+        desc: "",
+        timestamp: `${createdDate} at 15:15`,
+      });
+      return logs;
     }
 
     if (currentStatus === "Canceled") {
@@ -3698,14 +3857,14 @@ export const PurchaseOrderDetailPage = ({
         {
           name: approverList[0]?.name || "Approver",
           email: approverList[0]?.email || "-",
-          title: "PO Canceled",
+          title: "Canceled",
           desc: canceledMessage || "-",
           timestamp: `${createdDate} at 16:30`,
         },
         {
           name: "Joko",
           email: "joko@company.com",
-          title: "PO Submitted",
+          title: "Submitted",
           desc: "",
           timestamp: `${createdDate} at 15:15`,
         },
@@ -3717,7 +3876,7 @@ export const PurchaseOrderDetailPage = ({
         {
           name: "System",
           email: "-",
-          title: "PO Completed",
+          title: "Completed",
           desc: "All ordered items have been fully received.",
           timestamp: `${createdDate} at 17:30`,
         },
@@ -3726,21 +3885,17 @@ export const PurchaseOrderDetailPage = ({
             ? approverList[0]?.name || "Approver"
             : "System",
           email: approvalEnabled ? approverList[0]?.email || "-" : "-",
-          title: "PO Approved",
+          title: "Approved",
           desc: approvalComment || "",
           timestamp: `${createdDate} at 16:30`,
         },
-        ...(approvalEnabled
-          ? [
-            {
-              name: "Joko",
-              email: "joko@company.com",
-              title: "PO Submitted",
-              desc: "",
-              timestamp: `${createdDate} at 15:15`,
-            },
-          ]
-          : []),
+        {
+          name: "Joko",
+          email: "joko@company.com",
+          title: "Submitted",
+          desc: "",
+          timestamp: `${createdDate} at 15:15`,
+        },
       ];
     }
 
@@ -4203,6 +4358,7 @@ export const PurchaseOrderDetailPage = ({
     ]);
     setShowUploadDocumentModal(false);
     resetDocumentUploadState();
+    setDocumentToastVariant("success");
     setDocumentToastMessage("Document successfully uploaded");
     setShowDocumentToast(true);
     setTimeout(() => setShowDocumentToast(false), 4000);
@@ -4233,6 +4389,7 @@ export const PurchaseOrderDetailPage = ({
         return;
       }
     }
+    setDocumentToastVariant("success");
     setDocumentToastMessage(message);
     setOpenDocumentMenuId(null);
     setShowDocumentToast(true);
@@ -4242,7 +4399,12 @@ export const PurchaseOrderDetailPage = ({
   const handleConfirmRenameDocument = () => {
     const trimmedName = renameDocumentValue.trim();
     const trimmedDescription = editDocumentDescriptionValue.trim();
-    if (!trimmedName || !selectedDocumentId) return;
+    if (!trimmedName) {
+      setRenameDocumentError("Field cannot be empty");
+      return;
+    }
+    if (!selectedDocumentId) return;
+    setRenameDocumentError("");
     const todayLabel = "Mar 31, 2026";
     setDocuments((prev) =>
       prev.map((doc) =>
@@ -4275,6 +4437,7 @@ export const PurchaseOrderDetailPage = ({
     setRenameDocumentValue("");
     setEditDocumentDescriptionValue("");
     setEditDocumentTypeValue("other");
+    setDocumentToastVariant("success");
     setDocumentToastMessage("Document successfully updated");
     setShowDocumentToast(true);
     setTimeout(() => setShowDocumentToast(false), 4000);
@@ -4307,6 +4470,7 @@ export const PurchaseOrderDetailPage = ({
     setShowDeleteDocumentModal(false);
     setSelectedDocumentId(null);
     setRenameDocumentValue("");
+    setDocumentToastVariant("dark");
     setDocumentToastMessage("Document successfully deleted");
     setShowDocumentToast(true);
     setTimeout(() => setShowDocumentToast(false), 4000);
@@ -4404,13 +4568,19 @@ export const PurchaseOrderDetailPage = ({
 
     normalizedProofDocuments.forEach((doc) => {
       if (!doc.description) {
-        nextProofDescriptionErrors[doc.id] = "Description is required";
+        nextProofDescriptionErrors[doc.id] = "Field cannot be empty";
       }
     });
 
     if (Object.keys(nextProofDescriptionErrors).length > 0) {
       setReceiptProofDescriptionErrors(nextProofDescriptionErrors);
-      setReceiptProofUploadError("Add description for each proof document");
+      const firstErrorId = Object.keys(nextProofDescriptionErrors)[0];
+      setTimeout(() => {
+        const element = document.getElementById(firstErrorId);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 100);
       return;
     }
 
@@ -4697,12 +4867,12 @@ export const PurchaseOrderDetailPage = ({
             top: "84px",
             right: "24px",
             background: showDocumentToast
-              ? "var(--status-green-primary)"
+              ? (documentToastVariant === "dark" ? "var(--neutral-on-surface-primary)" : "var(--status-green-primary)")
               : actionToastVariant === "error"
                 ? "var(--status-red-primary)"
                 : "var(--status-green-primary)",
             color: showDocumentToast
-              ? "var(--status-green-on-primary)"
+              ? "var(--neutral-on-surface-reverse)"
               : actionToastVariant === "error"
                 ? "var(--status-red-on-primary)"
                 : "var(--status-green-on-primary)",
@@ -4786,7 +4956,7 @@ export const PurchaseOrderDetailPage = ({
               }}
               onClick={handleBackNavigation}
             >
-              Purchase Order
+              {initialData?.from === "material_detail" ? "Materials" : "Purchase Order"}
             </span>
             <span style={{ color: "var(--neutral-on-surface-tertiary)" }}>
               /
@@ -4875,7 +5045,7 @@ export const PurchaseOrderDetailPage = ({
           background: "var(--neutral-surface-primary)",
           borderRadius: "16px",
           border: "1px solid var(--neutral-line-separator-1)",
-          overflow: "hidden",
+          overflow: "visible",
         }}
       >
         <div
@@ -4937,11 +5107,11 @@ export const PurchaseOrderDetailPage = ({
                       }}
                       onClick={() => setIsVersionMenuOpen(false)}
                     />
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "calc(100% + 8px)",
-                        left: 0,
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "calc(100% + 8px)",
+                          left: 0,
                         background: "var(--neutral-surface-primary)",
                         borderRadius: "12px",
                         boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.12)",
@@ -5024,6 +5194,7 @@ export const PurchaseOrderDetailPage = ({
           >
             PO Detail
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab("receipt")}
@@ -5031,6 +5202,7 @@ export const PurchaseOrderDetailPage = ({
           >
             Receipt
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab("documents")}
@@ -5921,7 +6093,7 @@ export const PurchaseOrderDetailPage = ({
                     !(
                       currentStatus === "Draft" ||
                       currentStatus === "Need Revision"
-                    )
+                    ) || documents.length >= MAX_PURCHASE_ORDER_DOCUMENTS
                   }
                   onClick={() => {
                     resetDocumentUploadState();
@@ -5934,7 +6106,37 @@ export const PurchaseOrderDetailPage = ({
             </div>
 
 
-            <div style={{ padding: "0 0 24px 0" }}>
+            <div style={{ padding: "0 24px 24px 24px" }}>
+              {documents.length >= MAX_PURCHASE_ORDER_DOCUMENTS && (
+                <div
+                  style={{
+                    marginBottom: "16px",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "12px",
+                    padding: "12px 16px",
+                    borderRadius: "12px",
+                    background: "var(--feature-brand-container-lighter)",
+                    border: "1px solid var(--feature-brand-container-darker)",
+                  }}
+                >
+                  <Info
+                    size={16}
+                    strokeWidth={2.1}
+                    color="var(--feature-brand-primary)"
+                    style={{ flexShrink: 0, marginTop: "2px" }}
+                  />
+                  <span
+                    style={{
+                      fontSize: "var(--text-title-3)",
+                      color: "var(--feature-brand-primary)",
+                      lineHeight: "1.5",
+                    }}
+                  >
+                    This purchase order already has {MAX_PURCHASE_ORDER_DOCUMENTS} documents attached. Remove a document before uploading a new one.
+                  </span>
+                </div>
+              )}
 
             {documentView === "list" ? (
               <div style={poReferenceTableFrameStyle}>
@@ -6967,20 +7169,7 @@ export const PurchaseOrderDetailPage = ({
                                   fontSize: "var(--text-title-3)",
                                   lineHeight: "20px",
                                   letterSpacing: "0.09625px",
-                                  color: "var(--feature-brand-primary)",
-                                  textDecoration: "underline",
-                                  cursor: "pointer",
-                                }}
-                                onClick={() => {
-                                  const materialData = MOCK_MATERIALS_DATA.find(m => m.sku === item.code) || MOCK_MATERIALS_DATA[0];
-                                  onNavigate("materials_detail", {
-                                    ...materialData,
-                                    from: "purchase_order_detail",
-                                    returnTo: {
-                                      view: "purchase_order_detail",
-                                      data: initialData
-                                    }
-                                  });
+                                  color: "var(--neutral-on-surface-primary)",
                                 }}
                               >
                                 {item.code || "-"}
@@ -7055,6 +7244,7 @@ export const PurchaseOrderDetailPage = ({
                                 normalizeProofDocuments([], log.proof)
                               }
                               onDocumentClick={(doc) => {
+                                setDocumentToastVariant("success");
                                 setDocumentToastMessage(
                                   `${doc?.name || "Document"} opened`
                                 );
@@ -7537,6 +7727,36 @@ export const PurchaseOrderDetailPage = ({
       />
 
       <GeneralModal
+        isOpen={showFutureDateBlocker}
+        onClose={() => setShowFutureDateBlocker(false)}
+        title="Invalid Purchase Order Date"
+        width="376px"
+        description="The purchase order date cannot be later than today. Please update the date before submitting."
+        footer={
+          <>
+            <Button
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setShowFutureDateBlocker(false);
+                handleEditPo();
+              }}
+            >
+              Edit PO
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => setShowFutureDateBlocker(false)}
+            >
+              Close
+            </Button>
+          </>
+        }
+      />
+
+      <GeneralModal
         isOpen={showUploadDocumentModal}
         onClose={() => {
           setShowUploadDocumentModal(false);
@@ -7712,13 +7932,7 @@ export const PurchaseOrderDetailPage = ({
               variant="filled"
               size="large"
               style={{ flex: 1 }}
-              disabled={
-                receiptProofDocuments.length === 0 ||
-                !receiptReceivedBy.trim() ||
-                receiptProofDocuments.some(
-                  (doc) => !(doc.description || "").trim()
-                )
-              }
+              disabled={receiptProofDocuments.length === 0}
               onClick={handleSubmitReceipt}
             >
               Submit
@@ -7830,24 +8044,26 @@ export const PurchaseOrderDetailPage = ({
       <GeneralModal
         isOpen={showRenameDocumentModal}
         onClose={() => {
-        setShowRenameDocumentModal(false);
-        setSelectedDocumentId(null);
-        setRenameDocumentValue("");
-        setEditDocumentDescriptionValue("");
-        setEditDocumentTypeValue("other");
-      }}
-      title="Edit Document"
-      width="640px"
-      footer={
-        <div style={{ display: "flex", gap: "12px", width: "100%" }}>
-          <Button
-            variant="outlined"
+          setShowRenameDocumentModal(false);
+          setSelectedDocumentId(null);
+          setRenameDocumentValue("");
+          setRenameDocumentError("");
+          setEditDocumentDescriptionValue("");
+          setEditDocumentTypeValue("other");
+        }}
+        title="Edit Document"
+        width="640px"
+        footer={
+          <div style={{ display: "flex", gap: "12px", width: "100%" }}>
+            <Button
+              variant="outlined"
               size="large"
               style={{ flex: 1 }}
               onClick={() => {
                 setShowRenameDocumentModal(false);
                 setSelectedDocumentId(null);
                 setRenameDocumentValue("");
+                setRenameDocumentError("");
                 setEditDocumentDescriptionValue("");
                 setEditDocumentTypeValue("other");
               }}
@@ -7858,7 +8074,6 @@ export const PurchaseOrderDetailPage = ({
               variant="filled"
               size="large"
               style={{ flex: 1 }}
-              disabled={!renameDocumentValue.trim()}
               onClick={handleConfirmRenameDocument}
             >
               Save
@@ -7869,9 +8084,14 @@ export const PurchaseOrderDetailPage = ({
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           <InputField
             label="Document Name"
+            required={true}
             value={renameDocumentValue}
-            onChange={(e) => setRenameDocumentValue(e.target.value)}
+            onChange={(e) => {
+              setRenameDocumentValue(e.target.value);
+              if (renameDocumentError) setRenameDocumentError("");
+            }}
             placeholder="Enter document name"
+            error={renameDocumentError}
           />
           <InputField
             label="File Description"
@@ -8290,29 +8510,46 @@ export const PurchaseOrderDetailPage = ({
                 borderBottom: "1px solid var(--neutral-line-separator-1)",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
+                gap: "12px",
                 background: "var(--neutral-surface-primary)",
               }}
             >
+              {isEditingInvoice ? (
+                <IconButton
+                  icon={ChevronLeft}
+                  onClick={() => {
+                    setShowAddInvoiceDrawer(false);
+                    setShowInvoiceDetailDrawer(true);
+                    setIsEditingInvoice(false);
+                    setFormErrors({});
+                  }}
+                  size="small"
+                  color="var(--neutral-on-surface-primary)"
+                />
+              ) : null}
               <h2
                 style={{
                   margin: 0,
                   fontSize: "var(--text-title-1)",
                   fontWeight: "var(--font-weight-bold)",
                   color: "var(--neutral-on-surface-primary)",
+                  whiteSpace: "nowrap",
+                  flex: 1,
                 }}
               >
-                Add Invoice
+                {isEditingInvoice ? "Edit Invoice" : "Add Invoice"}
               </h2>
-              <IconButton
-                icon={CloseIcon}
-                onClick={() => {
-                  setShowAddInvoiceDrawer(false);
-                  setFormErrors({});
-                }}
-                size="small"
-                color="var(--neutral-on-surface-primary)"
-              />
+              {!isEditingInvoice && (
+                <IconButton
+                  icon={CloseIcon}
+                  onClick={() => {
+                    setShowAddInvoiceDrawer(false);
+                    setFormErrors({});
+                  }}
+                  size="small"
+                  color="var(--neutral-on-surface-primary)"
+                />
+              )}
             </div>
 
             {/* Drawer Body */}
@@ -8653,6 +8890,7 @@ export const PurchaseOrderDetailPage = ({
                   variant="outline"
                   size="small"
                   leftIcon={Plus}
+                  disabled={addInvoiceFormData.itemLines.length >= (mockLines || []).length}
                   onClick={() => {
                     setAddInvoiceFormData({
                       ...addInvoiceFormData,
@@ -8663,6 +8901,33 @@ export const PurchaseOrderDetailPage = ({
                 >
                   Add Item Line
                 </Button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "20px", background: "var(--neutral-surface-grey-lighter)", borderRadius: "16px" }}>
+                <div style={{ fontSize: "14px", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Payment Information</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                  <InputField
+                    label="Bank Name"
+                    placeholder="Enter bank name..."
+                    value={addInvoiceFormData.bankName}
+                    onChange={(e) => setAddInvoiceFormData({ ...addInvoiceFormData, bankName: e.target.value })}
+                  />
+                  <InputField
+                    label="Account Number"
+                    placeholder="Enter account number..."
+                    value={addInvoiceFormData.accountNumber}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      setAddInvoiceFormData({ ...addInvoiceFormData, accountNumber: val });
+                    }}
+                  />
+                </div>
+                <InputField
+                  label="Account Name"
+                  placeholder="Enter account name..."
+                  value={addInvoiceFormData.accountName}
+                  onChange={(e) => setAddInvoiceFormData({ ...addInvoiceFormData, accountName: e.target.value })}
+                />
               </div>
 
               <InputField
@@ -8751,10 +9016,20 @@ export const PurchaseOrderDetailPage = ({
                 padding: "20px 24px",
                 borderBottom: "1px solid var(--neutral-line-separator-1)",
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
+                gap: "12px",
               }}
             >
+              <IconButton
+                icon={ChevronLeft}
+                onClick={() => {
+                  setShowAddPaymentDrawer(false);
+                  setShowInvoiceDetailDrawer(true);
+                  setPaymentFormErrors({});
+                }}
+                size="small"
+                color="var(--neutral-on-surface-primary)"
+              />
               <h2
                 style={{
                   margin: 0,
@@ -8765,15 +9040,6 @@ export const PurchaseOrderDetailPage = ({
               >
                 Add Payment
               </h2>
-              <IconButton
-                icon={CloseIcon}
-                onClick={() => {
-                  setShowAddPaymentDrawer(false);
-                  setPaymentFormErrors({});
-                }}
-                size="small"
-                color="var(--neutral-on-surface-primary)"
-              />
             </div>
 
             {/* Drawer Body */}
@@ -9087,11 +9353,21 @@ export const PurchaseOrderDetailPage = ({
               >
                 Invoice Detail
               </h2>
-              <IconButton
-                icon={CloseIcon}
-                onClick={() => setShowInvoiceDetailDrawer(false)}
-                color="var(--neutral-on-surface-primary)"
-              />
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  leftIcon={EditIcon}
+                  onClick={handleEditInvoice}
+                >
+                  Edit
+                </Button>
+                <IconButton
+                  icon={CloseIcon}
+                  onClick={() => setShowInvoiceDetailDrawer(false)}
+                  color="var(--neutral-on-surface-primary)"
+                />
+              </div>
             </div>
 
             {/* Drawer Body */}
@@ -9168,7 +9444,21 @@ export const PurchaseOrderDetailPage = ({
                     })()}
                   </div>
 
-                  {/* Row 3 items */}
+                  {/* Row 3: Payment Info */}
+                  <div>
+                    <div style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)", marginBottom: "4px" }}>Bank Name</div>
+                    <div style={{ fontSize: "14px", fontWeight: "var(--font-weight-bold)" }}>{selectedInvoiceForDetail.bankName || "-"}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)", marginBottom: "4px" }}>Account Number</div>
+                    <div style={{ fontSize: "14px", fontWeight: "var(--font-weight-bold)" }}>{selectedInvoiceForDetail.accountNumber || "-"}</div>
+                  </div>
+                  <div style={{ gridColumn: "span 2" }}>
+                    <div style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)", marginBottom: "4px" }}>Account Name</div>
+                    <div style={{ fontSize: "14px", fontWeight: "var(--font-weight-bold)" }}>{selectedInvoiceForDetail.accountName || "-"}</div>
+                  </div>
+
+                  {/* Row 4 items (shifted from Row 3) */}
                   <div style={{ gridColumn: "span 2" }}>
                     <div style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)", marginBottom: "4px" }}>Notes</div>
                     <div style={{ fontSize: "14px", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)", lineHeight: "1.5" }}>
@@ -9330,15 +9620,18 @@ export const PurchaseOrderDetailPage = ({
                           overflow: "hidden"
                         }}>
                           <div 
-                            style={{ padding: "16px", display: "flex", alignItems: "center", gap: "16px" }}
+                            style={{ padding: "16px", display: "flex", alignItems: "flex-start", gap: "16px" }}
                           >
                             <div style={{ width: "40px", height: "40px", background: "var(--feature-brand-container-lighter)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                               <CalendarIcon size={20} color="var(--feature-brand-primary)" />
                             </div>
                             <div style={{ flex: 1 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                                <div style={{ fontSize: "15px", fontWeight: "var(--font-weight-bold)" }}>{pay.date}</div>
-                                <StatusBadge variant="blue-light">{pay.method}</StatusBadge>
+                                <div style={{ fontSize: "15px", fontWeight: "var(--font-weight-bold)", textDecoration: pay.isVoid ? "line-through" : "none", color: pay.isVoid ? "var(--neutral-on-surface-tertiary)" : "inherit" }}>{pay.id}</div>
+                                <StatusBadge variant={pay.isVoid ? "grey-light" : "blue-light"}>{pay.isVoid ? "Voided" : pay.method}</StatusBadge>
+                              </div>
+                              <div style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)", marginBottom: "4px" }}>
+                                {pay.date}
                               </div>
                               {pay.notes && (
                                 <div style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)", marginBottom: "4px" }}>
@@ -9351,11 +9644,29 @@ export const PurchaseOrderDetailPage = ({
                                   {pay.proof}
                                 </div>
                               )}
+                              {(pay.addedBy || pay.createdAt) && (
+                                <div style={{ fontSize: "12px", color: "var(--neutral-on-surface-secondary)", marginTop: "4px" }}>
+                                  Added by {pay.addedBy || "System"} • {pay.createdAt ? `${formatIsoDateString(new Date(pay.createdAt))} ${new Date(pay.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}` : "Unknown"}
+                                </div>
+                              )}
                             </div>
-                            <div style={{ textAlign: "right", marginRight: "12px" }}>
-                              <div style={{ fontSize: "15px", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>
+                            <div style={{ textAlign: "right", display: "flex", flexDirection: "column", justifyContent: "space-between", height: "100%", minHeight: "80px" }}>
+                              <div style={{ fontSize: "15px", fontWeight: "var(--font-weight-bold)", color: pay.isVoid ? "var(--neutral-on-surface-tertiary)" : "var(--neutral-on-surface-primary)", textDecoration: pay.isVoid ? "line-through" : "none" }}>
                                 {formatCurrency(pay.amount, currency)}
                               </div>
+                              {!pay.isVoid && (
+                                <Button
+                                  variant="danger"
+                                  size="small"
+                                  onClick={() => {
+                                    setPaymentToVoid(pay);
+                                    setShowVoidConfirmModal(true);
+                                  }}
+                                  style={{ minWidth: "fit-content" }}
+                                >
+                                  Void
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -9400,8 +9711,10 @@ export const PurchaseOrderDetailPage = ({
                     ...paymentFormData,
                     amount: "",
                   });
+                  setShowInvoiceDetailDrawer(false);
                   setShowAddPaymentDrawer(true);
                 }}
+                disabled={getInvoiceMetrics(selectedInvoiceForDetail).outstanding <= 0}
                 style={{ flex: 1 }}
               >
                 Add Payment
@@ -9422,9 +9735,9 @@ export const PurchaseOrderDetailPage = ({
         footer={
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
             <Button
-              variant="filled"
+              variant="danger-filled"
               size="large"
-              style={{ width: "100%", backgroundColor: "var(--status-red-primary)" }}
+              style={{ width: "100%" }}
               onClick={handleDeleteInvoice}
             >
               Yes, Delete
@@ -9440,6 +9753,159 @@ export const PurchaseOrderDetailPage = ({
           </div>
         }
       />
+      <CanceledWorkOrderBlockerModal
+        isOpen={showCanceledWOBlocker}
+        onClose={() => setShowCanceledWOBlocker(false)}
+        canceledWOs={canceledWOsFound}
+        mode="detail"
+        onEditPO={() => {
+          setShowCanceledWOBlocker(false);
+          handleEditPo();
+        }}
+      />
+
+      {/* Void Payment Confirmation Modal */}
+      <GeneralModal
+        isOpen={showVoidConfirmModal}
+        onClose={() => setShowVoidConfirmModal(false)}
+        title="Void Payment?"
+        width="400px"
+        centeredHeader
+        description={`This will void the payment ${paymentToVoid?.id} and revert the settlement progress by ${paymentToVoid ? formatCurrency(paymentToVoid.amount, currency) : ""}. This action cannot be undone.`}
+        footer={
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+            <Button
+              variant="danger-filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={handleVoidPayment}
+            >
+              Confirm Void
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => setShowVoidConfirmModal(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        }
+      />
     </div>
   );
 };
+
+const CanceledWorkOrderBlockerModal = ({
+  isOpen,
+  onClose,
+  canceledWOs,
+  mode = "edit",
+  onEditPO,
+}) => (
+  <GeneralModal
+    isOpen={isOpen}
+    onClose={onClose}
+    width="520px"
+    title="Canceled Work Orders Found"
+    description="Some work orders in this purchase order have already been canceled."
+  >
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          background: "var(--feature-brand-container-lighter)",
+          borderRadius: "12px",
+          padding: "16px 20px",
+          display: "flex",
+          gap: "16px",
+          alignItems: "flex-start",
+          textAlign: "left",
+          marginBottom: "32px",
+        }}
+      >
+        <div style={{ marginTop: "2px" }}>
+          <Info size={20} color="var(--feature-brand-primary)" />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          {canceledWOs.map((wo) => (
+            <div
+              key={wo}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                color: "var(--feature-brand-primary)",
+                fontSize: "16px",
+                fontWeight: "500",
+              }}
+            >
+              <div
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: "var(--feature-brand-primary)",
+                }}
+              />
+              {wo}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+        }}
+      >
+        {mode === "detail" ? (
+          <>
+            <Button
+              variant="filled"
+              size="large"
+              onClick={onEditPO}
+              style={{ width: "100%", height: "56px", fontSize: "18px" }}
+            >
+              Edit PO
+            </Button>
+            <Button
+              variant="outline"
+              size="large"
+              onClick={onClose}
+              style={{ width: "100%", height: "56px", fontSize: "18px" }}
+            >
+              Close
+            </Button>
+          </>
+        ) : (
+          <Button
+            variant="filled"
+            size="large"
+            onClick={onClose}
+            style={{ width: "100%", height: "56px", fontSize: "18px" }}
+          >
+            Okay
+          </Button>
+        )}
+      </div>
+    </div>
+  </GeneralModal>
+);

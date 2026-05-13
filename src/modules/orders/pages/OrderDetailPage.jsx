@@ -26,7 +26,7 @@ import {
   createUploadDocumentRecord 
 } from "../../../utils/upload/uploadUtils.js";
 import { MOCK_WO_TABLE_DATA } from "../../work-order/mock/workOrderMocks.js";
-import { MOCK_ORDER_MATERIALS_DATA } from "../mock/orderMocks.js";
+import { MOCK_ORDER_MATERIALS_DATA, MOCK_ORDER_PRODUCTS_DATA } from "../mock/orderMocks.js";
 import { MOCK_PO_TABLE_DATA } from "../../../modules/purchase-order/mock/purchaseOrderMocks.js";
 import { TraceabilityTab } from "../components/TraceabilityTab.jsx";
 
@@ -36,7 +36,7 @@ const MOCK_ATTACHMENTS_DATA = [
   { id: 1, name: "invoice-march-2026.pdf", documentType: "invoice", uploadedBy: "Joko", date: "Mar 20, 2026", size: "2.4 MB", type: "pdf", meta: "Uploaded by Joko on Mar 20, 2026" },
   { id: 2, name: "delivery-note-batch-14.pdf", documentType: "delivery_note", uploadedBy: "Natasha Smith", date: "Mar 20, 2026", size: "1.1 MB", type: "pdf", meta: "Uploaded by Natasha Smith on Mar 20, 2026" },
   { id: 3, name: "vendor-quotation.pdf", documentType: "quotation_vendor", uploadedBy: "Joko", date: "Mar 19, 2026", size: "860 KB", type: "pdf", meta: "Uploaded by Joko on Mar 19, 2026" },
-  { id: 4, name: "packing-list-wood-frame.png", documentType: "packing_list", uploadedBy: "Natasha Smith", date: "Mar 18, 2026", size: "540 KB", type: "image", meta: "Uploaded by Natasha Smith on Mar 18, 2026" },
+  { id: 4, name: "packing-list-wood-frame.png", documentType: "packing_list", uploadedBy: "Natasha Smith", date: "Mar 18, 2026", size: "540 KB", type: "image", previewUrl: "https://images.unsplash.com/photo-1586769852836-bc069f19e1b6?w=400&h=400&fit=crop", meta: "Uploaded by Natasha Smith on Mar 18, 2026" },
   { id: 5, name: "manual-x200.pdf", documentType: "other", uploadedBy: "Admin", date: "Mar 15, 2026", size: "15.2 MB", type: "pdf", meta: "Uploaded by Admin on Mar 15, 2026" },
 ];
 
@@ -404,7 +404,11 @@ const tabButtonStyle = (isActive) => ({
   boxShadow: "none",
 });
 
-const WorkOrderTab = ({ orderNo, onNavigate }) => {
+
+
+
+
+const WorkOrderTab = ({ orderNo, orderStatus, onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -509,9 +513,9 @@ const WorkOrderTab = ({ orderNo, onNavigate }) => {
       <div style={{ width: "100%", overflowX: "auto" }}>
         <div style={{ minWidth: "1000px", width: "100%" }}>
           <div style={{ display: "grid", gridTemplateColumns: gridTemplate, borderBottom: "1px solid var(--neutral-line-separator-1)", background: "var(--neutral-surface-primary)", alignItems: "center" }}>
-            <div style={{ padding: "16px 12px 16px 24px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>WO Number</div>
-            <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Product</div>
-            <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>WO Qty</div>
+            <div style={{ padding: "16px 12px 16px 24px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Product</div>
+            <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>WO Number</div>
+            <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Ordered Qty</div>
             <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Planned Start</div>
             <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Planned End</div>
             <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Status</div>
@@ -519,29 +523,7 @@ const WorkOrderTab = ({ orderNo, onNavigate }) => {
           <div style={{ display: "block", maxHeight: `${maxBodyHeight}px`, overflowY: "auto", width: "100%" }}>
             {visibleData.length > 0 ? visibleData.map((wo, idx) => (
               <div key={idx} style={{ display: "grid", gridTemplateColumns: gridTemplate, height: `${rowHeight}px`, alignItems: "center", borderBottom: "1px solid var(--neutral-line-separator-1)", transition: "background 0.2s ease", cursor: "default", width: "100%" }}>
-                <div style={{ padding: "0 12px 0 24px", overflow: "hidden", display: "flex" }}>
-                  <Tooltip content={wo.wo} checkTruncation={true} style={{ width: "100%" }}>
-                    <span 
-                      onClick={(e) => { e.stopPropagation(); onNavigate("wo_detail", { woNo: wo.wo }); }} 
-                      onMouseEnter={() => setHoveredWo(`${wo.wo}-${idx}`)} 
-                      onMouseLeave={() => setHoveredWo(null)} 
-                      style={{ 
-                        fontSize: "var(--text-title-3)", 
-                        fontWeight: "var(--font-weight-bold)", 
-                        color: "var(--feature-brand-primary)", 
-                        cursor: "pointer", 
-                        textDecoration: hoveredWo === `${wo.wo}-${idx}` ? "underline" : "none", 
-                        whiteSpace: "nowrap", 
-                        overflow: "hidden", 
-                        textOverflow: "ellipsis",
-                        display: "block"
-                      }}
-                    >
-                      {wo.wo}
-                    </span>
-                  </Tooltip>
-                </div>
-                <div style={{ padding: "0 12px", display: "flex", alignItems: "center", gap: "12px", overflow: "hidden" }}>
+                <div style={{ padding: "0 12px 0 24px", display: "flex", alignItems: "center", gap: "12px", overflow: "hidden" }}>
                   <div style={{ width: "40px", height: "40px", borderRadius: "8px", background: "var(--neutral-surface-grey-lighter)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <Box size={20} color="var(--neutral-on-surface-tertiary)" />
                   </div>
@@ -561,6 +543,32 @@ const WorkOrderTab = ({ orderNo, onNavigate }) => {
                     </Tooltip>
                     <span onClick={(e) => { e.stopPropagation(); onNavigate("product_detail", { sku: wo.sku }); }} onMouseEnter={() => setHoveredSku(`${wo.wo}-${idx}`)} onMouseLeave={() => setHoveredSku(null)} style={{ fontSize: "var(--text-body)", color: "var(--feature-brand-primary)", cursor: "pointer", textDecoration: hoveredSku === `${wo.wo}-${idx}` ? "underline" : "none" }}>{wo.sku}</span>
                   </div>
+                </div>
+                <div style={{ padding: "0 12px", overflow: "hidden", display: "flex" }}>
+                  {["Not Started", "Waiting for Approval", "Need Revision"].includes(orderStatus) ? (
+                    <span style={{ fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-tertiary)" }}>-</span>
+                  ) : (
+                    <Tooltip content={wo.wo} checkTruncation={true} style={{ width: "100%" }}>
+                      <span 
+                        onClick={(e) => { e.stopPropagation(); onNavigate("wo_detail", { woNo: wo.wo }); }} 
+                        onMouseEnter={() => setHoveredWo(`${wo.wo}-${idx}`)} 
+                        onMouseLeave={() => setHoveredWo(null)} 
+                        style={{ 
+                          fontSize: "var(--text-title-3)", 
+                          fontWeight: "var(--font-weight-bold)", 
+                          color: "var(--feature-brand-primary)", 
+                          cursor: "pointer", 
+                          textDecoration: hoveredWo === `${wo.wo}-${idx}` ? "underline" : "none", 
+                          whiteSpace: "nowrap", 
+                          overflow: "hidden", 
+                          textOverflow: "ellipsis",
+                          display: "block"
+                        }}
+                      >
+                        {wo.wo}
+                      </span>
+                    </Tooltip>
+                  )}
                 </div>
                 <div style={{ padding: "0 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>{wo.qty}</div>
                 <div style={{ padding: "0 12px", fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-primary)" }}>{wo.start || "-"}</div>
@@ -608,6 +616,16 @@ const InvoicesTab = ({ onNavigate }) => {
     return result;
   }, [searchQuery, statusFilter]);
 
+  const metrics = useMemo(() => {
+    const total = filteredData.reduce((acc, inv) => acc + inv.totalDue, 0);
+    const paid = filteredData.filter(inv => inv.status === "Paid").reduce((acc, inv) => acc + inv.totalDue, 0);
+    return {
+      totalInvoice: total,
+      totalPaid: paid,
+      totalOutstanding: total - paid
+    };
+  }, [filteredData]);
+
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
   const visibleData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const statusOptions = ["Paid", "Issued", "Void", "Canceled", "Need Revision"];
@@ -629,51 +647,100 @@ const InvoicesTab = ({ onNavigate }) => {
   const maxBodyHeight = rowHeight * 5;
 
   return (
-    <div style={{ width: "100%", background: "var(--neutral-surface-primary)", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", gap: "16px" }}>
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          <div onClick={handleFilterToggle}>
-            <FilterPill label="Status" count={statusFilter.length} active={statusFilter.length > 0} isOpen={isFilterOpen} />
+    <div style={{ width: "100%", background: "var(--neutral-background-primary)", display: "flex", flexDirection: "column", gap: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px" }}>
+        {[
+          { label: "Total Invoice", value: metrics.totalInvoice, icon: <TrendingUp /> },
+          { label: "Total Paid", value: metrics.totalPaid, icon: <Box /> },
+          { label: "Total Outstanding", value: metrics.totalOutstanding, icon: <Info /> }
+        ].map((card, idx) => (
+          <div key={idx} style={{ 
+            background: "var(--neutral-surface-primary)", 
+            borderRadius: "16px", 
+            padding: "20px", 
+            border: "1px solid var(--neutral-line-separator-1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            minHeight: "92px"
+          }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div style={{ fontSize: "13px", color: "var(--neutral-on-surface-tertiary)", fontWeight: "500" }}>{card.label}</div>
+              <div style={{ fontSize: "16px", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>{formatCurrency(card.value)}</div>
+            </div>
+            <div style={{ 
+              width: "36px", 
+              height: "36px", 
+              borderRadius: "50%", 
+              background: "#F5F5F5", 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              flexShrink: 0
+            }}>
+              {React.cloneElement(card.icon, { size: 18, color: "var(--neutral-on-surface-secondary)" })}
+            </div>
           </div>
-          {isFilterOpen && (
-            <>
-              {createPortal(<div style={{ position: "fixed", inset: 0, zIndex: 14000 }} onClick={() => setIsFilterOpen(false)} />, document.body)}
-              {createPortal(
-                <div style={{
-                  position: "fixed",
-                  top: `${filterTriggerRect.bottom + 8}px`,
-                  left: `${filterTriggerRect.left}px`,
-                  width: "240px",
-                  background: "var(--neutral-surface-primary)",
-                  border: "1px solid var(--neutral-line-separator-1)",
-                  borderRadius: "16px",
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-                  padding: "16px",
-                  zIndex: 14001,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "16px"
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "var(--text-title-2)", fontWeight: "var(--font-weight-bold)" }}>Status</span>
-                    <button onClick={() => { setStatusFilter([]); setIsFilterOpen(false); }} style={{ background: "none", border: "none", color: "var(--status-red-primary)", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Remove Filter</button>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {statusOptions.map(opt => (
-                      <label key={opt} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13px" }}>
-                        <Checkbox checked={statusFilter.includes(opt)} onChange={() => toggleStatus(opt)} />
-                        {opt}
-                      </label>
-                    ))}
-                  </div>
-                </div>,
-                document.body
-              )}
-            </>
-          )}
-        </div>
-        <TableSearchField value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Invoice Number" width="320px" />
+        ))}
       </div>
+
+      <div style={{ 
+        background: "var(--neutral-surface-primary)", 
+        borderRadius: "var(--radius-card)", 
+        border: "1px solid var(--neutral-line-separator-1)",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", gap: "16px" }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <div onClick={handleFilterToggle}>
+              <FilterPill label="Status" count={statusFilter.length} active={statusFilter.length > 0} isOpen={isFilterOpen} />
+            </div>
+            {isFilterOpen && (
+              <>
+                {createPortal(<div style={{ position: "fixed", inset: 0, zIndex: 14000 }} onClick={() => setIsFilterOpen(false)} />, document.body)}
+                {createPortal(
+                  <div style={{
+                    position: "fixed",
+                    top: `${filterTriggerRect.bottom + 8}px`,
+                    left: `${filterTriggerRect.left}px`,
+                    width: "240px",
+                    background: "var(--neutral-surface-primary)",
+                    border: "1px solid var(--neutral-line-separator-1)",
+                    borderRadius: "16px",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                    padding: "16px",
+                    zIndex: 14001,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "var(--text-title-2)", fontWeight: "var(--font-weight-bold)" }}>Status</span>
+                      <button onClick={() => { setStatusFilter([]); setIsFilterOpen(false); }} style={{ background: "none", border: "none", color: "var(--status-red-primary)", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Remove Filter</button>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {statusOptions.map(opt => (
+                        <label key={opt} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13px" }}>
+                          <Checkbox checked={statusFilter.includes(opt)} onChange={() => toggleStatus(opt)} />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                  </div>,
+                  document.body
+                )}
+              </>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <TableSearchField value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Invoice Number" width="320px" />
+            <Button variant="filled" leftIcon={AddIcon} onClick={() => {}}>
+              Add Invoice
+            </Button>
+          </div>
+        </div>
       <div style={{ height: "1px", background: "var(--neutral-line-separator-1)", width: "100%" }} />
       <div style={{ width: "100%", overflowX: "auto" }}>
         <div style={{ minWidth: "1000px", width: "100%" }}>
@@ -723,16 +790,22 @@ const InvoicesTab = ({ onNavigate }) => {
       <div style={{ padding: "0 4px" }}>
         <TablePaginationFooter currentPage={currentPage} totalPages={totalPages} rowsPerPage={rowsPerPage} totalRows={filteredData.length} onPageChange={setCurrentPage} onRowsPerPageChange={setRowsPerPage} />
       </div>
+      </div>
     </div>
   );
 };
 
-const AttachmentsTab = ({ onNavigate }) => {
+const AttachmentsTab = ({ onNavigate, showSnackbar }) => {
+  const [attachments, setAttachments] = useState(MOCK_ATTACHMENTS_DATA);
   const [view, setView] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterTriggerRect, setFilterTriggerRect] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuTriggerRect, setMenuTriggerRect] = useState(null);
+  const MAX_ATTACHMENTS = 10;
+  const isLimitReached = attachments.length >= MAX_ATTACHMENTS;
 
   // Modals
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -741,26 +814,21 @@ const AttachmentsTab = ({ onNavigate }) => {
   
   // Modal Form States
   const [selectedDocId, setSelectedDocId] = useState(null);
-  const [uploadDocType, setUploadDocType] = useState("other");
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadDescription, setUploadDescription] = useState("");
   const [uploadError, setUploadError] = useState("");
 
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editType, setEditType] = useState("other");
 
   const filteredData = React.useMemo(() => {
-    let result = [...MOCK_ATTACHMENTS_DATA];
+    let result = [...attachments];
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(doc => (doc.title || doc.name).toLowerCase().includes(q));
     }
-    if (typeFilter.length > 0) {
-      result = result.filter(doc => typeFilter.includes(doc.documentType));
-    }
     return result;
-  }, [searchQuery, typeFilter]);
+  }, [attachments, searchQuery]);
 
   const documentTypeOptions = [
     { value: "invoice", label: "Invoice" },
@@ -778,16 +846,9 @@ const AttachmentsTab = ({ onNavigate }) => {
     if (doc.type === "image" && doc.previewUrl) {
       return <img src={doc.previewUrl} alt={doc.name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: radius, display: "block" }} />;
     }
-    if (doc.type === "image") {
-      return (
-        <div style={{ width: "100%", height: "100%", background: "linear-gradient(180deg, #CFE1FF 0%, #F6E6C9 100%)", borderRadius: radius, position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", left: compact ? "18px" : "56px", bottom: compact ? "11px" : "34px", width: compact ? "18px" : "50px", height: compact ? "14px" : "34px", background: "#6E9FD8", transform: "skewX(-18deg)", borderRadius: "4px" }} />
-        </div>
-      );
-    }
     return (
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: radius }}>
-        <DocumentTypeBadge fileName={doc.name} type={doc.type} size="preview" />
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: radius, background: "var(--neutral-surface-grey-lighter)" }}>
+        <DocumentTypeBadge fileName={doc.name} type={doc.type} size={compact ? "small" : "preview"} />
       </div>
     );
   };
@@ -799,13 +860,42 @@ const AttachmentsTab = ({ onNavigate }) => {
   };
 
   const resetUploadState = () => {
-    setUploadDocType("other");
     setUploadFile(null);
     setUploadDescription("");
     setUploadError("");
   };
 
-  const gridTemplate = "2.2fr 1fr 1.2fr 1fr 0.9fr 132px";
+  const handleUpload = () => {
+    if (!uploadFile) return;
+    
+    const newDoc = {
+      id: Date.now(),
+      name: uploadFile.name,
+      title: uploadFile.name.split('.')[0],
+      description: uploadDescription,
+      documentType: "other",
+      uploadedBy: "Joko",
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      size: `${(uploadFile.size / (1024 * 1024)).toFixed(1)} MB`,
+      type: uploadFile.type.includes('pdf') ? 'pdf' : 'image',
+      meta: `Uploaded by Joko on ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    };
+
+    setAttachments(prev => [newDoc, ...prev]);
+    setShowUploadModal(false);
+    resetUploadState();
+    showSnackbar?.("Document successfully uploaded");
+  };
+
+  const handleDelete = () => {
+    if (selectedDocId === null) return;
+    setAttachments(prev => prev.filter(doc => doc.id !== selectedDocId));
+    setShowDeleteModal(false);
+    setSelectedDocId(null);
+    showSnackbar?.("Document successfully deleted", "black");
+  };
+
+  const gridTemplate = "2.2fr 1.2fr 1fr 0.9fr 132px";
   const rowHeight = 72;
 
   return (
@@ -813,45 +903,7 @@ const AttachmentsTab = ({ onNavigate }) => {
       {/* Header Section */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", gap: "16px" }}>
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          <div onClick={handleFilterToggle}>
-            <FilterPill label="Document Type" count={typeFilter.length} active={typeFilter.length > 0} isOpen={isFilterOpen} />
-          </div>
-          {isFilterOpen && (
-            <>
-              {createPortal(<div style={{ position: "fixed", inset: 0, zIndex: 14000 }} onClick={() => setIsFilterOpen(false)} />, document.body)}
-              {createPortal(
-                <div style={{
-                  position: "fixed",
-                  top: `${filterTriggerRect.bottom + 8}px`,
-                  left: `${filterTriggerRect.left}px`,
-                  width: "240px",
-                  background: "var(--neutral-surface-primary)",
-                  border: "1px solid var(--neutral-line-separator-1)",
-                  borderRadius: "16px",
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-                  padding: "16px",
-                  zIndex: 14001,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "16px"
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "var(--text-title-2)", fontWeight: "var(--font-weight-bold)" }}>Document Type</span>
-                    <button onClick={() => setTypeFilter([])} style={{ background: "none", border: "none", color: "var(--status-red-primary)", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Remove Filter</button>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {documentTypeOptions.map(opt => (
-                      <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13px" }}>
-                        <Checkbox checked={typeFilter.includes(opt.value)} onChange={() => setTypeFilter(prev => prev.includes(opt.value) ? prev.filter(p => p !== opt.value) : [...prev, opt.value])} />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>,
-                document.body
-              )}
-            </>
-          )}
+          {/* Removed Document Type Filter */}
         </div>
         
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
@@ -864,20 +916,42 @@ const AttachmentsTab = ({ onNavigate }) => {
               <GridViewIcon size={18} color={view === "grid" ? "var(--feature-brand-primary)" : "var(--neutral-on-surface-tertiary)"} />
             </button>
           </div>
-          <Button variant="filled" leftIcon={UploadIcon} onClick={() => { resetUploadState(); setShowUploadModal(true); }}>Upload</Button>
+          <Button 
+            variant="filled" 
+            leftIcon={UploadIcon} 
+            disabled={isLimitReached}
+            onClick={() => { resetUploadState(); setShowUploadModal(true); }}
+          >
+            Upload
+          </Button>
         </div>
       </div>
 
       <div style={{ height: "1px", background: "var(--neutral-line-separator-1)", width: "100%" }} />
 
-      {/* Content Area */}
       <div style={{ padding: "0" }}>
+        {isLimitReached && (
+          <div style={{ 
+            margin: "20px 24px 0", 
+            display: "flex", 
+            alignItems: "flex-start", 
+            gap: "12px", 
+            padding: "12px 16px", 
+            borderRadius: "12px", 
+            background: "var(--feature-brand-container-lighter)", 
+            border: "1px solid var(--feature-brand-container-darker)" 
+          }}>
+            <Info size={16} strokeWidth={2.1} color="var(--feature-brand-primary)" style={{ flexShrink: 0, marginTop: "2px" }} />
+            <span style={{ fontSize: "var(--text-title-3)", color: "var(--feature-brand-primary)", lineHeight: "1.5" }}>
+              This order already has {MAX_ATTACHMENTS} documents attached. Remove a document before uploading a new one.
+            </span>
+          </div>
+        )}
         {view === "list" ? (
           <div style={{ width: "100%", overflowX: "auto" }}>
             <div style={{ minWidth: "1000px", width: "100%" }}>
               <div style={{ display: "grid", gridTemplateColumns: gridTemplate, borderBottom: "1px solid var(--neutral-line-separator-1)", background: "var(--neutral-surface-primary)", alignItems: "center" }}>
                 <div style={{ padding: "16px 12px 16px 24px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Name</div>
-                <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Document Type</div>
                 <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Uploaded By</div>
                 <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Date Modified</div>
                 <div style={{ padding: "16px 12px", fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>File Size</div>
@@ -893,13 +967,12 @@ const AttachmentsTab = ({ onNavigate }) => {
                         <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-secondary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.name}</span>
                       </div>
                     </div>
-                    <div style={{ padding: "0 12px", fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-secondary)" }}>{getDocumentTypeLabel(doc.documentType)}</div>
                     <div style={{ padding: "0 12px", fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-primary)" }}>{doc.uploadedBy}</div>
                     <div style={{ padding: "0 12px", fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-primary)" }}>{doc.date}</div>
                     <div style={{ padding: "0 12px", fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-primary)" }}>{doc.size}</div>
                     <div style={{ padding: "0 24px 0 12px", display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-                      <Tooltip content="Download"><IconButton icon={DownloadIcon} size="small" onClick={() => {}} /></Tooltip>
-                      <Tooltip content="Edit"><IconButton icon={EditIcon} size="small" onClick={() => { setSelectedDocId(doc.id); setEditName(doc.title || doc.name.split('.')[0]); setEditDescription(doc.description || ""); setEditType(doc.documentType); setShowEditModal(true); }} /></Tooltip>
+                      <Tooltip content="Download"><IconButton icon={DownloadIcon} size="small" onClick={() => { showSnackbar?.("Document successfully downloaded"); }} /></Tooltip>
+                      <Tooltip content="Edit"><IconButton icon={EditIcon} size="small" onClick={() => { setSelectedDocId(doc.id); setEditName(doc.title || doc.name.split('.')[0]); setEditDescription(doc.description || ""); setShowEditModal(true); }} /></Tooltip>
                       <Tooltip content="Delete"><IconButton icon={DeleteIcon} size="small" color="var(--status-red-primary)" hoverBackground="#FAE6E8" onClick={() => { setSelectedDocId(doc.id); setShowDeleteModal(true); }} /></Tooltip>
                     </div>
                   </div>
@@ -908,20 +981,100 @@ const AttachmentsTab = ({ onNavigate }) => {
             </div>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "16px", padding: "20px 24px", maxHeight: "450px", overflowY: "auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "16px", padding: "20px 24px" }}>
             {filteredData.length > 0 ? filteredData.map((doc) => (
               <div key={doc.id} style={{ border: "1px solid var(--neutral-line-separator-1)", borderRadius: "16px", background: "var(--neutral-surface-primary)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 <div style={{ height: "152px", overflow: "hidden" }}>{getDocumentPreview(doc, false)}</div>
                 <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "flex-start" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "flex-start", position: "relative" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px", flex: 1, minWidth: 0 }}>
                       <span style={{ fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)", lineHeight: "1.5", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.title || doc.name.split('.')[0]}</span>
                       <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-secondary)", lineHeight: "1.4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{doc.name}</span>
                     </div>
-                    <IconButton icon={MoreVerticalIcon} size="small" color="var(--neutral-on-surface-secondary)" onClick={() => {}} />
+                    <IconButton 
+                      icon={MoreVerticalIcon} 
+                      size="small" 
+                      color="var(--neutral-on-surface-secondary)" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setMenuTriggerRect(rect);
+                        setOpenMenuId(openMenuId === doc.id ? null : doc.id);
+                      }} 
+                    />
+                    {openMenuId === doc.id && (
+                      <>
+                        {createPortal(
+                          <div 
+                            style={{ position: "fixed", inset: 0, zIndex: 100 }} 
+                            onClick={() => setOpenMenuId(null)} 
+                          />,
+                          document.body
+                        )}
+                        {createPortal(
+                          <div style={{
+                            position: "fixed",
+                            top: `${menuTriggerRect.bottom + 8}px`,
+                            left: `${menuTriggerRect.right - 160}px`,
+                            width: "160px",
+                            background: "var(--neutral-surface-primary)",
+                            border: "1px solid var(--neutral-line-separator-1)",
+                            borderRadius: "12px",
+                            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                            zIndex: 101,
+                            padding: "6px",
+                            display: "flex",
+                            flexDirection: "column"
+                          }}>
+                            {[
+                              { label: "Download", icon: <DownloadIcon size={16} />, color: "var(--neutral-on-surface-primary)", onClick: () => {
+                                showSnackbar?.("Document successfully downloaded");
+                                setOpenMenuId(null);
+                              }},
+                              { label: "Edit", icon: <EditIcon size={16} />, color: "var(--neutral-on-surface-primary)", onClick: () => {
+                                setSelectedDocId(doc.id);
+                                setEditName(doc.title || doc.name.split('.')[0]);
+                                setEditDescription(doc.description || "");
+                                setShowEditModal(true);
+                                setOpenMenuId(null);
+                              }},
+                              { label: "Delete", icon: <Trash2 size={16} />, color: "var(--status-red-primary)", onClick: () => {
+                                setSelectedDocId(doc.id);
+                                setShowDeleteModal(true);
+                                setOpenMenuId(null);
+                              }}
+                            ].map((opt, i, arr) => (
+                              <button
+                                key={i}
+                                onClick={(e) => { e.stopPropagation(); opt.onClick?.(); }}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "10px",
+                                  padding: "10px 12px",
+                                  borderRadius: i === 0 ? "8px 8px 0 0" : i === arr.length - 1 ? "0 0 8px 8px" : "0",
+                                  border: "none",
+                                  borderBottom: i < arr.length - 1 ? "1px solid var(--neutral-line-separator-2)" : "none",
+                                  background: "none",
+                                  cursor: "pointer",
+                                  textAlign: "left",
+                                  width: "100%",
+                                  transition: "background 0.2s"
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = "var(--neutral-surface-grey-lighter)"}
+                                onMouseLeave={(e) => e.currentTarget.style.background = "none"}
+                              >
+                                {React.cloneElement(opt.icon, { color: opt.color })}
+                                <span style={{ fontSize: "13px", color: opt.color, fontWeight: "500" }}>{opt.label}</span>
+                              </button>
+                            ))}
+                          </div>,
+                          document.body
+                        )}
+                      </>
+                    )}
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-secondary)" }}>Document Type: {getDocumentTypeLabel(doc.documentType)}</span>
                     <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-secondary)" }}>Uploaded by: {doc.uploadedBy}</span>
                     <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-secondary)" }}>Date modified: {doc.date}</span>
                     <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-secondary)" }}>File size: {doc.size}</span>
@@ -942,7 +1095,7 @@ const AttachmentsTab = ({ onNavigate }) => {
         footer={
           <div style={{ display: "flex", gap: "12px", width: "100%" }}>
             <Button variant="outlined" size="large" style={{ flex: 1 }} onClick={() => { setShowUploadModal(false); resetUploadState(); }}>Cancel</Button>
-            <Button variant="filled" size="large" style={{ flex: 1 }} disabled={!uploadDocType || !uploadFile} onClick={() => setShowUploadModal(false)}>Upload</Button>
+            <Button variant="filled" size="large" style={{ flex: 1 }} disabled={!uploadFile} onClick={handleUpload}>Upload</Button>
           </div>
         }
       >
@@ -950,18 +1103,18 @@ const AttachmentsTab = ({ onNavigate }) => {
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "2px", fontSize: "var(--text-body)" }}>
               <span style={{ color: "var(--status-red-primary)" }}>*</span>
-              <span style={{ color: "var(--neutral-on-surface-primary)" }}>Document Type</span>
-            </div>
-            <DropdownSelect value={uploadDocType} onChange={setUploadDocType} options={documentTypeOptions} borderRadius="12px" />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "2px", fontSize: "var(--text-body)" }}>
-              <span style={{ color: "var(--status-red-primary)" }}>*</span>
               <span style={{ color: "var(--neutral-on-surface-primary)" }}>Document Upload</span>
             </div>
-            <UploadDropzone maxFiles={1} disabled={!!uploadFile} onFilesSelected={(files) => { setUploadFile(files[0]); setUploadError(validateUploadFile(files[0])); }} error={uploadError} />
+            <UploadDropzone 
+              maxFiles={1} 
+              disabled={!!uploadFile} 
+              onFilesSelected={(files) => { setUploadFile(files[0]); setUploadError(validateUploadFile(files[0])); }} 
+              error={uploadError}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp"
+              allowedText="Allowed formats (PDF, DOC, XLSX, JPG, JPEG, PNG, WebP)"
+            />
           </div>
-          {uploadFile && <UploadDescriptionCard file={{...uploadFile, description: uploadDescription}} onRemove={resetUploadState} onDescriptionChange={setUploadDescription} />}
+          {uploadFile && <UploadDescriptionCard file={{name: uploadFile.name, type: uploadFile.type, description: uploadDescription}} onRemove={resetUploadState} onDescriptionChange={setUploadDescription} />}
         </div>
       </GeneralModal>
 
@@ -989,13 +1142,6 @@ const AttachmentsTab = ({ onNavigate }) => {
             </div>
             <input type="text" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Enter File Description" maxLength={FILE_DESCRIPTION_MAX_LENGTH} style={{ height: "48px", border: "1px solid var(--neutral-line-separator-1)", borderRadius: "8px", padding: "0 16px", outline: "none" }} />
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "2px", fontSize: "var(--text-body)" }}>
-              <span style={{ color: "var(--status-red-primary)" }}>*</span>
-              <span style={{ color: "var(--neutral-on-surface-primary)" }}>Document Type</span>
-            </div>
-            <DropdownSelect value={editType} onChange={setEditType} options={documentTypeOptions} borderRadius="12px" />
-          </div>
         </div>
       </GeneralModal>
 
@@ -1008,7 +1154,7 @@ const AttachmentsTab = ({ onNavigate }) => {
         description="This document will be permanently removed from the order."
         footer={
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
-            <Button variant="filled" size="large" style={{ width: "100%" }} onClick={() => setShowDeleteModal(false)}>Yes, Delete</Button>
+            <Button variant="filled" size="large" style={{ width: "100%" }} onClick={handleDelete}>Yes, Delete</Button>
             <Button variant="outlined" size="large" style={{ width: "100%" }} onClick={() => setShowDeleteModal(false)}>Cancel</Button>
           </div>
         }
@@ -1810,8 +1956,8 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
                 </StatusBadge>
               </div>
 
-              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                {["Calculation", "Used In"].map(tab => (
+              <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "8px" }}>
+                {["Calculation", "Work Orders"].map(tab => (
                   <button 
                     key={tab}
                     onClick={() => setDrawerTab(tab)}
@@ -1829,7 +1975,7 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
 
               <div>
                 {drawerTab === "Calculation" ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", alignItems: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1839,16 +1985,22 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
                           >
                             {expandedDemand ? <ChevronDownIcon size={16} color="var(--neutral-on-surface-tertiary)" /> : <ChevronRightIcon size={16} color="var(--neutral-on-surface-tertiary)" />}
                           </div>
-                          <span style={{ color: "var(--neutral-on-surface-secondary)" }}>Demand</span>
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <span style={{ color: "var(--neutral-on-surface-primary)", fontWeight: "bold" }}>Demand</span>
+                            <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)" }}>Total material quantity needed across all work orders</span>
+                          </div>
                         </div>
-                        <span style={{ fontWeight: "bold" }}>
-                          {Math.max(selectedMaterial.demandBreakdown?.bom || 0, selectedMaterial.demandBreakdown?.wo || 0)} {selectedMaterial.uom}
+                        <span style={{ fontWeight: "bold", fontSize: "16px", color: "var(--neutral-on-surface-primary)" }}>
+                          {Math.max(selectedMaterial.demandBreakdown?.bom || 0, selectedMaterial.demandBreakdown?.wo || 0) || selectedMaterial.demand} {selectedMaterial.uom}
                         </span>
                       </div>
                       {expandedDemand && (
                         <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingLeft: "32px" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
-                            <span style={{ color: "var(--neutral-on-surface-tertiary)" }}>Required in BOM</span>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", alignItems: "center" }}>
+                            <div style={{ display: "flex", flexDirection: "column" }}>
+                              <span style={{ color: "var(--neutral-on-surface-primary)" }}>Required in BOM</span>
+                              <span style={{ fontSize: "11px", color: "var(--neutral-on-surface-tertiary)" }}>Quantity required based on the BOM calculation</span>
+                            </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                               {selectedMaterial.demandBreakdown?.bom >= (selectedMaterial.demandBreakdown?.wo || 0) && (
                                 <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)", fontStyle: "italic" }}>Marked as demand (largest)</span>
@@ -1856,8 +2008,11 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
                               <span style={{ fontWeight: "bold", color: "var(--neutral-on-surface-secondary)" }}>{selectedMaterial.demandBreakdown?.bom || 0} {selectedMaterial.uom}</span>
                             </div>
                           </div>
-                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
-                            <span style={{ color: "var(--neutral-on-surface-tertiary)" }}>Requested in WO</span>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", alignItems: "center" }}>
+                            <div style={{ display: "flex", flexDirection: "column" }}>
+                              <span style={{ color: "var(--neutral-on-surface-primary)" }}>Requested in WO</span>
+                              <span style={{ fontSize: "11px", color: "var(--neutral-on-surface-tertiary)" }}>Quantity requested in active work orders</span>
+                            </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                               {selectedMaterial.demandBreakdown?.wo > (selectedMaterial.demandBreakdown?.bom || 0) && (
                                 <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)", fontStyle: "italic" }}>Marked as demand (largest)</span>
@@ -1869,29 +2024,46 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
                       )}
                     </div>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
-                      <span style={{ color: "var(--neutral-on-surface-secondary)", marginLeft: "24px" }}>Received by Production</span>
-                      <span style={{ fontWeight: "bold" }}>{selectedMaterial.received} {selectedMaterial.uom}</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", alignItems: "center" }}>
+                      <div style={{ display: "flex", flexDirection: "column", marginLeft: "24px" }}>
+                        <span style={{ color: "var(--neutral-on-surface-primary)", fontWeight: "bold" }}>Received by Production</span>
+                        <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)" }}>Quantity already issued to the production floor</span>
+                      </div>
+                      <span style={{ fontWeight: "bold", color: "var(--neutral-on-surface-primary)" }}>{selectedMaterial.received} {selectedMaterial.uom}</span>
                     </div>
-                    <div style={{ position: "relative", height: "1px", background: "var(--neutral-line-separator-1)", margin: "8px 0" }}>
+                    <div style={{ position: "relative", height: "1px", background: "var(--neutral-line-separator-1)", margin: "4px 0" }}>
                       <span style={{ position: "absolute", right: "-12px", top: "-11px", fontWeight: "bold", fontSize: "20px", lineHeight: "1" }}>-</span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
-                      <span style={{ color: "var(--neutral-on-surface-secondary)", marginLeft: "24px" }}>Remaining</span>
-                      <span style={{ fontWeight: "bold" }}>{selectedMaterial.remaining} {selectedMaterial.uom}</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", alignItems: "center" }}>
+                      <div style={{ display: "flex", flexDirection: "column", marginLeft: "24px" }}>
+                        <span style={{ color: "var(--neutral-on-surface-primary)", fontWeight: "bold" }}>Remaining</span>
+                        <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)" }}>Quantity still needed to complete production demand</span>
+                      </div>
+                      <span style={{ fontWeight: "bold", color: "var(--neutral-on-surface-primary)" }}>{selectedMaterial.remaining} {selectedMaterial.uom}</span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
-                      <span style={{ color: "var(--neutral-on-surface-secondary)", marginLeft: "24px" }}>Available Stock</span>
-                      <span style={{ fontWeight: "bold" }}>{selectedMaterial.availableStock} {selectedMaterial.uom}</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", alignItems: "center" }}>
+                      <div style={{ display: "flex", flexDirection: "column", marginLeft: "24px" }}>
+                        <span style={{ color: "var(--neutral-on-surface-primary)", fontWeight: "bold" }}>Available Stock</span>
+                        <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)" }}>Quantity currently available in warehouse stock</span>
+                      </div>
+                      <span style={{ fontWeight: "bold", color: "var(--neutral-on-surface-primary)" }}>{selectedMaterial.availableStock} {selectedMaterial.uom}</span>
                     </div>
-                    <div style={{ position: "relative", height: "1px", background: "var(--neutral-line-separator-1)", margin: "8px 0" }}>
+                    <div style={{ position: "relative", height: "1px", background: "var(--neutral-line-separator-1)", margin: "4px 0" }}>
                       <span style={{ position: "absolute", right: "-12px", top: "-11px", fontWeight: "bold", fontSize: "20px", lineHeight: "1" }}>-</span>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px" }}>
-                      <span style={{ color: "var(--neutral-on-surface-secondary)", marginLeft: "24px" }}>Shortage</span>
-                      <span style={{ fontWeight: "bold", color: selectedMaterial.remaining - selectedMaterial.availableStock > 0 ? "var(--status-red-primary)" : "var(--status-green-primary)" }}>
-                        {selectedMaterial.remaining - selectedMaterial.availableStock} {selectedMaterial.uom}
-                      </span>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", alignItems: "center" }}>
+                      <div style={{ display: "flex", flexDirection: "column", marginLeft: "24px" }}>
+                        <span style={{ color: "var(--neutral-on-surface-primary)", fontWeight: "bold" }}>Stock Balance</span>
+                        <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)" }}>Additional quantity needed after current stock is calculated</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)", fontStyle: "italic" }}>
+                          {selectedMaterial.remaining - selectedMaterial.availableStock > 0 ? "Shortage" : "Covered"}
+                        </span>
+                        <span style={{ fontWeight: "bold", color: selectedMaterial.remaining - selectedMaterial.availableStock > 0 ? "var(--status-red-primary)" : "var(--status-green-primary)" }}>
+                          {selectedMaterial.remaining - selectedMaterial.availableStock} {selectedMaterial.uom}
+                        </span>
+                      </div>
                     </div>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1907,7 +2079,10 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
                           ) : (
                             <div style={{ width: "16px" }} />
                           )}
-                          <span style={{ color: "var(--neutral-on-surface-secondary)" }}>Incoming PO</span>
+                          <div style={{ display: "flex", flexDirection: "column" }}>
+                            <span style={{ color: "var(--neutral-on-surface-primary)", fontWeight: "bold" }}>Incoming PO</span>
+                            <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)" }}>Quantity expected to arrive from open purchase orders</span>
+                          </div>
                         </div>
                         <span style={{ fontWeight: "bold", color: "var(--feature-brand-primary)" }}>
                           {(selectedMaterial.incomingPOBreakdown || []).reduce((acc, po) => acc + po.qty, 0)} {selectedMaterial.uom}
@@ -1990,13 +2165,13 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
 };
 
 export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar }) => {
-  const [activeTab, setActiveTab] = useState(initialData?.activeTab || "work-orders");
+  const [activeTab, setActiveTab] = useState(initialData?.activeTab || "products");
 
   const orderData = initialData;
   const shipmentCode = orderData.shipmentCode || `SHP-${orderData.orderNo?.split('-').slice(1).join('-') || "202604-001"}`;
 
   const tabs = [
-    { key: "work-orders", label: "Work Orders" },
+    { key: "products", label: "Products" },
     { key: "materials", label: "Materials" },
     { key: "traceability", label: "Traceability" },
     { key: "invoices", label: "Invoices" },
@@ -2131,13 +2306,13 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar }) => {
 
       {/* Tab Content */}
       <div style={{ 
-        background: activeTab === "materials" ? "transparent" : "var(--neutral-surface-primary)", 
-        borderRadius: activeTab === "materials" ? "0" : "var(--radius-card)", 
-        border: activeTab === "materials" ? "none" : "1px solid var(--neutral-line-separator-1)",
+        background: ["materials", "invoices", "traceability"].includes(activeTab) ? "transparent" : "var(--neutral-surface-primary)", 
+        borderRadius: ["materials", "invoices", "traceability"].includes(activeTab) ? "0" : "var(--radius-card)", 
+        border: ["materials", "invoices", "traceability"].includes(activeTab) ? "none" : "1px solid var(--neutral-line-separator-1)",
         overflow: "hidden"
       }}>
-        {activeTab === "work-orders" && (
-          <WorkOrderTab orderNo={orderData.orderNo} onNavigate={onNavigate} />
+        {activeTab === "products" && (
+          <WorkOrderTab orderNo={orderData.orderNo} orderStatus={orderData.status} onNavigate={onNavigate} />
         )}
         {activeTab === "materials" && (
           <MaterialsTab 
@@ -2154,7 +2329,7 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar }) => {
           <InvoicesTab onNavigate={onNavigate} />
         )}
         {activeTab === "attachments" && (
-          <AttachmentsTab onNavigate={onNavigate} />
+          <AttachmentsTab onNavigate={onNavigate} showSnackbar={showSnackbar} />
         )}
         {activeTab === "logs" && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "300px", color: "var(--neutral-on-surface-tertiary)" }}>

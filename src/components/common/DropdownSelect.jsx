@@ -32,6 +32,7 @@ const DropdownSelect = ({
   showDivider = false,
   footer = null,
   maxOptionsVisible = null,
+  renderValue = null,
 }) => {
   const triggerRef = useRef(null);
   const menuRef = useRef(null);
@@ -300,7 +301,7 @@ const DropdownSelect = ({
                     : "var(--neutral-on-surface-tertiary)",
             }}
           >
-            {hasValue ? selectedOption?.label : placeholder}
+            {hasValue ? (renderValue ? renderValue(selectedOption) : selectedOption?.label) : placeholder}
           </span>
         )}
         <ChevronDownIcon
