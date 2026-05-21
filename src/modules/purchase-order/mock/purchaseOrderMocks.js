@@ -7,6 +7,19 @@ export const MOCK_PO_TABLE_DATA = [
     status: "Completed",
     statusKey: "completed",
     sBadge: "green",
+    subtotal: 15000000,
+    lines: [
+      {
+        id: 1,
+        type: "material",
+        item: "Standard Wood Frame Support",
+        code: "WDF-SUP-01",
+        desc: "Standard wood frame support for tables.",
+        woRef: "-",
+        qty: 150,
+        price: 100000,
+      }
+    ],
     invoices: [
       {
         id: "inv-1-1",
@@ -42,6 +55,19 @@ export const MOCK_PO_TABLE_DATA = [
     status: "Issued",
     statusKey: "issued",
     sBadge: "blue",
+    subtotal: 8500000,
+    lines: [
+      {
+        id: 1,
+        type: "material",
+        item: "Steel Frame Support",
+        code: "STL-SUP-02",
+        desc: "Heavy-duty steel support frame.",
+        woRef: "-",
+        qty: 85,
+        price: 100000,
+      }
+    ],
     invoices: [
       {
         id: "inv-2-1",
@@ -76,6 +102,19 @@ export const MOCK_PO_TABLE_DATA = [
     status: "Waiting for Approval",
     statusKey: "ready_to_send",
     sBadge: "orange",
+    subtotal: 22000000,
+    lines: [
+      {
+        id: 1,
+        type: "material",
+        item: "Luxury Mahogany Support",
+        code: "MAH-SUP-03",
+        desc: "Luxury mahogany furniture support.",
+        woRef: "-",
+        qty: 220,
+        price: 100000,
+      }
+    ],
     invoices: [],
     payments: []
   },
@@ -87,6 +126,19 @@ export const MOCK_PO_TABLE_DATA = [
     status: "Issued",
     statusKey: "issued",
     sBadge: "blue",
+    subtotal: 5250000,
+    lines: [
+      {
+        id: 1,
+        type: "material",
+        item: "Aluminium Frame Support",
+        code: "ALU-SUP-01",
+        desc: "Structural aluminium support frame.",
+        woRef: "-",
+        qty: 35,
+        price: 150000,
+      }
+    ],
     invoices: [
       {
         id: "inv-4-1",
@@ -109,6 +161,19 @@ export const MOCK_PO_TABLE_DATA = [
     status: "Completed",
     statusKey: "completed",
     sBadge: "green",
+    subtotal: 11000000,
+    lines: [
+      {
+        id: 1,
+        type: "material",
+        item: "Premium Teak Wood Planks",
+        code: "TEAK-PLK-05",
+        desc: "Premium grade seasoned teak wood planks.",
+        woRef: "-",
+        qty: 110,
+        price: 100000,
+      }
+    ],
     invoices: [
       {
         id: "inv-5-1",
@@ -131,6 +196,19 @@ export const MOCK_PO_TABLE_DATA = [
     status: "Canceled",
     statusKey: "rejected",
     sBadge: "red",
+    subtotal: 7000000,
+    lines: [
+      {
+        id: 1,
+        type: "material",
+        item: "Standard Plywood Sheets",
+        code: "PLY-STD-02",
+        desc: "Standard furniture grade plywood sheets.",
+        woRef: "-",
+        qty: 70,
+        price: 100000,
+      }
+    ],
     invoices: [],
     payments: []
   },
@@ -233,6 +311,29 @@ export const MOCK_PO_TABLE_DATA = [
     status: "Need Revision",
     statusKey: "need_revision",
     sBadge: "yellow",
+    subtotal: 8000000,
+    lines: [
+      {
+        id: 1,
+        type: "material",
+        item: "Luxury Mahogany Support",
+        code: "MAH-SUP-03",
+        desc: "Luxury mahogany furniture support.",
+        woRef: "-",
+        qty: 40,
+        price: 100000,
+      },
+      {
+        id: 2,
+        type: "manual",
+        item: "Custom Glass Knob",
+        code: "KNB-GLS-09",
+        desc: "Handcrafted glass knobs for cabinet doors.",
+        woRef: "-",
+        qty: 80,
+        price: 50000,
+      }
+    ],
     invoices: [],
     payments: []
   },
@@ -255,6 +356,19 @@ export const MOCK_PO_TABLE_DATA = [
     status: "Need Revision",
     statusKey: "need_revision",
     sBadge: "yellow",
+    subtotal: 9200000,
+    lines: [
+      {
+        id: 1,
+        type: "material",
+        item: "Premium Teak Wood Planks",
+        code: "TEAK-PLK-05",
+        desc: "Premium grade seasoned teak wood planks.",
+        woRef: "-",
+        qty: 92,
+        price: 100000,
+      }
+    ],
     invoices: [],
     payments: []
   },
@@ -277,6 +391,52 @@ export const MOCK_PO_TABLE_DATA = [
     status: "Draft",
     statusKey: "draft",
     sBadge: "grey",
+    invoices: [],
+    payments: []
+  },
+  {
+    poNumber: "PO-202603-0014",
+    vendorName: "PT Mitra Sejahtera",
+    amount: "IDR 39,000,000",
+    createdDate: "2026-03-31",
+    status: "Issued",
+    statusKey: "issued",
+    sBadge: "blue",
+    subtotal: 35000000,
+    tax: 3850000,
+    fees: 150000,
+    lines: [
+      {
+        id: 1,
+        type: "wo",
+        item: "Cabinet Premium",
+        code: "CAB-PR-9921",
+        desc: "High-end premium cabinet with oak finish.",
+        woRef: "WO-2026-03-025-00008",
+        qty: 10,
+        price: 1500000,
+      },
+      {
+        id: 2,
+        type: "material",
+        item: "Steel Frame Support",
+        code: "STL-SUP-02",
+        desc: "Heavy-duty steel support frame.",
+        woRef: "-",
+        qty: 150,
+        price: 100000,
+      },
+      {
+        id: 3,
+        type: "manual",
+        item: "Premium Wood Polish",
+        code: "MAN-WPOL-01",
+        desc: "Special protective coating lacquer.",
+        woRef: "-",
+        qty: 10,
+        price: 500000,
+      }
+    ],
     invoices: [],
     payments: []
   },

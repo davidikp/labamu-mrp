@@ -665,7 +665,7 @@ export const StockBatchesTab = ({
   currentMaterial 
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [showEmptyBatches, setShowEmptyBatches] = useState(false);
+  const [showEmptyBatches, setShowEmptyBatches] = useState(true);
   const [activeFilters, setActiveFilters] = useState({
     location: [],
     status: [],
@@ -1622,7 +1622,7 @@ export const StockBatchesTab = ({
                     <input type="file" multiple onChange={handleFileChange} style={{ display: "none" }} />
                     <CloudUploadIcon size={40} color="var(--feature-brand-primary)" />
                     <span style={{ fontSize: "var(--text-body)", color: "#A9A9A9", lineHeight: "18px" }}>
-                      Max 3 files, 30MB each
+                      Max 10 files, 30MB each
                     </span>
                     <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-primary)", lineHeight: "18px" }}>
                       Drag file or <span style={{ color: "var(--feature-brand-primary)" }}>browse file</span>

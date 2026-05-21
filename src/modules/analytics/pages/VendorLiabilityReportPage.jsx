@@ -17,7 +17,7 @@ import {
 import { MOCK_REPORT_POS } from "../mock/reportMocks";
 import { formatCurrency } from "../../../utils/format/formatUtils";
 import { StatusBadge } from "../../../components/common/StatusBadge";
-import { DropdownSelect } from "../../../components/common/DropdownSelect";
+import { MultiSelectDropdown } from "../../../components/common/MultiSelectDropdown.jsx";
 import { Button } from "../../../components/common/Button";
 import { TableSearchField } from "../../../components/table/TableSearchField";
 import { TablePaginationFooter } from "../../../components/table/TablePaginationFooter";
@@ -35,9 +35,8 @@ const cellStyle = (overrides) => ({
 
 const VendorLiabilityReportPage = ({ onNavigate, t }) => {
   const currency = "IDR";
-  const [vendorFilter, setVendorFilter] = useState("all");
+  const [vendorFilter, setVendorFilter] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: "total", direction: "desc" });
-  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
@@ -91,11 +90,9 @@ const VendorLiabilityReportPage = ({ onNavigate, t }) => {
   // Filter and Search
   const filteredData = useMemo(() => {
     return vendorLiabilities.filter(v => {
-      const matchesVendor = vendorFilter === "all" || v.name === vendorFilter;
-      const matchesSearch = v.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesVendor && matchesSearch;
+      return vendorFilter.length === 0 || vendorFilter.includes(v.name);
     });
-  }, [vendorLiabilities, vendorFilter, searchQuery]);
+  }, [vendorLiabilities, vendorFilter]);
 
   // Sort Logic
   const sortedData = useMemo(() => {
@@ -258,24 +255,15 @@ const VendorLiabilityReportPage = ({ onNavigate, t }) => {
         {/* Filters Header */}
         <div style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--neutral-line-separator-2)" }}>
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <DropdownSelect 
-              variant="filter"
-              fontSize="var(--text-title-3)"
-              placeholder="Vendor Name"
+            <MultiSelectDropdown 
+              searchable={true}
+              placeholder="Vendor"
               value={vendorFilter}
-              options={["all", ...new Set(vendorLiabilities.map(v => v.name))].map(v => ({ value: v, label: v === "all" ? "Vendor Name" : v }))}
+              options={["all", ...new Set(vendorLiabilities.map(v => v.name))].map(v => ({ value: v, label: v === "all" ? "Vendor" : v }))}
               onChange={(val) => { setVendorFilter(val); setCurrentPage(1); }}
             />
           </div>
 
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <TableSearchField 
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              placeholder="Search vendor name"
-              style={{ width: "280px" }}
-            />
-          </div>
         </div>
 
         {/* Table Content */}

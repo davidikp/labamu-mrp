@@ -21,6 +21,7 @@ import { WorkOrderListPage } from "./modules/work-order/pages/WorkOrderListPage.
 import { WorkOrderDetailPage } from "./modules/work-order/pages/WorkOrderDetailPage.jsx";
 import { OrderListPage } from "./modules/orders/pages/OrderListPage.jsx";
 import { OrderDetailPage } from "./modules/orders/pages/OrderDetailPage.jsx";
+import { OrderSettingsPage } from "./modules/orders/pages/OrderSettingsPage.jsx";
 import { UserManagementPage } from "./modules/administration/pages/UserManagementPage.jsx";
 import { NotificationSettingsPage } from "./modules/administration/pages/NotificationSettingsPage.jsx";
 import { MaterialsListPage } from "./modules/materials/pages/MaterialsListPage.jsx";
@@ -357,6 +358,8 @@ const ModuleRenderer = ({
   isSidebarCollapsed, 
   poApprovalSettings, 
   setPoApprovalSettings,
+  orderApprovalSettings,
+  setOrderApprovalSettings,
   showPoSnackbar, 
   notificationSettings, 
   setNotificationSettings, 
@@ -619,7 +622,7 @@ const ModuleRenderer = ({
     if (viewState.view === "detail") {
       return (
         <WorkOrderDetailPage
-          key={viewState.data?.wo || "work-order-detail"}
+          key={(viewState.data?.wo || "work-order-detail") + (viewState.data?._navVersion ? `-${viewState.data._navVersion}` : "")}
           onNavigate={onNavigate}
           isSidebarCollapsed={isSidebarCollapsed}
           initialData={viewState.data}
@@ -717,10 +720,25 @@ const ModuleRenderer = ({
         />
       );
     }
+    if (viewState.view === "settings") {
+      return (
+        <OrderSettingsPage
+          onNavigate={onNavigate}
+          isSidebarCollapsed={isSidebarCollapsed}
+          orderApprovalSettings={orderApprovalSettings}
+          onSaveSettings={(settings) => {
+            setOrderApprovalSettings(settings);
+            showPoSnackbar("Order settings successfully saved", "success");
+            onNavigate("list");
+          }}
+        />
+      );
+    }
     if (viewState.view === "detail") {
       return (
         <OrderDetailPage
           onNavigate={onNavigate}
+          isSidebarCollapsed={isSidebarCollapsed}
           initialData={viewState.data}
           showSnackbar={showPoSnackbar}
         />
@@ -814,6 +832,11 @@ export default function App() {
     requireComment: false,
     approvers: [],
   });
+  const [orderApprovalSettings, setOrderApprovalSettings] = useState({
+    isApprovalActive: false,
+    requireComment: false,
+    approvers: [],
+  });
   const [notificationSettings, setNotificationSettings] = useState(() =>
     cloneNotificationSettings()
   );
@@ -871,7 +894,7 @@ export default function App() {
     return () => observer.disconnect();
   }, [language]);
 
-  const onNavigate = (view, data = null) => {
+  const onNavigate = (view, data = null, options = {}) => {
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "auto" });
     }
@@ -883,29 +906,29 @@ export default function App() {
       if (view.startsWith("work_order_")) {
         const subView = view.replace("work_order_", "");
         const path = subView === "list" ? "/work-order" : `/work-order/${subView}`;
-        navigate(path, { state: data });
+        navigate(path, { state: data, ...options });
         return;
       }
       if (view.startsWith("purchase_order_")) {
         const subView = view.replace("purchase_order_", "");
         const path = subView === "list" ? "/purchase-order" : `/purchase-order/${subView}`;
-        navigate(path, { state: data });
+        navigate(path, { state: data, ...options });
         return;
       }
       if (view.startsWith("materials_") || view === "material_detail") {
         let subView = view.startsWith("materials_") ? view.replace("materials_", "") : "detail";
         if (subView === "settings") subView = "manage";
         const path = subView === "list" ? "/materials" : (subView === "detail" ? `/materials/${data?.sku || "detail"}` : `/materials/${subView}`);
-        navigate(path, { state: data });
+        navigate(path, { state: data, ...options });
         return;
       }
       if (view.startsWith("analytics_")) {
         const subView = view.replace("analytics_", "");
         if (["po_report", "vendor_liability_report", "ap_aging_report"].includes(subView)) {
-          navigate(`/procurement-ap-report/${subView.replace(/_/g, "-")}`, { state: data });
+          navigate(`/procurement-ap-report/${subView.replace(/_/g, "-")}`, { state: data, ...options });
         } else {
           const route = MODULE_TO_ROUTE[view] || MODULE_TO_ROUTE[subView] || subView.replace(/_/g, '-');
-          navigate(`/${route}`, { state: data });
+          navigate(`/${route}`, { state: data, ...options });
         }
         return;
       }
@@ -915,39 +938,56 @@ export default function App() {
       const currentModuleRoute = pathParts[0];
       
       if (view === "list") {
-        navigate(`/${currentModuleRoute}`, { state: data });
+        navigate(`/${currentModuleRoute}`, { state: data, ...options });
         return;
       }
       if (view === "detail" || view === "po_detail") {
-        const id = (data?.orderNo || data?.sku || data?.poNumber || data?.wo || data?.id || "detail");
+        let id = "detail";
         let targetModule = currentModuleRoute;
-        
-        // Ensure POs always use the purchase-order module route
-        if (view === "po_detail" || (typeof id === "string" && id.startsWith("PO-"))) {
+
+        if (view === "po_detail" && data?.poNumber) {
+          id = data.poNumber;
           targetModule = "purchase-order";
-        } else if ((view === "detail" || view === "order_detail") && (typeof id === "string" && id.startsWith("ORD-"))) {
-          targetModule = "orders";
-        } else if (view === "detail" && (typeof id === "string" && id.startsWith("WO-"))) {
+        } else if (data?.wo && typeof data.wo === "string" && data.wo.startsWith("WO-")) {
+          id = data.wo;
           targetModule = "work-order";
+        } else if (data?.poNumber && typeof data.poNumber === "string" && data.poNumber.startsWith("PO-")) {
+          id = data.poNumber;
+          targetModule = "purchase-order";
+        } else if (data?.orderNo && typeof data.orderNo === "string" && data.orderNo.startsWith("ORD-")) {
+          id = data.orderNo;
+          targetModule = "orders";
+        } else if (data?.ord && typeof data.ord === "string" && data.ord.startsWith("ORD-")) {
+          id = data.ord;
+          targetModule = "orders";
+        } else {
+          id = (data?.orderNo || data?.sku || data?.poNumber || data?.wo || data?.id || "detail");
+          if (typeof id === "string" && id.startsWith("PO-")) {
+            targetModule = "purchase-order";
+          } else if (typeof id === "string" && id.startsWith("ORD-")) {
+            targetModule = "orders";
+          } else if (typeof id === "string" && id.startsWith("WO-")) {
+            targetModule = "work-order";
+          }
         }
         
-        navigate(`/${targetModule}/${id}`, { state: data });
+        navigate(`/${targetModule}/${id}`, { state: data, ...options });
         return;
       }
       if (view === "create" || view === "settings") {
         const id = data?.poNumber || data?.wo || data?.sku || data?.id;
         if (view === "create" && id) {
-          navigate(`/${currentModuleRoute}/${id}/edit`, { state: data });
+          navigate(`/${currentModuleRoute}/${id}/edit`, { state: data, ...options });
         } else {
           const subRoute = (view === "settings" && currentModuleRoute === "materials") ? "manage" : view;
-          navigate(`/${currentModuleRoute}/${subRoute}`, { state: data });
+          navigate(`/${currentModuleRoute}/${subRoute}`, { state: data, ...options });
         }
         return;
       }
     }
     
     // Fallback or explicit path
-    navigate(view, { state: data });
+    navigate(view, { state: data, ...options });
   };
 
   const handleModuleChange = (moduleId) => {
@@ -987,8 +1027,16 @@ export default function App() {
         <Sidebar
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          activeModule={currentActiveModule}
-          viewState={{ view: currentView }}
+          activeModule={
+            ["procurement_ap_report", "po_report", "vendor_liability_report", "ap_aging_report"].includes(currentActiveModule)
+              ? "analytics"
+              : currentActiveModule
+          }
+          viewState={{
+            view: ["procurement_ap_report", "po_report", "vendor_liability_report", "ap_aging_report"].includes(currentActiveModule)
+              ? "procurement_ap_report"
+              : currentView
+          }}
           onModuleChange={handleModuleChange}
           language={language}
           onLanguageChange={setLanguage}
@@ -1081,6 +1129,8 @@ export default function App() {
                 isSidebarCollapsed={isSidebarCollapsed}
                 poApprovalSettings={poApprovalSettings}
                 setPoApprovalSettings={setPoApprovalSettings}
+                orderApprovalSettings={orderApprovalSettings}
+                setOrderApprovalSettings={setOrderApprovalSettings}
                 showPoSnackbar={showPoSnackbar}
                 notificationSettings={notificationSettings}
                 setNotificationSettings={setNotificationSettings}
@@ -1097,6 +1147,8 @@ export default function App() {
                 isSidebarCollapsed={isSidebarCollapsed}
                 poApprovalSettings={poApprovalSettings}
                 setPoApprovalSettings={setPoApprovalSettings}
+                orderApprovalSettings={orderApprovalSettings}
+                setOrderApprovalSettings={setOrderApprovalSettings}
                 showPoSnackbar={showPoSnackbar}
                 notificationSettings={notificationSettings}
                 setNotificationSettings={setNotificationSettings}
@@ -1113,6 +1165,8 @@ export default function App() {
                 isSidebarCollapsed={isSidebarCollapsed}
                 poApprovalSettings={poApprovalSettings}
                 setPoApprovalSettings={setPoApprovalSettings}
+                orderApprovalSettings={orderApprovalSettings}
+                setOrderApprovalSettings={setOrderApprovalSettings}
                 showPoSnackbar={showPoSnackbar}
                 notificationSettings={notificationSettings}
                 setNotificationSettings={setNotificationSettings}
