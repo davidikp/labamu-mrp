@@ -863,7 +863,7 @@ export default function App() {
   }, [language]);
 
   useEffect(() => {
-    const rootNode = appRootRef.current;
+    const rootNode = document.body;
     if (!rootNode || typeof MutationObserver === "undefined") return undefined;
 
     const runLocalization = () => {
