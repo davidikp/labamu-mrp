@@ -106,7 +106,103 @@ export const MaterialDetailPage = ({ material, onNavigate, showSnackbar, t }) =>
     whiteSpace: "nowrap"
   });
 
-  const DetailField = ({ label, value, fullWidth = false, isABC = false }) => (
+  const StockTooltip = ({ content, children }) => {
+    const [isVisible, setIsVisible] = useState(false);
+    return (
+      <div 
+        style={{ position: "relative", display: "inline-flex", alignItems: "center" }}
+        onMouseEnter={() => setIsVisible(true)}
+        onMouseLeave={() => setIsVisible(false)}
+      >
+        {children}
+        {isVisible && (
+          <div style={{
+            position: "absolute",
+            bottom: "calc(100% + 10px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--neutral-on-surface-primary)",
+            color: "var(--neutral-surface-primary)",
+            padding: "8px 12px",
+            borderRadius: "8px",
+            fontSize: "12px",
+            fontWeight: "var(--font-weight-bold)",
+            whiteSpace: "nowrap",
+            zIndex: 100,
+            boxShadow: "var(--elevation-sm)"
+          }}>
+            {content}
+            <div style={{
+              position: "absolute",
+              top: "100%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              borderWidth: "6px",
+              borderStyle: "solid",
+              borderColor: "var(--neutral-on-surface-primary) transparent transparent transparent"
+            }} />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const getStockWarningIcon = (risk) => {
+    const iconColor = "var(--status-red-primary)";
+    
+    if (risk === "Expired Batches") {
+      return (
+        <StockTooltip content="Batch is expired">
+          <div style={{ display: "flex", color: iconColor }}>
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+              <path d="M12 13v3.5" />
+              <path d="M12 19h.01" />
+            </svg>
+          </div>
+        </StockTooltip>
+      );
+    }
+    
+    if (risk === "Out of Stock") {
+      return (
+        <StockTooltip content="Out of stock">
+          <div style={{ display: "flex", color: iconColor }}>
+            <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 8.5 11 5 5 8.5v7l6 3.5 6-3.5v-7Z" />
+              <path d="M5 8.5 11 12 17 8.5" />
+              <path d="M11 19v-7" />
+              <path d="m16 15.5 3.5 3.5 3.5-3.5" />
+              <path d="m16 19.5 3.5 3.5 3.5-3.5" />
+            </svg>
+          </div>
+        </StockTooltip>
+      );
+    }
+
+    if (risk === "Low Stock") {
+      return (
+        <StockTooltip content="Low on stock">
+          <div style={{ display: "flex", color: "var(--status-orange-primary)" }}>
+            <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 8.5 11 5 5 8.5v7l6 3.5 6-3.5v-7Z" />
+              <path d="M5 8.5 11 12 17 8.5" />
+              <path d="M11 19v-7" />
+              <path d="m16 15.5 3.5 3.5 3.5-3.5" />
+              <path d="m16 19.5 3.5 3.5 3.5-3.5" />
+            </svg>
+          </div>
+        </StockTooltip>
+      );
+    }
+    
+    return null;
+  };
+
+  const DetailField = ({ label, value, fullWidth = false, isABC = false, extraComponent = null }) => (
     <div style={{ 
       display: "flex", 
       flexDirection: "column", 
@@ -125,13 +221,16 @@ export const MaterialDetailPage = ({ material, onNavigate, showSnackbar, t }) =>
           {getABCBadge(value)}
         </div>
       ) : (
-        <span style={{ 
-          fontSize: "var(--text-title-3)", 
-          color: "var(--neutral-on-surface-primary)",
-          fontWeight: "var(--font-weight-bold)"
-        }}>
-          {value || "-"}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ 
+            fontSize: "var(--text-title-3)", 
+            color: "var(--neutral-on-surface-primary)",
+            fontWeight: "var(--font-weight-bold)"
+          }}>
+            {value || "-"}
+          </span>
+          {extraComponent}
+        </div>
       )}
     </div>
   );
@@ -235,7 +334,11 @@ export const MaterialDetailPage = ({ material, onNavigate, showSnackbar, t }) =>
             
             <DetailField label="ABC Classification" value={currentMaterial.abcClassification} isABC />
             <DetailField label="Unit of Measure" value={currentMaterial.unit} />
-            <DetailField label="On-Hand Stock" value={`${currentMaterial.onHandStock} ${currentMaterial.unit}`} />
+            <DetailField 
+              label="On-Hand Stock" 
+              value={`${currentMaterial.onHandStock} ${currentMaterial.unit}`} 
+              extraComponent={getStockWarningIcon(currentMaterial.stockRisk)}
+            />
             
             <DetailField label="Average Cost" value={formatCurrency(currentMaterial.averageCost)} />
             

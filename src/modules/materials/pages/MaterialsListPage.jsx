@@ -216,6 +216,22 @@ export const MaterialsListPage = ({ onNavigate, showSnackbar, t }) => {
       );
     }
     
+    if (risk === "Low Stock") {
+      return (
+        <StockTooltip content="Low on stock">
+          <div style={{ display: "flex", color: "var(--status-orange-primary)" }}>
+            <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 8.5 11 5 5 8.5v7l6 3.5 6-3.5v-7Z" />
+              <path d="M5 8.5 11 12 17 8.5" />
+              <path d="M11 19v-7" />
+              <path d="m16 15.5 3.5 3.5 3.5-3.5" />
+              <path d="m16 19.5 3.5 3.5 3.5-3.5" />
+            </svg>
+          </div>
+        </StockTooltip>
+      );
+    }
+    
     return null;
   };
 

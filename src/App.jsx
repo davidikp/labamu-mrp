@@ -741,6 +741,7 @@ const ModuleRenderer = ({
           isSidebarCollapsed={isSidebarCollapsed}
           initialData={viewState.data}
           showSnackbar={showPoSnackbar}
+          orderApprovalSettings={orderApprovalSettings}
         />
       );
     }

@@ -1836,7 +1836,7 @@ const CancelOrderModal = ({ isOpen, onClose, onSubmit }) => {
 
   const handleSubmit = () => {
     if (!comment.trim()) {
-      setError("Please fill in the cancellation reason");
+      setError("Field cannot be empty");
       return;
     }
     onSubmit(comment);
@@ -1865,9 +1865,9 @@ const CancelOrderModal = ({ isOpen, onClose, onSubmit }) => {
             Back
           </Button>
           <Button
-            variant="filled"
+            variant="danger-filled"
             size="large"
-            style={{ flex: 1, backgroundColor: "var(--status-red-primary)", borderColor: "var(--status-red-primary)" }}
+            style={{ flex: 1 }}
             onClick={handleSubmit}
           >
             Submit
@@ -1991,7 +1991,7 @@ const AskRevisionModal = ({ isOpen, onClose, onSubmit }) => {
 
   const handleSubmit = () => {
     if (!comment.trim()) {
-      setError("Please fill in the revision reason");
+      setError("Field cannot be empty");
       return;
     }
     onSubmit(comment);
@@ -2079,25 +2079,104 @@ const AskRevisionModal = ({ isOpen, onClose, onSubmit }) => {
   );
 };
 
-const ApproveConfirmationModal = ({ isOpen, onClose, onSubmit }) => {
+const ApproveConfirmationModal = ({ isOpen, onClose, onSubmit, requireComment }) => {
+  const [comment, setComment] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setComment("");
+      setError("");
+    }
+  }, [isOpen]);
+
+  const handleSubmit = () => {
+    if (requireComment && !comment.trim()) {
+      setError("Field cannot be empty");
+      return;
+    }
+    onSubmit(comment);
+  };
+
   return (
     <GeneralModal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => {
+        onClose();
+        setError("");
+      }}
       title="Approve Order?"
-      width="400px"
-      description="Are you sure you want to approve this order? This will change the order status to Confirmed."
+      width="440px"
       footer={
         <div style={{ display: "flex", gap: "12px", width: "100%" }}>
-          <Button variant="outlined" size="large" style={{ flex: 1 }} onClick={onClose}>
+          <Button
+            variant="outlined"
+            size="large"
+            style={{ flex: 1 }}
+            onClick={() => {
+              onClose();
+              setError("");
+            }}
+          >
             Cancel
           </Button>
-          <Button variant="filled" size="large" style={{ flex: 1 }} onClick={onSubmit}>
+          <Button
+            variant="filled"
+            size="large"
+            style={{ flex: 1 }}
+            onClick={handleSubmit}
+          >
             Yes, Approve
           </Button>
         </div>
       }
-    />
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+              {requireComment && <span style={{ color: "var(--status-red-primary)", fontSize: "var(--text-body)" }}>*</span>}
+              <span style={{ fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>
+                Approval Reason
+              </span>
+            </div>
+            <span style={{ fontSize: "var(--text-desc)", color: "var(--neutral-on-surface-tertiary)" }}>
+              {comment.length}/400
+            </span>
+          </div>
+          <textarea
+            value={comment}
+            maxLength={400}
+            onChange={(e) => {
+              setComment(e.target.value);
+              if (error) setError("");
+            }}
+            placeholder="Add a comment or note for the approval."
+            style={{
+              minHeight: "120px",
+              border: error
+                ? "1px solid var(--status-red-primary)"
+                : "1px solid var(--neutral-line-separator-2)",
+              borderRadius: "12px",
+              padding: "12px 16px",
+              background: "var(--neutral-surface-primary)",
+              fontSize: "var(--text-subtitle-1)",
+              color: "var(--neutral-on-surface-primary)",
+              width: "100%",
+              outline: "none",
+              fontFamily: "inherit",
+              resize: "vertical",
+              boxSizing: "border-box",
+            }}
+          />
+          {error && (
+            <span style={{ fontSize: "var(--text-body)", color: "var(--status-red-primary)" }}>
+              {error}
+            </span>
+          )}
+        </div>
+      </div>
+    </GeneralModal>
   );
 };
 
@@ -2116,6 +2195,28 @@ const CompleteConfirmationModal = ({ isOpen, onClose, onSubmit }) => {
           </Button>
           <Button variant="filled" size="large" style={{ flex: 1 }} onClick={onSubmit}>
             Yes, Confirm
+          </Button>
+        </div>
+      }
+    />
+  );
+};
+
+const SubmitConfirmationModal = ({ isOpen, onClose, onSubmit }) => {
+  return (
+    <GeneralModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Submit Order?"
+      width="400px"
+      description="Are you sure you want to submit this order?"
+      footer={
+        <div style={{ display: "flex", gap: "12px", width: "100%" }}>
+          <Button variant="outlined" size="large" style={{ flex: 1 }} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="filled" size="large" style={{ flex: 1 }} onClick={onSubmit}>
+            Yes, Submit
           </Button>
         </div>
       }
@@ -2686,7 +2787,7 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
   );
 };
 
-export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSidebarCollapsed }) => {
+export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSidebarCollapsed, orderApprovalSettings }) => {
   const [activeTab, setActiveTab] = useState(initialData?.activeTab || "products");
 
   const [orderData, setOrderData] = useState(initialData || {});
@@ -2696,6 +2797,7 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSideb
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
   const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
 
   const allWorkOrdersCompleted = React.useMemo(() => {
     let rawData = MOCK_WO_TABLE_DATA.filter(wo => wo.ord === orderData.orderNo);
@@ -2758,6 +2860,113 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSideb
       setOrderData(initialData);
     }
   }, [initialData]);
+
+  // Logs Dynamic Logic
+  const approvalEnabled = orderApprovalSettings?.isApprovalActive || false;
+  const requestedBy = orderData?.createdBy || "Joko";
+  const requestedAt = orderData?.createdAt || "2026-03-25";
+  const approverList = [
+    { id: 1, name: "Admin", email: "admin@company.com" }
+  ];
+
+  const getApprovalRowStatus = () => {
+    switch (orderData?.status) {
+      case "Waiting for Approval":
+      case "Not Started":
+        return { text: "Pending", variant: "grey-light" };
+      case "Need Revision":
+        return { text: "Needs Revision", variant: "orange" };
+      case "Canceled":
+        return { text: "Rejected", variant: "red" };
+      default:
+        return { text: "Approved", variant: "green" };
+    }
+  };
+
+  const getApprovalRowComment = () => {
+    if (orderData?.status === "Need Revision") return orderData?.revisionMessage || "Please revise the order.";
+    if (orderData?.status === "Canceled") return orderData?.canceledMessage || "Order has been canceled.";
+    return "-";
+  };
+
+  const dynamicActivityLogs = React.useMemo(() => {
+    const logs = [];
+
+    if (orderData?.status === "Completed") {
+      logs.push({
+        name: "System",
+        email: "-",
+        title: "Completed",
+        timestamp: `${orderData?.plannedEnd || "2026-05-05"} at 16:00`
+      });
+    }
+
+    if (orderData?.status === "On Shipping" || orderData?.status === "Completed") {
+      logs.push({
+        name: "System",
+        email: "-",
+        title: "On Shipping",
+        timestamp: `${orderData?.plannedStart || "2026-05-01"} at 10:00`
+      });
+    }
+
+    if (orderData?.status === "Ready to Ship" || orderData?.status === "On Shipping" || orderData?.status === "Completed") {
+      logs.push({
+        name: "System",
+        email: "-",
+        title: "Ready to Ship",
+        timestamp: `${orderData?.createdAt || "2026-04-01"} at 14:00`
+      });
+    }
+
+    if (
+      orderData?.status === "Confirmed" ||
+      orderData?.status === "In Progress" ||
+      orderData?.status === "Ready to Ship" ||
+      orderData?.status === "On Shipping" ||
+      orderData?.status === "Completed"
+    ) {
+      const approveLog = {
+        name: approverList[0]?.name || "Approver",
+        email: approverList[0]?.email || "-",
+        title: "Approved",
+        timestamp: `${orderData?.createdAt || "2026-04-01"} at 09:30`
+      };
+      if (orderData?.approveMessage) approveLog.desc = orderData.approveMessage;
+      logs.push(approveLog);
+    }
+
+    if (orderData?.status === "Need Revision") {
+      const revLog = {
+        name: approverList[0]?.name || "Approver",
+        email: approverList[0]?.email || "-",
+        title: "Ask for Revision",
+        timestamp: `${orderData?.createdAt || "2026-04-01"} at 09:30`
+      };
+      if (orderData?.revisionMessage) revLog.desc = orderData.revisionMessage;
+      logs.push(revLog);
+    }
+
+    if (orderData?.status === "Canceled") {
+      const cancelLog = {
+        name: approverList[0]?.name || "Approver",
+        email: approverList[0]?.email || "-",
+        title: "Canceled",
+        timestamp: `${orderData?.createdAt || "2026-04-01"} at 09:30`
+      };
+      if (orderData?.canceledMessage) cancelLog.desc = orderData.canceledMessage;
+      logs.push(cancelLog);
+    }
+
+    logs.push({
+      name: orderData?.createdBy || "User",
+      email: "-", 
+      title: "Submitted",
+      timestamp: `${orderData?.createdAt || "2026-04-01"} at 09:00`
+    });
+
+    return logs;
+  }, [orderData]);
 
   const handleSaveOrderDetails = (updatedFields) => {
     // 1. Update mock database array so changes persist globally across list / detail page navigation
@@ -2991,9 +3200,9 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSideb
 
       {/* Tab Content */}
       <div style={{ 
-        background: ["materials", "invoices", "traceability"].includes(activeTab) ? "transparent" : "var(--neutral-surface-primary)", 
-        borderRadius: ["materials", "invoices", "traceability"].includes(activeTab) ? "0" : "var(--radius-card)", 
-        border: ["materials", "invoices", "traceability"].includes(activeTab) ? "none" : "1px solid var(--neutral-line-separator-1)",
+        background: ["materials", "invoices", "traceability", "logs"].includes(activeTab) ? "transparent" : "var(--neutral-surface-primary)", 
+        borderRadius: ["materials", "invoices", "traceability", "logs"].includes(activeTab) ? "0" : "var(--radius-card)", 
+        border: ["materials", "invoices", "traceability", "logs"].includes(activeTab) ? "none" : "1px solid var(--neutral-line-separator-1)",
         overflow: "hidden"
       }}>
         {activeTab === "products" && (
@@ -3017,8 +3226,226 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSideb
           <AttachmentsTab onNavigate={onNavigate} showSnackbar={showSnackbar} />
         )}
         {activeTab === "logs" && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "300px", color: "var(--neutral-on-surface-tertiary)" }}>
-            Logs Content (Coming Soon)
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {approvalEnabled ? (
+              <div
+                style={{
+                  background: "var(--neutral-surface-primary)",
+                  borderRadius: "16px",
+                  border: "1px solid var(--neutral-line-separator-1)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "24px 24px 0 24px",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "var(--text-title-2)",
+                      fontWeight: "var(--font-weight-bold)",
+                      color: "var(--neutral-on-surface-primary)",
+                    }}
+                  >
+                    Approval Logs
+                  </span>
+                </div>
+                <div style={{ padding: "24px" }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "24px",
+                      marginBottom: "28px",
+                    }}
+                  >
+                    <LabelValue label="Requested By" value={requestedBy} />
+                    <LabelValue label="Requested At" value={requestedAt} />
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        paddingBottom: "12px",
+                        borderBottom: "1px solid var(--neutral-line-separator-1)",
+                        fontWeight: "var(--font-weight-bold)",
+                        fontSize: "var(--text-title-3)",
+                        color: "var(--neutral-on-surface-primary)",
+                      }}
+                    >
+                      <div style={{ flex: "1.1" }}>Approvers</div>
+                      <div style={{ width: "140px" }}>Status</div>
+                      <div style={{ flex: "2.4" }}>Comments</div>
+                    </div>
+                    {approverList.map((approver, idx) => {
+                      const rowStatus = getApprovalRowStatus();
+                      const thisStatus =
+                        idx === 0
+                          ? rowStatus
+                          : { text: "Pending", variant: "grey-light" };
+                      const thisComment =
+                        idx === 0 ? getApprovalRowComment() : "-";
+                      return (
+                        <div
+                          key={approver.id || idx}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            padding: "18px 0 10px 0",
+                            fontSize: "var(--text-title-3)",
+                            borderBottom:
+                              idx === approverList.length - 1
+                                ? "none"
+                                : "1px solid var(--neutral-line-separator-1)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              flex: "1.1",
+                              color: "var(--neutral-on-surface-primary)",
+                            }}
+                          >
+                            {approver.name}
+                          </div>
+                          <div style={{ width: "140px" }}>
+                            <StatusBadge variant={thisStatus.variant}>
+                              {thisStatus.text}
+                            </StatusBadge>
+                          </div>
+                          <div
+                            style={{
+                              flex: "2.4",
+                              color: "var(--neutral-on-surface-secondary)",
+                              lineHeight: "1.5",
+                            }}
+                          >
+                            {thisComment}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div
+              style={{
+                background: "var(--neutral-surface-primary)",
+                borderRadius: "16px",
+                border: "1px solid var(--neutral-line-separator-1)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  padding: "24px 24px 0 24px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "var(--text-title-2)",
+                    fontWeight: "var(--font-weight-bold)",
+                    color: "var(--neutral-on-surface-primary)",
+                  }}
+                >
+                  Activity Logs
+                </span>
+              </div>
+              <div style={{ padding: "24px" }}>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      paddingBottom: "12px",
+                      borderBottom: "1px solid var(--neutral-line-separator-1)",
+                      fontWeight: "var(--font-weight-bold)",
+                      fontSize: "var(--text-title-3)",
+                      color: "var(--neutral-on-surface-primary)",
+                    }}
+                  >
+                    <div style={{ flex: "1.1" }}>Name</div>
+                    <div style={{ flex: "1.9" }}>Email</div>
+                    <div style={{ flex: "2.8" }}>Activity</div>
+                    <div style={{ width: "190px" }}>Timestamp</div>
+                  </div>
+
+                  {dynamicActivityLogs.map((log, idx, arr) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        padding: "16px 0",
+                        borderBottom:
+                          idx === arr.length - 1
+                            ? "none"
+                            : "1px solid var(--neutral-line-separator-1)",
+                        fontSize: "var(--text-title-3)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          flex: "1.1",
+                          color: "var(--neutral-on-surface-primary)",
+                        }}
+                      >
+                        {log.name}
+                      </div>
+                      <div
+                        style={{
+                          flex: "1.9",
+                          color: "var(--neutral-on-surface-primary)",
+                        }}
+                      >
+                        {log.email}
+                      </div>
+                      <div
+                        style={{
+                          flex: "2.8",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: log.desc ? "6px" : "0",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontWeight: "var(--font-weight-bold)",
+                            color: "var(--neutral-on-surface-primary)",
+                          }}
+                        >
+                          {log.title}
+                        </span>
+                        {log.desc ? (
+                          <span
+                            style={{
+                              color: "var(--neutral-on-surface-secondary)",
+                              lineHeight: "1.5",
+                            }}
+                          >
+                            {log.desc}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div
+                        style={{
+                          width: "190px",
+                          color: "var(--neutral-on-surface-secondary)",
+                        }}
+                      >
+                        {log.timestamp}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -3047,8 +3474,9 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSideb
       <ApproveConfirmationModal
         isOpen={isApproveModalOpen}
         onClose={() => setIsApproveModalOpen(false)}
-        onSubmit={() => {
-          handleUpdateStatus("Confirmed");
+        requireComment={orderApprovalSettings?.requireComment}
+        onSubmit={(reason) => {
+          handleUpdateStatus("Confirmed", { approveMessage: reason });
           setIsApproveModalOpen(false);
         }}
       />
@@ -3067,6 +3495,14 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSideb
         onSubmit={() => {
           handleUpdateStatus("Completed");
           setIsCompleteModalOpen(false);
+        }}
+      />
+      <SubmitConfirmationModal
+        isOpen={isSubmitModalOpen}
+        onClose={() => setIsSubmitModalOpen(false)}
+        onSubmit={() => {
+          handleUpdateStatus(approvalEnabled ? "Waiting for Approval" : "Confirmed");
+          setIsSubmitModalOpen(false);
         }}
       />
 
@@ -3130,6 +3566,17 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSideb
               >
                 Cancel Order
               </Button>
+
+              {/* Submit Order (Primary Button) for Draft / Not Started / Need Revision */}
+              {["Draft", "Not Started", "Need Revision"].includes(orderData.status) && (
+                <Button
+                  size="large"
+                  variant="filled"
+                  onClick={() => setIsSubmitModalOpen(true)}
+                >
+                  Submit Order
+                </Button>
+              )}
 
               {/* Update Status (Secondary Button) */}
               {["Confirmed", "In Progress", "Ready to Ship", "On Shipping"].includes(orderData.status) && (
