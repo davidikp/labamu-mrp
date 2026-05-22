@@ -681,14 +681,36 @@ export const DateInputControl = ({
         >
           {value || placeholder}
         </span>
-        <CalendarIcon
-          size={18}
-          color={
-            disabled
-              ? "var(--neutral-line-outline)"
-              : "var(--neutral-on-surface-secondary)"
-          }
-        />
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {value && !disabled && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onChange) onChange(createSyntheticInputEvent(""));
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "2px",
+                borderRadius: "50%",
+                background: "var(--neutral-surface-grey-lighter)",
+                cursor: "pointer",
+                color: "var(--neutral-on-surface-secondary)",
+              }}
+            >
+              <CloseIcon size={14} color="var(--neutral-on-surface-secondary)" />
+            </div>
+          )}
+          <CalendarIcon
+            size={18}
+            color={
+              disabled
+                ? "var(--neutral-line-outline)"
+                : "var(--neutral-on-surface-secondary)"
+            }
+          />
+        </div>
       </button>
 
       {isOpen ? (

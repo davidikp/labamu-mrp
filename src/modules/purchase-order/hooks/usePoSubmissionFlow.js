@@ -23,7 +23,7 @@ export const usePoSubmissionFlow = ({
     const missing = [];
     if (!(formData?.vendorName || initialData?.vendorName))
       missing.push("Vendor");
-    if (!createdDate || createdDate === "-") missing.push("PO Date");
+    if (!createdDate || createdDate === "-") missing.push("Purchase Order Date");
     if (!currencyLabel || currencyLabel === "-") missing.push("Currency");
     if (!mockLines || mockLines.length === 0) missing.push("Purchase Order Lines");
     return missing;

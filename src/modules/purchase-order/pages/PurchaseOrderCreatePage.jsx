@@ -747,14 +747,36 @@ const DateInputControl = ({
         >
           {value || placeholder}
         </span>
-        <CalendarIcon
-          size={18}
-          color={
-            disabled
-              ? "var(--neutral-line-outline)"
-              : "var(--neutral-on-surface-secondary)"
-          }
-        />
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {value && !disabled && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onChange) onChange(createSyntheticInputEvent(""));
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "2px",
+                borderRadius: "50%",
+                background: "var(--neutral-surface-grey-lighter)",
+                cursor: "pointer",
+                color: "var(--neutral-on-surface-secondary)",
+              }}
+            >
+              <CloseIcon size={14} color="var(--neutral-on-surface-secondary)" />
+            </div>
+          )}
+          <CalendarIcon
+            size={18}
+            color={
+              disabled
+                ? "var(--neutral-line-outline)"
+                : "var(--neutral-on-surface-secondary)"
+            }
+          />
+        </div>
       </button>
 
       {isOpen ? (
@@ -2425,14 +2447,18 @@ export const PurchaseOrderCreatePage = ({
       address: "",
     }
   );
-  const [poDate, setPoDate] = useState(
-    editFormData?.poDate ||
-    initialData?.createdDate ||
-    new Date().toISOString().split("T")[0]
-  );
-  const [deliveryDate, setDeliveryDate] = useState(
-    editFormData?.deliveryDate || initialData?.expectedDeliveryDate || ""
-  );
+  const [poDate, setPoDate] = useState(() => {
+    let val = editFormData && editFormData.poDate !== undefined
+      ? editFormData.poDate
+      : initialData && initialData.createdDate !== undefined
+      ? initialData.createdDate
+      : new Date().toISOString().split("T")[0];
+    return val === "-" ? "" : val;
+  });
+  const [deliveryDate, setDeliveryDate] = useState(() => {
+    const val = editFormData?.deliveryDate || initialData?.expectedDeliveryDate || "";
+    return val === "-" ? "" : val;
+  });
   const [currency, setCurrency] = useState(editFormData?.currency || "IDR");
   const [notes, setNotes] = useState(editFormData?.notes || "");
   const [terms, setTerms] = useState(editFormData?.terms || "");
