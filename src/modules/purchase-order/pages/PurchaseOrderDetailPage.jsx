@@ -456,6 +456,9 @@ export const PurchaseOrderDetailPage = ({
     handleVoidPayment,
     showExceedConfirmModal,
     setShowExceedConfirmModal,
+    showItemQtyExceedConfirmModal,
+    setShowItemQtyExceedConfirmModal,
+    exceededItems,
     saveInvoice,
   } = usePoInvoices({
     initialInvoices,
@@ -1056,6 +1059,10 @@ export const PurchaseOrderDetailPage = ({
         feeLines: hasDraftData ? formData?.feeLines || [] : [],
         notes: detailNotes !== "-" ? detailNotes : "",
         terms: detailTerms !== "-" ? detailTerms : "",
+        documents: documents || [],
+        invoices: invoices || [],
+        payments: payments || [],
+        invoicePaymentLogs: invoicePaymentLogs || [],
         receiptLogs: logsToPass,
       },
     });
@@ -3015,6 +3022,9 @@ export const PurchaseOrderDetailPage = ({
         handleVoidPayment={handleVoidPayment}
         showExceedConfirmModal={showExceedConfirmModal}
         setShowExceedConfirmModal={setShowExceedConfirmModal}
+        showItemQtyExceedConfirmModal={showItemQtyExceedConfirmModal}
+        setShowItemQtyExceedConfirmModal={setShowItemQtyExceedConfirmModal}
+        exceededItems={exceededItems}
         saveInvoice={saveInvoice}
       />
 

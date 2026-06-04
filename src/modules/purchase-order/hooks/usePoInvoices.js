@@ -43,6 +43,8 @@ export const usePoInvoices = ({
   const [showDeleteInvoiceConfirm, setShowDeleteInvoiceConfirm] = useState(false);
   const [showVoidConfirmModal, setShowVoidConfirmModal] = useState(false);
   const [showExceedConfirmModal, setShowExceedConfirmModal] = useState(false);
+  const [showItemQtyExceedConfirmModal, setShowItemQtyExceedConfirmModal] = useState(false);
+  const [exceededItems, setExceededItems] = useState([]);
   const [paymentToVoid, setPaymentToVoid] = useState(null);
 
   // Form States
@@ -276,7 +278,7 @@ export const usePoInvoices = ({
         prev.map((inv) => inv.id === addInvoiceFormData.id ? updatedInvoice : inv)
       );
       setSelectedInvoiceForDetail(updatedInvoice);
-      addInvoicePaymentLog("Invoice Updated", `Invoice #${addInvoiceFormData.number} details were updated.`);
+      addInvoicePaymentLog("Invoice Updated", `Invoice ${addInvoiceFormData.number} details were updated.`);
       if (showToast) {
         showToast("Invoice successfully updated");
       }
@@ -333,6 +335,7 @@ export const usePoInvoices = ({
       hasError = true;
     }
     
+    const foundExceededItems = [];
     const itemLineErrors = addInvoiceFormData.itemLines.map((il) => {
       const err = {};
       if (!il.id) {
@@ -346,8 +349,11 @@ export const usePoInvoices = ({
         const qtyVal = parseFloat(il.qty) || 0;
         const remainingQty = getRemainingPoQty(il.id, isEditingInvoice ? addInvoiceFormData.id : null);
         if (qtyVal > remainingQty) {
-          err.qty = `Item quantity cannot exceed the remaining PO quantity (${remainingQty})`;
-          hasError = true;
+          foundExceededItems.push({
+            name: mockLines.find((line) => (line.id || line.item) === il.id)?.item || il.id,
+            entered: qtyVal,
+            remaining: remainingQty
+          });
         }
       }
       if (!il.ocrRef || !il.ocrRef.trim()) {
@@ -358,6 +364,12 @@ export const usePoInvoices = ({
     });
     if (hasError) {
       setFormErrors({ ...nextErrors, itemLines: itemLineErrors });
+      return;
+    }
+
+    if (foundExceededItems.length > 0) {
+      setExceededItems(foundExceededItems);
+      setShowItemQtyExceedConfirmModal(true);
       return;
     }
 
@@ -382,7 +394,7 @@ export const usePoInvoices = ({
     const invNumber = selectedInvoiceForDetail.number;
     setInvoices((prev) => prev.filter((i) => i.id !== selectedInvoiceForDetail.id));
     setPayments((prev) => prev.filter((p) => p.invoiceId !== selectedInvoiceForDetail.id));
-    addInvoicePaymentLog("Invoice Deleted", `Invoice #${invNumber} and its associated payments were removed.`);
+    addInvoicePaymentLog("Invoice Deleted", `Invoice ${invNumber} and its associated payments were removed.`);
     if (showToast) {
       showToast("Invoice successfully deleted");
     }
@@ -416,12 +428,14 @@ export const usePoInvoices = ({
       method: paymentFormData.method,
       notes: paymentFormData.notes,
       attachments: paymentFormData.attachments,
+      proof: paymentFormData.attachments?.[0]?.name,
       createdAt: new Date().toISOString(),
+      addedBy: "Natasha Smith",
       isVoid: false,
     };
 
     setPayments((prev) => [newPayment, ...prev]);
-    addInvoicePaymentLog("Payment Added", `Payment of ${currency} ${parseFloat(paymentFormData.amount).toLocaleString()} added to Invoice #${selectedInvoiceForPayment?.number}.`);
+    addInvoicePaymentLog("Payment Added", `Payment of ${currency} ${parseFloat(paymentFormData.amount).toLocaleString()} added to Invoice ${selectedInvoiceForPayment?.number}.`);
     if (showToast) {
       showToast("Payment successfully added");
     }
@@ -436,7 +450,7 @@ export const usePoInvoices = ({
     if (!paymentToVoid) return;
     const associatedInv = invoices.find(i => i.id === paymentToVoid.invoiceId);
     setPayments(prev => prev.map(p => p.id === paymentToVoid.id ? { ...p, isVoid: true, voidedAt: new Date().toISOString() } : p));
-    addInvoicePaymentLog("Payment Voided", `Payment of ${currency} ${paymentToVoid.amount.toLocaleString()} for Invoice #${associatedInv?.number || "Unknown"} was voided.`);
+    addInvoicePaymentLog("Payment Voided", `Payment of ${currency} ${paymentToVoid.amount.toLocaleString()} for Invoice ${associatedInv?.number || "Unknown"} was voided.`);
     if (showToast) {
       showToast("Payment successfully voided");
     }
@@ -523,6 +537,9 @@ export const usePoInvoices = ({
 
     showExceedConfirmModal,
     setShowExceedConfirmModal,
+    showItemQtyExceedConfirmModal,
+    setShowItemQtyExceedConfirmModal,
+    exceededItems,
     saveInvoice,
 
     // Handlers

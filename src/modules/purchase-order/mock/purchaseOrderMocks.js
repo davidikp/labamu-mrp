@@ -43,8 +43,8 @@ export const MOCK_PO_TABLE_DATA = [
       }
     ],
     payments: [
-      { id: "pay-1-1", amount: 5000000, date: "2026-04-10", method: "Bank Transfer", invoiceId: "inv-1-1", itemLines: [{ id: 1, qty: 33 }], proof: "transfer-receipt-001.pdf" },
-      { id: "pay-1-2", amount: 10000000, date: "2026-04-22", method: "Bank Transfer", invoiceId: "inv-1-2", itemLines: [{ id: 1, qty: 67 }], proof: "transfer-receipt-002.pdf" }
+      { id: "pay-1-1", amount: 5000000, date: "2026-04-10", method: "Bank Transfer", invoiceId: "inv-1-1", itemLines: [{ id: 1, qty: 33 }], proof: "transfer-receipt-001.pdf", addedBy: "Joko", createdAt: "2026-04-10T10:30:00Z" },
+      { id: "pay-1-2", amount: 10000000, date: "2026-04-22", method: "Bank Transfer", invoiceId: "inv-1-2", itemLines: [{ id: 1, qty: 67 }], proof: "transfer-receipt-002.pdf", addedBy: "Joko", createdAt: "2026-04-22T14:15:00Z" }
     ]
   },
   {
@@ -91,7 +91,7 @@ export const MOCK_PO_TABLE_DATA = [
       }
     ],
     payments: [
-      { id: "pay-2-1", amount: 2000000, date: "2026-04-18", method: "Bank Transfer", invoiceId: "inv-2-1", itemLines: [{ id: 1, qty: 13 }], proof: "payment_proof_partial.pdf" }
+      { id: "pay-2-1", amount: 2000000, date: "2026-04-18", method: "Bank Transfer", invoiceId: "inv-2-1", itemLines: [{ id: 1, qty: 13 }], proof: "payment_proof_partial.pdf", addedBy: "Natasha Smith", createdAt: "2026-04-18T09:45:00Z" }
     ]
   },
   {
@@ -288,8 +288,8 @@ export const MOCK_PO_TABLE_DATA = [
       }
     ],
     payments: [
-      { id: "pay-7-1", amount: 15000000, date: "2026-04-10", method: "Bank Transfer", invoiceId: "inv-7-1", itemLines: [{ id: 1, qty: 10 }], proof: "payment-proof-inv10.pdf" },
-      { id: "pay-7-2", amount: 5000000, date: "2026-04-18", method: "Bank Transfer", invoiceId: "inv-7-2", itemLines: [{ id: 2, qty: 20 }], proof: "receipt-partial-inv11.pdf" }
+      { id: "pay-7-1", amount: 15000000, date: "2026-04-10", method: "Bank Transfer", invoiceId: "inv-7-1", itemLines: [{ id: 1, qty: 10 }], proof: "payment-proof-inv10.pdf", addedBy: "Natasha Smith", createdAt: "2026-04-10T11:00:00Z" },
+      { id: "pay-7-2", amount: 5000000, date: "2026-04-18", method: "Bank Transfer", invoiceId: "inv-7-2", itemLines: [{ id: 2, qty: 20 }], proof: "receipt-partial-inv11.pdf", addedBy: "Joko", createdAt: "2026-04-18T16:20:00Z" }
     ]
   },
   {

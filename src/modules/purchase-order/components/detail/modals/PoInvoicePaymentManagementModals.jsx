@@ -66,6 +66,9 @@ const PoInvoicePaymentManagementModals = ({
   handleVoidPayment,
   showExceedConfirmModal,
   setShowExceedConfirmModal,
+  showItemQtyExceedConfirmModal,
+  setShowItemQtyExceedConfirmModal,
+  exceededItems,
   saveInvoice,
 }) => {
   return (
@@ -1197,6 +1200,63 @@ const PoInvoicePaymentManagementModals = ({
               size="large"
               style={{ width: "100%" }}
               onClick={() => setShowExceedConfirmModal(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Item Qty Exceed PO Qty Confirmation Modal */}
+      <GeneralModal
+        isOpen={showItemQtyExceedConfirmModal}
+        onClose={() => setShowItemQtyExceedConfirmModal(false)}
+        title="Item Quantity Exceeds PO Quantity"
+        width="400px"
+        centeredHeader
+        zIndex={15000}
+        description={
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px", textAlign: "left", width: "100%" }}>
+            <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)", textAlign: "center", lineHeight: "1.5" }}>
+              The following items exceed their remaining PO quantity.<br/>
+              Continuing will result in quantities exceeding the<br/>
+              purchase order.
+            </span>
+            <ul style={{ margin: 0, paddingLeft: "24px", color: "var(--neutral-on-surface-secondary)", fontSize: "14px", listStyleType: "disc" }}>
+              {(exceededItems || []).map((it, idx) => (
+                <li key={idx} style={{ paddingBottom: idx === exceededItems.length - 1 ? 0 : "8px" }}>
+                  <strong style={{ color: "var(--neutral-on-surface-primary)", fontWeight: "600" }}>{it.name}</strong><br/>
+                  (Entered: {it.entered}, Remaining: {it.remaining})
+                </li>
+              ))}
+            </ul>
+          </div>
+        }
+        footer={
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              width: "100%",
+            }}
+          >
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setShowItemQtyExceedConfirmModal(false);
+                saveInvoice();
+              }}
+            >
+              Yes, Confirm
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => setShowItemQtyExceedConfirmModal(false)}
             >
               Cancel
             </Button>

@@ -2736,6 +2736,11 @@ export const PurchaseOrderCreatePage = ({
           ? "ready_to_send"
           : "issued",
     sBadge: badge,
+    documents: initialData?.formData?.documents || initialData?.documents || [],
+    invoices: initialData?.formData?.invoices || initialData?.invoices || [],
+    payments: initialData?.formData?.payments || initialData?.payments || [],
+    invoicePaymentLogs: initialData?.formData?.invoicePaymentLogs || initialData?.invoicePaymentLogs || [],
+    receiptLogs: initialData?.formData?.receiptLogs || initialData?.receiptLogs || [],
     ...(initialData?.from ? { from: initialData.from } : {}),
     ...(initialData?.returnTo ? { returnTo: initialData.returnTo } : {}),
     formData: {
@@ -2750,8 +2755,11 @@ export const PurchaseOrderCreatePage = ({
       notes,
       terms,
       shipTo: shipToInfo,
-      documents: initialData?.formData?.documents || [],
-      receiptLogs: initialData?.formData?.receiptLogs || [],
+      documents: initialData?.formData?.documents || initialData?.documents || [],
+      invoices: initialData?.formData?.invoices || initialData?.invoices || [],
+      payments: initialData?.formData?.payments || initialData?.payments || [],
+      invoicePaymentLogs: initialData?.formData?.invoicePaymentLogs || initialData?.invoicePaymentLogs || [],
+      receiptLogs: initialData?.formData?.receiptLogs || initialData?.receiptLogs || [],
     },
   });
 

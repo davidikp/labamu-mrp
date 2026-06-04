@@ -62,6 +62,7 @@ export const usePoReceipts = ({
 
   const groupedReceiptLogs = useMemo(() => {
     return receiptLogs.reduce((acc, log) => {
+      if (log.title) return acc;
       const key = log.receiptNumber || log.id;
       const existing = acc.find((entry) => entry.receiptNumber === key);
       const normalizedProofDocuments = normalizeProofDocuments(
