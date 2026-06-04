@@ -301,7 +301,7 @@ export const usePoInvoices = ({
         },
       };
       setInvoices((prev) => [newInvoice, ...prev]);
-      addInvoicePaymentLog("Invoice Added", `New invoice #${addInvoiceFormData.number} for ${currency} ${parseFloat(addInvoiceFormData.amount).toLocaleString()} was added.`);
+      addInvoicePaymentLog("Invoice Added", `New invoice ${addInvoiceFormData.number} for ${currency} ${parseFloat(addInvoiceFormData.amount).toLocaleString()} was added.`);
       if (showToast) {
         showToast("Invoice successfully added");
       }
