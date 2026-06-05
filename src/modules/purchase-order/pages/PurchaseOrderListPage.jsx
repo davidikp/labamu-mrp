@@ -31,13 +31,13 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
   );
 
   const tableColumns = [
-    { label: "PO Number", key: "poNumber", flex: "1.5", sortable: true },
-    { label: "Vendor Name", key: "vendorName", flex: "2", sortable: true },
-    { label: "Total Amount", key: "amount", flex: "1.5", sortable: false },
-    { label: "PO Date", key: "poDate", flex: "1.2", sortable: true },
-    { label: "Created Date", key: "createdDate", flex: "1.2", sortable: true },
-    { label: "Payment Status", key: "paymentStatus", flex: "1.2", sortable: false },
-    { label: "PO Status", key: "status", flex: "1.2", sortable: false },
+    { label: "PO Number", key: "poNumber", flex: "1.3", sortable: true },
+    { label: "Vendor Name", key: "vendorName", flex: "1.6", sortable: true },
+    { label: "Total Amount", key: "amount", flex: "1.3", sortable: false },
+    { label: "PO Date", key: "poDate", flex: "1", sortable: true },
+    { label: "Created Date", key: "createdDate", flex: "1", sortable: true },
+    { label: "Payment Status", key: "paymentStatus", flex: "1.1", sortable: false },
+    { label: "PO Status", key: "status", flex: "1.1", sortable: false },
   ];
 
   const computePaymentStatus = (row) => {
@@ -474,7 +474,7 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
         >
           <div
             style={{
-              minWidth: "1200px",
+              minWidth: "1000px",
               width: "100%",
               display: "flex",
               flexDirection: "column",
