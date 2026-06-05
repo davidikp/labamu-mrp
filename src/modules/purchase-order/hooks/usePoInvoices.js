@@ -11,6 +11,7 @@ export const usePoInvoices = ({
   poNumber = "",
   vendorName = "",
   showToast,
+  addDocumentFromAction,
 } = {}) => {
   // --- Core Data State ---
   const [invoices, setInvoices] = useState(initialInvoices);
@@ -73,6 +74,10 @@ export const usePoInvoices = ({
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);
   const [autoPrefillInvoice, setAutoPrefillInvoice] = useState(false);
   const [autoPrefillPayment, setAutoPrefillPayment] = useState(false);
+  const [deleteInvoiceReason, setDeleteInvoiceReason] = useState("");
+  const [deleteInvoiceReasonError, setDeleteInvoiceReasonError] = useState("");
+  const [voidPaymentReason, setVoidPaymentReason] = useState("");
+  const [voidPaymentReasonError, setVoidPaymentReasonError] = useState("");
 
   // --- Helpers ---
   const getInvoiceMetrics = useCallback((invoice) => {
@@ -300,6 +305,15 @@ export const usePoInvoices = ({
           accountName: addInvoiceFormData.accountName,
         },
       };
+
+      if (addInvoiceFormData.attachments && addInvoiceFormData.attachments.length > 0 && addDocumentFromAction) {
+        addDocumentFromAction(
+          addInvoiceFormData.attachments[0].file,
+          `${newInvoice.number} document`,
+          "invoice"
+        );
+      }
+
       setInvoices((prev) => [newInvoice, ...prev]);
       addInvoicePaymentLog("Invoice Added", `New invoice ${addInvoiceFormData.number} for ${currency} ${parseFloat(addInvoiceFormData.amount).toLocaleString()} was added.`);
       if (showToast) {
@@ -333,6 +347,16 @@ export const usePoInvoices = ({
     if (!addInvoiceFormData.amount) {
       nextErrors.amount = "Field cannot be empty";
       hasError = true;
+    } else if (isEditingInvoice) {
+      const currentInv = invoices.find(i => i.id === addInvoiceFormData.id);
+      if (currentInv) {
+        const invMetrics = getInvoiceMetrics(currentInv);
+        const newAmount = parseFloat(addInvoiceFormData.amount) || 0;
+        if (newAmount < invMetrics.paid) {
+          nextErrors.amount = `Invoice amount cannot be lower than the paid amount (${currency} ${invMetrics.paid.toLocaleString()}).`;
+          hasError = true;
+        }
+      }
     }
     
     const foundExceededItems = [];
@@ -373,6 +397,10 @@ export const usePoInvoices = ({
       return;
     }
 
+    proceedAfterQtyExceed();
+  }, [addInvoiceFormData, isEditingInvoice, invoices, poTotal, saveInvoice, getRemainingPoQty, currency, getInvoiceMetrics]);
+
+  const proceedAfterQtyExceed = useCallback(() => {
     // Check if potential total invoiced exceeds PO value
     const otherInvoicesTotal = invoices.reduce(
       (sum, inv) => (isEditingInvoice && inv.id === addInvoiceFormData.id ? sum : sum + (inv.amount || 0)),
@@ -387,20 +415,26 @@ export const usePoInvoices = ({
     }
 
     saveInvoice();
-  }, [addInvoiceFormData, isEditingInvoice, invoices, poTotal, saveInvoice, getRemainingPoQty]);
+  }, [invoices, isEditingInvoice, addInvoiceFormData.id, addInvoiceFormData.amount, poTotal, saveInvoice]);
 
   const handleDeleteInvoice = useCallback(() => {
     if (!selectedInvoiceForDetail) return;
+    if (!deleteInvoiceReason.trim()) {
+      setDeleteInvoiceReasonError("Field cannot be empty");
+      return;
+    }
     const invNumber = selectedInvoiceForDetail.number;
     setInvoices((prev) => prev.filter((i) => i.id !== selectedInvoiceForDetail.id));
     setPayments((prev) => prev.filter((p) => p.invoiceId !== selectedInvoiceForDetail.id));
-    addInvoicePaymentLog("Invoice Deleted", `Invoice ${invNumber} and its associated payments were removed.`);
+    addInvoicePaymentLog("Invoice Deleted", `Invoice ${invNumber} and its associated payments were removed. Reason: ${deleteInvoiceReason}`);
     if (showToast) {
       showToast("Invoice successfully deleted");
     }
     setShowDeleteInvoiceConfirm(false);
     setShowInvoiceDetailDrawer(false);
-  }, [selectedInvoiceForDetail, addInvoicePaymentLog, showToast]);
+    setDeleteInvoiceReason("");
+    setDeleteInvoiceReasonError("");
+  }, [selectedInvoiceForDetail, deleteInvoiceReason, addInvoicePaymentLog, showToast]);
 
   const handleAddPayment = useCallback(() => {
     let hasError = false;
@@ -434,6 +468,14 @@ export const usePoInvoices = ({
       isVoid: false,
     };
 
+    if (paymentFormData.attachments && paymentFormData.attachments.length > 0 && addDocumentFromAction) {
+      addDocumentFromAction(
+        paymentFormData.attachments[0].file,
+        `${newPayment.id} document`,
+        "invoice_payment"
+      );
+    }
+
     setPayments((prev) => [newPayment, ...prev]);
     addInvoicePaymentLog("Payment Added", `Payment of ${currency} ${parseFloat(paymentFormData.amount).toLocaleString()} added to Invoice ${selectedInvoiceForPayment?.number}.`);
     if (showToast) {
@@ -448,15 +490,21 @@ export const usePoInvoices = ({
 
   const handleVoidPayment = useCallback(() => {
     if (!paymentToVoid) return;
+    if (!voidPaymentReason.trim()) {
+      setVoidPaymentReasonError("Field cannot be empty");
+      return;
+    }
     const associatedInv = invoices.find(i => i.id === paymentToVoid.invoiceId);
     setPayments(prev => prev.map(p => p.id === paymentToVoid.id ? { ...p, isVoid: true, voidedAt: new Date().toISOString() } : p));
-    addInvoicePaymentLog("Payment Voided", `Payment of ${currency} ${paymentToVoid.amount.toLocaleString()} for Invoice ${associatedInv?.number || "Unknown"} was voided.`);
+    addInvoicePaymentLog("Payment Voided", `Payment of ${currency} ${paymentToVoid.amount.toLocaleString()} for Invoice ${associatedInv?.number || "Unknown"} was voided. Reason: ${voidPaymentReason}`);
     if (showToast) {
       showToast("Payment successfully voided");
     }
     setShowVoidConfirmModal(false);
     setPaymentToVoid(null);
-  }, [paymentToVoid, invoices, currency, addInvoicePaymentLog, showToast]);
+    setVoidPaymentReason("");
+    setVoidPaymentReasonError("");
+  }, [paymentToVoid, voidPaymentReason, invoices, currency, addInvoicePaymentLog, showToast]);
 
   return {
     // Data State
@@ -518,6 +566,14 @@ export const usePoInvoices = ({
     setAutoPrefillInvoice,
     autoPrefillPayment,
     setAutoPrefillPayment,
+    deleteInvoiceReason,
+    setDeleteInvoiceReason,
+    deleteInvoiceReasonError,
+    setDeleteInvoiceReasonError,
+    voidPaymentReason,
+    setVoidPaymentReason,
+    voidPaymentReasonError,
+    setVoidPaymentReasonError,
 
     // Helpers
     getInvoiceMetrics,
@@ -541,6 +597,7 @@ export const usePoInvoices = ({
     setShowItemQtyExceedConfirmModal,
     exceededItems,
     saveInvoice,
+    proceedAfterQtyExceed,
 
     // Handlers
     simulateInvoiceOcr,

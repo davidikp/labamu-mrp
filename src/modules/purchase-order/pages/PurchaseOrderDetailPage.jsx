@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 
 // Icons
 import { ImageAssetIcon } from "../../../components/icons/Icons.jsx";
@@ -86,6 +86,7 @@ import {
   formatUploadFileSize,
   getImageUploadPreviewUrl,
   normalizeProofDocuments,
+  createUploadDocumentRecord,
 } from "../../../utils/upload/uploadUtils.js";
 
 // Common UI Components
@@ -193,6 +194,8 @@ export const PurchaseOrderDetailPage = ({
   const createdDate = hasDraftData
     ? displayValue(formData?.poDate)
     : displayData?.createdDate || "2026-03-20";
+
+  const createdAtDate = displayData?.createdAt || "2026-03-20";
 
   const mockLines = useMemo(
     () =>
@@ -382,6 +385,34 @@ export const PurchaseOrderDetailPage = ({
   const initialPayments = useMemo(() => displayData?.payments || [], [displayData]);
   const initialInvoiceLogs = useMemo(() => [], []);
 
+  const addDocumentFromAction = useCallback((fileObject, description, docType) => {
+    if (!fileObject) return;
+    const modifiedLabel = "Mar 31, 2026";
+    const newDoc = createUploadDocumentRecord(fileObject, {
+      id: `doc-${Date.now()}`,
+      name: fileObject.name,
+      description: description,
+      meta: `Uploaded by Natasha Smith on ${modifiedLabel}`,
+      documentType: docType,
+      modifiedDate: modifiedLabel,
+      size: formatUploadFileSize(fileObject.size || 0),
+    });
+
+    setDocuments((prev) => [newDoc, ...prev]);
+    setDocumentActivityLogs((prev) => [
+      {
+        name: "Natasha Smith",
+        email: "natasha.smith@company.com",
+        title: "Document Uploaded",
+        desc: newDoc.description
+          ? `${newDoc.description} (${newDoc.name})`
+          : newDoc.name,
+        timestamp: getCurrentLogTimestamp(),
+      },
+      ...prev,
+    ]);
+  }, [setDocuments, setDocumentActivityLogs]);
+
   const {
     invoices,
     setInvoices,
@@ -435,6 +466,14 @@ export const PurchaseOrderDetailPage = ({
     setAutoPrefillInvoice,
     autoPrefillPayment,
     setAutoPrefillPayment,
+    deleteInvoiceReason,
+    setDeleteInvoiceReason,
+    deleteInvoiceReasonError,
+    setDeleteInvoiceReasonError,
+    voidPaymentReason,
+    setVoidPaymentReason,
+    voidPaymentReasonError,
+    setVoidPaymentReasonError,
     getInvoiceMetrics,
     getAgingStatus,
     getInvoiceStatus,
@@ -460,6 +499,7 @@ export const PurchaseOrderDetailPage = ({
     setShowItemQtyExceedConfirmModal,
     exceededItems,
     saveInvoice,
+    proceedAfterQtyExceed,
   } = usePoInvoices({
     initialInvoices,
     initialPayments,
@@ -470,7 +510,34 @@ export const PurchaseOrderDetailPage = ({
     poNumber,
     vendorName: initialData?.vendorName,
     showToast,
+    addDocumentFromAction,
   });
+
+  const overallPaymentStatus = useMemo(() => {
+    if (invoices.length === 0) return { text: "Unpaid", variant: "grey-light" };
+    const statuses = invoices.map((inv) => {
+      const metrics = getInvoiceMetrics(inv);
+      return getInvoiceStatus(inv, metrics);
+    });
+    const allPaid = statuses.every((s) => s.text === "Paid");
+    if (allPaid) return { text: "Paid", variant: "green-light" };
+    const hasOverdue = statuses.some((s) => s.text === "Overdue");
+    if (hasOverdue) return { text: "Overdue", variant: "red-light" };
+    const anyPaid = statuses.some((s) => s.text === "Paid" || s.text === "Partially Paid");
+    if (anyPaid) return { text: "Partially Paid", variant: "blue-light" };
+    return { text: "Unpaid", variant: "grey-light" };
+  }, [invoices, getInvoiceMetrics, getInvoiceStatus]);
+
+  // Sync invoices and payments back to MOCK_PO_TABLE_DATA for cache
+  useEffect(() => {
+    if (poNumber) {
+      const row = MOCK_PO_TABLE_DATA.find((r) => r.poNumber === poNumber);
+      if (row) {
+        row.invoices = invoices;
+        row.payments = payments;
+      }
+    }
+  }, [invoices, payments, poNumber]);
 
   const [threeWaysMatchCurrentPage, setThreeWaysMatchCurrentPage] = useState(1);
   const [threeWaysMatchRowsPerPage, setThreeWaysMatchRowsPerPage] = useState(25);
@@ -1073,7 +1140,7 @@ export const PurchaseOrderDetailPage = ({
     const meta = getDecisionMeta();
     const trimmedComment = decisionComment.trim();
     if (meta.mandatory && !trimmedComment) {
-      setDecisionError("Comment is required.");
+      setDecisionError("Field cannot be empty");
       return;
     }
 
@@ -1432,7 +1499,7 @@ export const PurchaseOrderDetailPage = ({
           email: "-",
           title: "Completed",
           desc: "All ordered items have been fully received.",
-          timestamp: `${createdDate} at 17:30`,
+          timestamp: "2026-03-30 at 11:00",
         },
         {
           name: approvalEnabled
@@ -1820,8 +1887,10 @@ export const PurchaseOrderDetailPage = ({
         isExportingPdf={isExportingPdf}
         initialData={initialData}
         createdDate={createdDate}
+        createdAtDate={createdAtDate}
         expectedDeliveryDate={expectedDeliveryDate}
         currencyLabel={currencyLabel}
+        overallPaymentStatus={overallPaymentStatus}
         revisionMessage={revisionMessage}
         canceledMessage={canceledMessage}
         showHeaderEdit={showHeaderEdit}
@@ -3026,6 +3095,15 @@ export const PurchaseOrderDetailPage = ({
         setShowItemQtyExceedConfirmModal={setShowItemQtyExceedConfirmModal}
         exceededItems={exceededItems}
         saveInvoice={saveInvoice}
+        proceedAfterQtyExceed={proceedAfterQtyExceed}
+        deleteInvoiceReason={deleteInvoiceReason}
+        setDeleteInvoiceReason={setDeleteInvoiceReason}
+        deleteInvoiceReasonError={deleteInvoiceReasonError}
+        setDeleteInvoiceReasonError={setDeleteInvoiceReasonError}
+        voidPaymentReason={voidPaymentReason}
+        setVoidPaymentReason={setVoidPaymentReason}
+        voidPaymentReasonError={voidPaymentReasonError}
+        setVoidPaymentReasonError={setVoidPaymentReasonError}
       />
 
       {/* Add Payment Drawer */}

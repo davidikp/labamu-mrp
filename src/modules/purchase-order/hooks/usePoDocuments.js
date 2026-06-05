@@ -8,6 +8,7 @@ import {
 
 const documentTypeFilterOptions = [
   { value: "invoice", label: "Invoice" },
+  { value: "invoice_payment", label: "Invoice Payment" },
   { value: "delivery_note", label: "Delivery Note" },
   { value: "packing_list", label: "Packing List" },
   { value: "quotation_vendor", label: "Quotation (Vendor)" },
@@ -17,6 +18,7 @@ const documentTypeFilterOptions = [
 
 const getDocumentTypeLabel = (documentType) => {
   if (documentType === "invoice") return "Invoice";
+  if (documentType === "invoice_payment") return "Invoice Payment";
   if (documentType === "delivery_note") return "Delivery Note";
   if (documentType === "quotation_vendor") return "Quotation (Vendor)";
   if (documentType === "contract") return "Contract / Agreement";
@@ -90,16 +92,12 @@ export const usePoDocuments = ({
   // --- Helpers ---
   const getCurrentLogTimestamp = useCallback(() => {
     const now = new Date();
-    const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ];
-    const month = months[now.getMonth()];
-    const day = now.getDate();
     const year = now.getFullYear();
-    const hours = now.getHours().toString().padStart(2, "0");
-    const minutes = now.getMinutes().toString().padStart(2, "0");
-    return `${month} ${day}, ${year} at ${hours}:${minutes}`;
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day} at ${hours}:${minutes}`;
   }, []);
 
   const resetDocumentUploadState = useCallback(() => {
@@ -132,9 +130,9 @@ export const usePoDocuments = ({
 
   // --- Handlers ---
   const handleUploadDocument = useCallback(() => {
-    if (!(currentStatus === "Draft" || currentStatus === "Need Revision")) {
+    if (currentStatus === "Canceled") {
       setDocumentUploadError(
-        "Documents can only be uploaded in Draft or Need Revision status"
+        "Documents cannot be uploaded when status is Canceled"
       );
       return;
     }
@@ -365,8 +363,9 @@ export const usePoDocuments = ({
     return {
       name: documentUploadFileName,
       size: formatUploadFileSize(documentUploadFileSize),
+      description: documentUploadDescription,
     };
-  }, [documentUploadFileObject, documentUploadFileName, documentUploadFileSize]);
+  }, [documentUploadFileObject, documentUploadFileName, documentUploadFileSize, documentUploadDescription]);
 
   const toggleDocumentTypeFilter = useCallback((filterKey) => {
     setDocumentTypeFilters((prev) =>

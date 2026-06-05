@@ -261,9 +261,9 @@ export const MOCK_PO_TABLE_DATA = [
         number: "INV/2026/011",
         date: "2026-03-25",
         terms: "30 days",
-        dueDate: "2026-04-20",
+        dueDate: "2026-07-20",
         amount: 12325000,
-        notes: "Partially paid overdue",
+        notes: "Partially paid",
         itemLines: [{ id: 2, qty: 50, unit: "Sheet" }]
       },
       {
@@ -281,7 +281,7 @@ export const MOCK_PO_TABLE_DATA = [
         number: "INV/2026/013",
         date: "2026-04-10",
         terms: "30 days",
-        dueDate: "2026-05-10",
+        dueDate: "2026-07-10",
         amount: 10000000,
         notes: "Not due yet",
         itemLines: [{ id: 1, qty: 4, unit: "Pcs" }]

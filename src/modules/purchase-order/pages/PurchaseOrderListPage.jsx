@@ -16,6 +16,7 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
   const [sortDirection, setSortDirection] = useState("desc");
   const [openFilterKey, setOpenFilterKey] = useState(null);
   const [filterStatuses, setFilterStatuses] = useState([]);
+  const [filterPaymentStatuses, setFilterPaymentStatuses] = useState([]);
   const [dateFilterType, setDateFilterType] = useState("all");
   const [customDateRange, setCustomDateRange] = useState({
     start: "",
@@ -35,8 +36,34 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
     { label: "Total Amount", key: "amount", flex: "1.5", sortable: false },
     { label: "PO Date", key: "poDate", flex: "1.2", sortable: true },
     { label: "Created Date", key: "createdDate", flex: "1.2", sortable: true },
-    { label: "Status", key: "status", flex: "1.2", sortable: false },
+    { label: "Payment Status", key: "paymentStatus", flex: "1.2", sortable: false },
+    { label: "PO Status", key: "status", flex: "1.2", sortable: false },
   ];
+
+  const computePaymentStatus = (row) => {
+    const invoices = row.invoices || [];
+    const payments = (row.payments || []).filter((p) => !p.isVoid);
+    if (invoices.length === 0) return { text: "Unpaid", variant: "grey-light" };
+    const today = new Date();
+    const allPaid = invoices.every((inv) => {
+      const paid = payments
+        .filter((p) => p.invoiceId === inv.id)
+        .reduce((s, p) => s + (p.amount || 0), 0);
+      return paid >= (inv.amount || 0) && (inv.amount || 0) > 0;
+    });
+    if (allPaid) return { text: "Paid", variant: "green-light" };
+    const hasOverdue = invoices.some((inv) => {
+      const paid = payments
+        .filter((p) => p.invoiceId === inv.id)
+        .reduce((s, p) => s + (p.amount || 0), 0);
+      const outstanding = Math.max((inv.amount || 0) - paid, 0);
+      return outstanding > 0 && new Date(inv.dueDate) < today;
+    });
+    if (hasOverdue) return { text: "Overdue", variant: "red-light" };
+    const anyPaid = payments.length > 0;
+    if (anyPaid) return { text: "Partially Paid", variant: "blue-light" };
+    return { text: "Unpaid", variant: "grey-light" };
+  };
 
   const statusCards = [
     { key: "Draft", label: "Draft", activeColor: "grey-light" },
@@ -116,7 +143,10 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
       if (start && end) matchesDate = rowDate >= start && rowDate <= end;
     }
 
-    return matchesStatusFilter && matchesSearch && matchesDate;
+    const ps = computePaymentStatus(row);
+    const matchesPaymentStatusFilter = filterPaymentStatuses.length === 0 || filterPaymentStatuses.includes(ps.text);
+
+    return matchesStatusFilter && matchesPaymentStatusFilter && matchesSearch && matchesDate;
   }).sort((a, b) => {
     const direction = sortDirection === "asc" ? 1 : -1;
     if (sortBy === "createdDate") {
@@ -141,6 +171,7 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
     setCurrentPage(1);
   }, [
     filterStatuses.join("|"),
+    filterPaymentStatuses.join("|"),
     dateFilterType,
     customDateRange.start,
     customDateRange.end,
@@ -259,6 +290,22 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
                 count={dateFilterType !== "all" ? 1 : 0}
               />
             </div>
+            <div
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setPopoverTriggerRect(rect);
+                setOpenFilterKey((prev) =>
+                  prev === "paymentStatus" ? null : "paymentStatus"
+                );
+              }}
+            >
+              <FilterPill
+                label="Payment Status"
+                active={filterPaymentStatuses.length > 0}
+                isOpen={openFilterKey === "paymentStatus"}
+                count={filterPaymentStatuses.length}
+              />
+            </div>
 
             {openFilterKey ? (
               <>
@@ -298,12 +345,16 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
                         fontWeight: "var(--font-weight-bold)",
                       }}
                     >
-                      Created Date
+                      {openFilterKey === "paymentStatus" ? "Payment Status" : "Created Date"}
                     </span>
                     <button
                       onClick={() => {
-                        setDateFilterType("all");
-                        setCustomDateRange({ start: "", end: "" });
+                        if (openFilterKey === "paymentStatus") {
+                          setFilterPaymentStatuses([]);
+                        } else {
+                          setDateFilterType("all");
+                          setCustomDateRange({ start: "", end: "" });
+                        }
                         setOpenFilterKey(null);
                       }}
                       style={{
@@ -360,6 +411,43 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
                       ) : null}
                     </div>
                   ) : null}
+
+                  {openFilterKey === "paymentStatus" ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
+                      }}
+                    >
+                      {["Paid", "Partially Paid", "Overdue", "Unpaid"].map((opt) => (
+                        <label
+                          key={opt}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            cursor: "pointer",
+                            fontSize: "var(--text-title-3)",
+                          }}
+                        >
+                          <Checkbox
+                            checked={filterPaymentStatuses.includes(opt)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFilterPaymentStatuses((prev) => [...prev, opt]);
+                              } else {
+                                setFilterPaymentStatuses((prev) =>
+                                  prev.filter((s) => s !== opt)
+                                );
+                              }
+                            }}
+                          />
+                          <span>{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </>
             ) : null}
@@ -386,7 +474,7 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
         >
           <div
             style={{
-              minWidth: "1000px",
+              minWidth: "1200px",
               width: "100%",
               display: "flex",
               flexDirection: "column",
@@ -546,6 +634,12 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
                     </span>
                   </div>
                   <div style={cellStyle({ flex: tableColumns[5].flex })}>
+                    {(() => {
+                      const ps = computePaymentStatus(row);
+                      return <StatusBadge variant={ps.variant}>{ps.text}</StatusBadge>;
+                    })()}
+                  </div>
+                  <div style={cellStyle({ flex: tableColumns[6].flex })}>
                     <StatusBadge variant={row.sBadge}>{row.status}</StatusBadge>
                   </div>
                 </div>

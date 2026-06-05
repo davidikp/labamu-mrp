@@ -28,8 +28,11 @@ const PoDetailHeader = ({
   isExportingPdf,
   initialData,
   createdDate,
+  createdAtDate,
   expectedDeliveryDate,
   currencyLabel,
+  invoices = [],
+  overallPaymentStatus,
   revisionMessage,
   canceledMessage,
   showHeaderEdit,
@@ -44,6 +47,8 @@ const PoDetailHeader = ({
   handleRevisePo,
   openDecisionModal,
 }) => {
+  overallPaymentStatus = overallPaymentStatus || { text: "Unpaid", variant: "grey-light" };
+
   return (
     <>
       <div
@@ -305,18 +310,39 @@ const PoDetailHeader = ({
         <div
           style={{
             padding: "16px 24px",
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: "24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
           }}
         >
-          <LabelValue label="PO Date" value={createdDate} />
-          <LabelValue
-            label="Expected Delivery Date"
-            value={expectedDeliveryDate ?? null}
-          />
-          <LabelValue label="Currency" value={currencyLabel} />
-          <LabelValue label="Created By" value="Joko" />
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "24px",
+            }}
+          >
+            <LabelValue label="PO Date" value={createdDate} />
+            <LabelValue
+              label="Expected Delivery Date"
+              value={expectedDeliveryDate ?? null}
+            />
+            <LabelValue label="Currency" value={currencyLabel} />
+            <LabelValue
+              label="Payment Status"
+              badge={{ variant: overallPaymentStatus.variant, text: overallPaymentStatus.text }}
+            />
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "24px",
+            }}
+          >
+            <LabelValue label="Created By" value="Joko" />
+            <LabelValue label="Created Date" value={createdAtDate || createdDate} />
+          </div>
         </div>
       </div>
 

@@ -5728,7 +5728,7 @@ export const PurchaseOrderCreatePage = ({
               style={{ width: "100%" }}
               onClick={() => {
                 if (isReviseMode && !revisionReason.trim()) {
-                  setRevisionReasonError("Reason is mandatory");
+                  setRevisionReasonError("Field cannot be empty");
                   return;
                 }
                 handleConfirmSubmit();

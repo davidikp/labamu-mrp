@@ -189,38 +189,5 @@ export const sortLogsLatest = (logs = []) => {
 };
 
 export const ensureCompletedLogIsLatest = (logs = [], currentStatus) => {
-  const sortedLogs = sortLogsLatest(logs);
-  if (currentStatus !== "Completed") return sortedLogs;
-
-  const completedLogIndex = sortedLogs.findIndex(
-    (log) => log.title === "Completed"
-  );
-  if (completedLogIndex === -1) return sortedLogs;
-
-  const nextLogs = [...sortedLogs];
-  const completedLog = { ...nextLogs[completedLogIndex] };
-  nextLogs.splice(completedLogIndex, 1);
-
-  const nonInvoiceLogs = nextLogs.filter(
-    (log) =>
-      !["Invoice Added", "Invoice Updated", "Invoice Deleted", "Payment Added", "Payment Voided"].includes(log.title)
-  );
-
-  const latestExistingTimestamp =
-    nonInvoiceLogs.length > 0
-      ? Math.max(
-          ...nonInvoiceLogs.map((log) => parseActivityTimestamp(log.timestamp))
-        )
-      : parseActivityTimestamp(completedLog.timestamp);
-
-  const safeBaseTimestamp =
-    Number.isFinite(latestExistingTimestamp) && latestExistingTimestamp > 0
-      ? latestExistingTimestamp
-      : Date.now();
-
-  completedLog.timestamp = formatActivityTimestamp(
-    new Date(safeBaseTimestamp + 60 * 1000)
-  );
-
-  return sortLogsLatest([completedLog, ...nextLogs]);
+  return sortLogsLatest(logs);
 };
