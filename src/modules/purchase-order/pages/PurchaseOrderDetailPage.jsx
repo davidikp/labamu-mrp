@@ -328,14 +328,14 @@ export const PurchaseOrderDetailPage = ({
     initialLogs: [],
     currentStatus,
   });
-  const initialReceiptLines = useMemo(() => 
-    displayData?.receiptLines || 
-    displayData?.formData?.receiptLines || 
-    displayData?.lines || 
-    displayData?.formData?.lines || 
-    [], 
-    [displayData]
-  );
+  const initialReceiptLines = useMemo(() => {
+    const rawLines = displayData?.receiptLines || 
+      displayData?.formData?.receiptLines || 
+      displayData?.lines || 
+      displayData?.formData?.lines || 
+      [];
+    return rawLines.filter(l => !l.isDeleted);
+  }, [displayData]);
   const initialReceiptLogs = useMemo(() => displayData?.receiptLogs || displayData?.formData?.receiptLogs || [], [displayData]);
 
   const {
@@ -588,26 +588,33 @@ export const PurchaseOrderDetailPage = ({
 
 
   const threeWaysMatchData = useMemo(() => {
-    return mockLines.map((line) => {
+    return mockLines.reduce((acc, line) => {
       const receiptLine = receiptLines.find((rl) => rl.id === line.id);
       const receivedQty = receiptLine ? receiptLine.receivedQty : 0;
 
       let invoicedQty = 0;
+      let hasInvoice = false;
       invoices.forEach((inv) => {
         (inv.itemLines || []).forEach((il) => {
           const ilIdStr = String(il.id);
           if (ilIdStr === String(line.id) || ilIdStr === `l${line.id}`) {
             invoicedQty += Number(il.qty) || 0;
+            hasInvoice = true;
           }
         });
       });
 
-      return {
+      if (line.isDeleted && !hasInvoice) {
+        return acc;
+      }
+
+      acc.push({
         ...line,
         receivedQty,
         invoicedQty,
-      };
-    });
+      });
+      return acc;
+    }, []);
   }, [mockLines, receiptLines, invoices]);
   const detailNotes = hasDraftData
     ? displayValue(formData?.notes)
@@ -2024,16 +2031,16 @@ export const PurchaseOrderDetailPage = ({
                     width: "100%",
                   }}
                 >
-                  <div style={{ overflowX: mockLines.length > 0 ? "auto" : "hidden", width: "100%" }}>
-                      <div
-                        style={{
-                          minWidth: "100%",
-                          width: "100%",
-                          display: "flex",
-                          flexDirection: "column",
-                        }}
-                      >
-                      {mockLines.length > 0 && (
+                  <div style={{ overflowX: mockLines.filter(l => !l.isDeleted).length > 0 ? "auto" : "hidden", width: "100%" }}>
+                    <div
+                      style={{
+                        minWidth: mockLines.filter(l => !l.isDeleted).length > 0 ? "1466px" : "100%",
+                        width: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                    >
+                      {mockLines.filter(l => !l.isDeleted).length > 0 && (
                         <div
                           style={{
                             display: "grid",
@@ -2074,8 +2081,8 @@ export const PurchaseOrderDetailPage = ({
                         </div>
                       )}
 
-                      {mockLines.length > 0 ? (
-                        mockLines.map((line, idx) => {
+                      {mockLines.filter(l => !l.isDeleted).length > 0 ? (
+                        mockLines.filter(l => !l.isDeleted).map((line, idx, arr) => {
                           const isWO = line.type === "wo";
                           const lineSubtotal =
                             (parseFloat(line.qty) || 0) *
@@ -2099,13 +2106,13 @@ export const PurchaseOrderDetailPage = ({
                                 position: "relative",
                                 width: "100%",
                                 borderBottom:
-                                  idx === mockLines.length - 1
+                                  idx === arr.length - 1
                                     ? "none"
                                     : "1px solid var(--neutral-line-separator-1)",
                                 boxSizing: "border-box",
                               }}
                             >
-                              <div>
+                              <div style={{ justifySelf: "start" }}>
                                 <StatusBadge
                                   variant={
                                     isWO

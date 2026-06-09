@@ -2479,6 +2479,8 @@ export const PurchaseOrderCreatePage = ({
   const [revisionReasonError, setRevisionReasonError] = useState("");
   const [showDiscardChangesModal, setShowDiscardChangesModal] = useState(false);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [showOngoingInvoiceModal, setShowOngoingInvoiceModal] = useState(false);
+  const [linePendingDeletion, setLinePendingDeletion] = useState(null);
   const [isVendorEditingEnabled, setIsVendorEditingEnabled] = useState(false);
   const [showVendorEditConfirm, setShowVendorEditConfirm] = useState(false);
   const [pendingVendorAction, setPendingVendorAction] = useState(null);
@@ -3148,10 +3150,26 @@ export const PurchaseOrderCreatePage = ({
     setProductModalFieldErrors({});
   };
 
-  const handleRemoveLine = (lineId) =>
+  const handleRemoveLine = (lineId) => {
+    const line = lines.find((l) => l.id === lineId);
+    if (!line) return;
+
+    if (isReviseMode && (line.type === "material" || line.type === "manual")) {
+      const invoices = initialData?.formData?.invoices || initialData?.invoices || [];
+      const linkedInvoices = invoices.filter(inv => inv.itemLines?.some(il => String(il.id) === String(lineId) || String(il.id) === `l${lineId}`));
+
+      if (linkedInvoices.length > 0) {
+        const invoiceNumbers = linkedInvoices.map(inv => inv.number || inv.id).join(', ');
+        setLinePendingDeletion({ id: lineId, invoices: invoiceNumbers });
+        setShowOngoingInvoiceModal(true);
+        return;
+      }
+    }
+
     setLines((prev) =>
-      prev.filter((line) => line.id !== lineId || line.lockedFromWorkOrder)
+      prev.filter((l) => l.id !== lineId || l.lockedFromWorkOrder)
     );
+  };
 
   const handleSaveDraft = () => {
     if (!vendorSearch.trim()) {
@@ -4145,16 +4163,16 @@ export const PurchaseOrderCreatePage = ({
                   width: "100%",
                 }}
               >
-                <div style={{ overflowX: lines.length > 0 ? "auto" : "hidden", width: "100%" }}>
+                <div style={{ overflowX: lines.filter(l => !l.isDeleted).length > 0 ? "auto" : "hidden", width: "100%" }}>
                   <div
                     style={{
-                      minWidth: lines.length > 0 ? "1466px" : "100%",
+                      minWidth: lines.filter(l => !l.isDeleted).length > 0 ? "1466px" : "100%",
                       width: "100%",
                       display: "flex",
                       flexDirection: "column",
                     }}
                   >
-                    {lines.length > 0 && (
+                    {lines.filter(l => !l.isDeleted).length > 0 && (
                       <div
                         style={{
                           display: "grid",
@@ -4185,8 +4203,8 @@ export const PurchaseOrderCreatePage = ({
                       </div>
                     )}
 
-                      {lines.length > 0 ? (
-                      lines.map((line, idx) => {
+                      {lines.filter(l => !l.isDeleted).length > 0 ? (
+                      lines.filter(l => !l.isDeleted).map((line, idx, arr) => {
                         const isLockedWorkOrderLine =
                           !!line.lockedFromWorkOrder;
                         const lineSubtotal =
@@ -4209,7 +4227,7 @@ export const PurchaseOrderCreatePage = ({
                               minHeight: "64px",
                               alignItems: "center",
                               borderBottom:
-                                idx === lines.length - 1
+                                idx === arr.length - 1
                                   ? "none"
                                   : "1px solid var(--neutral-line-separator-1)",
                               background: "var(--neutral-surface-primary)",
@@ -4362,9 +4380,9 @@ export const PurchaseOrderCreatePage = ({
                                 variant="tertiary"
                                 size="small"
                                 onClick={() => handleRemoveLine(line.id)}
-                                disabled={isLockedWorkOrderLine || isReviseMode}
+                                disabled={isLockedWorkOrderLine || (isReviseMode && line.type === "wo")}
                                 style={{ 
-                                  color: (isLockedWorkOrderLine || isReviseMode) 
+                                  color: (isLockedWorkOrderLine || (isReviseMode && line.type === "wo")) 
                                     ? "var(--neutral-on-surface-tertiary)" 
                                     : "var(--status-red-primary)",
                                   padding: "0 4px"
@@ -5575,6 +5593,11 @@ export const PurchaseOrderCreatePage = ({
                 </span>
               ) : null}
             </div>
+            
+            <div style={{ display: "flex", justifyContent: "center", fontSize: "var(--text-subtitle-1)", fontWeight: "var(--font-weight-bold)" }}>
+              Subtotal: {formatCurrency((parseInt(productModalForm.manualQty, 10) || 0) * (parseInt(productModalForm.manualPrice, 10) || 0), currency)}
+            </div>
+
             <div style={{ display: "flex", gap: "12px", flexShrink: 0 }}>
               <Button
                 variant="outlined"
@@ -5865,6 +5888,53 @@ export const PurchaseOrderCreatePage = ({
         onClose={() => setShowCanceledWOBlocker(false)}
         canceledWOs={canceledWOsFound}
         mode="edit"
+      />
+      <GeneralModal
+        isOpen={showOngoingInvoiceModal}
+        onClose={() => {
+          setShowOngoingInvoiceModal(false);
+          setLinePendingDeletion(null);
+        }}
+        title="Delete Item?"
+        description={
+          linePendingDeletion
+            ? `This item is linked to invoice ${linePendingDeletion.invoices}. Are you sure you want to delete it?`
+            : ""
+        }
+        width="400px"
+        footer={
+          <>
+            <Button
+              variant="danger-filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setLines((prev) =>
+                  prev.map((l) =>
+                    l.id === linePendingDeletion?.id
+                      ? { ...l, isDeleted: true, qty: 0 }
+                      : l
+                  )
+                );
+                setShowOngoingInvoiceModal(false);
+                setLinePendingDeletion(null);
+              }}
+            >
+              Delete Item
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setShowOngoingInvoiceModal(false);
+                setLinePendingDeletion(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </>
+        }
       />
     </div>
   );
