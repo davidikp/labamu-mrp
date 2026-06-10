@@ -124,7 +124,7 @@ const APAgingReportPage = ({ onNavigate, t }) => {
   const currency = "IDR";
   const [agingBucketFilter, setAgingBucketFilter] = useState([]);
   const [vendorFilter, setVendorFilter] = useState([]);
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState([]);
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
@@ -157,9 +157,13 @@ const APAgingReportPage = ({ onNavigate, t }) => {
         else if (diffDays > 30) agingBucket = "Late 31-60";
         else if (diffDays > 0) agingBucket = "Late 1-30";
 
-        let status = "Unpaid";
-        if (paidAmount > 0) {
-          status = paidAmount >= inv.amount ? "Paid" : "Partially Paid";
+        let status = "Open";
+        if (paidAmount >= inv.amount) {
+          status = "Paid";
+        } else if (paidAmount > 0) {
+          status = "Partially Paid";
+        } else if (diffDays > 0) {
+          status = "Overdue";
         }
 
         list.push({
@@ -185,9 +189,8 @@ const APAgingReportPage = ({ onNavigate, t }) => {
       const matchesVendor = vendorFilter.length === 0 || vendorFilter.includes(inv.vendorName);
       
       let matchesStatus = true;
-      if (paymentStatusFilter.length > 0) {
-        matchesStatus = paymentStatusFilter.includes(inv.status) || 
-          (paymentStatusFilter.includes("Unpaid + Partial") && (inv.status === "Unpaid" || inv.status === "Partially Paid"));
+      if (invoiceStatusFilter.length > 0) {
+        matchesStatus = invoiceStatusFilter.includes(inv.status);
       }
 
       const matchesSearch = inv.number.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -196,7 +199,7 @@ const APAgingReportPage = ({ onNavigate, t }) => {
 
       return matchesAging && matchesVendor && matchesStatus && matchesSearch;
     });
-  }, [allInvoices, agingBucketFilter, vendorFilter, paymentStatusFilter, searchQuery]);
+  }, [allInvoices, agingBucketFilter, vendorFilter, invoiceStatusFilter, searchQuery]);
 
   // Sorting logic
   const sortedData = useMemo(() => {
@@ -252,7 +255,7 @@ const APAgingReportPage = ({ onNavigate, t }) => {
     { label: "Invoice Amount", flex: "1.4" },
     { label: "Paid Amount", flex: "1.4" },
     { label: "Outstanding", flex: "1.4", key: "outstanding", sortable: true },
-    { label: "Payment Status", flex: "1.2" },
+    { label: "Invoice Status", flex: "1.2" },
     { label: "Aging Bucket", flex: "1.4" },
   ];
 
@@ -391,14 +394,14 @@ const APAgingReportPage = ({ onNavigate, t }) => {
             />
             <MultiSelectDropdown 
               placeholder="Status"
-              value={paymentStatusFilter}
+              value={invoiceStatusFilter}
               options={[
-                { value: "Unpaid + Partial", label: "Unpaid + Partial" },
-                { value: "Unpaid", label: "Unpaid" },
+                { value: "Open", label: "Open" },
+                { value: "Overdue", label: "Overdue" },
                 { value: "Partially Paid", label: "Partially Paid" },
                 { value: "Paid", label: "Paid" }
               ]}
-              onChange={(val) => { setPaymentStatusFilter(val); setCurrentPage(1); }}
+              onChange={(val) => { setInvoiceStatusFilter(val); setCurrentPage(1); }}
             />
           </div>
 
@@ -465,6 +468,7 @@ const APAgingReportPage = ({ onNavigate, t }) => {
               let statusVariant = "red-light";
               if (inv.status === "Paid") statusVariant = "green-light";
               if (inv.status === "Partially Paid") statusVariant = "blue-light";
+              if (inv.status === "Open") statusVariant = "grey-light";
 
               const isOverdue = inv.overdueDays > 0 && inv.status !== "Paid";
 
