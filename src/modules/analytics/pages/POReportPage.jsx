@@ -505,16 +505,18 @@ const POReportPage = ({ onNavigate, t }) => {
 
   return (
     <div style={{
-      flex: 1,
+      height: "calc(100vh - 64px)",
+      padding: "24px",
+      boxSizing: "border-box",
       display: "flex",
       flexDirection: "column",
+      gap: "24px",
       background: "var(--neutral-background-primary)",
-      height: "100%",
-      overflowY: "auto",
-      padding: "32px"
+      overflow: "hidden",
+      minHeight: 0,
     }}>
       {/* Header Section */}
-      <div style={{ marginBottom: "24px" }}>
+      <div>
         <div 
           style={{ 
             display: "flex", 
@@ -612,7 +614,7 @@ const POReportPage = ({ onNavigate, t }) => {
       </div>
 
       {/* Summary Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "24px", marginBottom: "32px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "24px", flexShrink: 0 }}>
         {[
           { label: "Total Orders", value: metrics.totalCount, icon: <FileText /> },
           { label: "Total Order Value", value: formatCurrency(metrics.totalOrderValue || metrics.totalPoValue, currency), icon: <TrendingUp /> },
@@ -656,7 +658,8 @@ const POReportPage = ({ onNavigate, t }) => {
         border: "1px solid var(--neutral-line-separator-1)",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden"
+        overflow: "hidden",
+        minHeight: 0
       }}>
         {/* Filters Header */}
         <div style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--neutral-line-separator-2)" }}>
@@ -687,9 +690,26 @@ const POReportPage = ({ onNavigate, t }) => {
         </div>
 
         {/* Table Content */}
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {/* Header Row */}
-          <div style={{ display: "flex", background: "var(--neutral-surface-primary)", borderBottom: "1px solid var(--neutral-line-separator-1)" }}>
+        <div style={{ 
+          maxHeight: "calc(100vh - 412px)", 
+          overflow: "auto", 
+          width: "100%" 
+        }}>
+          <div style={{
+            minWidth: "1050px",
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+          }}>
+            {/* Header Row */}
+            <div style={{ 
+              display: "flex", 
+              background: "var(--neutral-surface-primary)", 
+              borderBottom: "1px solid var(--neutral-line-separator-1)",
+              position: "sticky",
+              top: 0,
+              zIndex: 20
+            }}>
             {tableColumns.map((col, idx) => (
               <div 
                 key={idx} 
@@ -732,8 +752,12 @@ const POReportPage = ({ onNavigate, t }) => {
             ))}
           </div>
 
-          {/* Rows */}
-          <div style={{ display: "flex", flexDirection: "column" }}>
+            {/* Rows */}
+            <div style={{ 
+              display: "flex", 
+              flexDirection: "column",
+              flex: paginatedData.length === 0 ? 1 : "0 0 auto"
+            }}>
             {paginatedData.length > 0 ? paginatedData.map((po, idx) => {
               const invoiced = po.invoices.reduce((s, i) => s + i.amount, 0);
               const paid = po.invoices.reduce((s, i) => s + i.payments.reduce((sp, p) => sp + p.amount, 0), 0);
@@ -775,8 +799,9 @@ const POReportPage = ({ onNavigate, t }) => {
             )}
           </div>
         </div>
+      </div>
 
-        {/* Pagination Footer */}
+      {/* Pagination Footer */}
         <TablePaginationFooter
           totalRows={filteredData.length}
           rowsPerPage={itemsPerPage}
