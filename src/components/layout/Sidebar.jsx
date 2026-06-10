@@ -16,6 +16,7 @@ import {
   UserGuideIcon,
   WorkOrderIcon,
   DashboardIcon,
+  ShoppingCart as ProcurementIcon,
 } from "../icons/Icons.jsx";
 import { LANGUAGE_OPTIONS } from "../../constants/appConstants.js";
 
@@ -76,6 +77,15 @@ const Sidebar = ({
       ],
     },
     {
+      icon: ProcurementIcon,
+      id: "procurement",
+      label: t("sidebar.procurement"),
+      hasChildren: true,
+      children: [
+        { id: "purchase_order", label: t("sidebar.purchase_order") },
+      ],
+    },
+    {
       icon: ManufacturingIcon,
       id: "manufacturing",
       label: t("sidebar.manufacturing"),
@@ -84,7 +94,6 @@ const Sidebar = ({
         { id: "bill_of_materials", label: t("sidebar.bill_of_materials") },
         { id: "routing", label: t("sidebar.routing") },
         { id: "work_order", label: t("sidebar.work_order") },
-        { id: "purchase_order", label: t("sidebar.purchase_order") },
       ],
     },
     {
