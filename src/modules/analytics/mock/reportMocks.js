@@ -1,5 +1,5 @@
 
-export const MOCK_REPORT_POS = [
+const RAW_MOCK_REPORT_POS = [
   {
     id: "po-1",
     poNumber: "PO-202603-0001",
@@ -127,3 +127,5 @@ export const MOCK_REPORT_POS = [
     ]
   }
 ];
+
+export const MOCK_REPORT_POS = RAW_MOCK_REPORT_POS.filter(po => ["Issued", "Completed"].includes(po.status));

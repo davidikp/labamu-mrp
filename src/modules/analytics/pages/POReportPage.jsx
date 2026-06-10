@@ -484,7 +484,7 @@ const POReportPage = ({ onNavigate, t }) => {
 
   // Filter options
   const vendors = ["all", ...new Set(MOCK_REPORT_POS.map(po => po.vendorName))];
-  const poStatuses = ["all", "Draft", "Waiting for Approval", "Need Revision", "Issued", "Completed", "Canceled"];
+  const poStatuses = ["all", "Issued", "Completed"];
 
   const tableColumns = [
     { label: "PO No", flex: "1.4", key: "poNumber" },
