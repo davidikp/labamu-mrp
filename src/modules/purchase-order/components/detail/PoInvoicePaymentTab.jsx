@@ -7,6 +7,8 @@ import {
   StatusBadge,
   TableSearchField,
 } from "./shared/PoDetailSharedComponents.jsx";
+import { FilterPill } from "../../../../components/common/FilterPill.jsx";
+import { DateRangeInputControl } from "../../components/DateRangeInputControl.jsx";
 
 const RadialBarChart = ({ items, totalValue, centerLabel, centerValue, size = 180 }) => {
   const center = size / 2;
@@ -75,12 +77,16 @@ const PoInvoicePaymentTab = ({
   poGap,
   overdueAmount,
   invoiceSearch,
+  invoiceDateFilterType,
+  invoiceCustomDateRange,
   currentStatus,
   invoices,
   invoiceCurrentPage,
   invoiceRowsPerPage,
   // Handlers
   setInvoiceSearch,
+  setInvoiceDateFilterType,
+  setInvoiceCustomDateRange,
   setShowAddInvoiceDrawer,
   setSelectedInvoiceForDetail,
   setActiveInvoiceTab,
@@ -94,6 +100,40 @@ const PoInvoicePaymentTab = ({
   getAgingStatus,
   getInvoiceStatus,
 }) => {
+  const [openFilterKey, setOpenFilterKey] = React.useState(null);
+  const [popoverTriggerRect, setPopoverTriggerRect] = React.useState(null);
+
+  const parsedDate = (value) => {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const now = new Date("2026-03-31");
+
+  const matchesDateFilter = (inv) => {
+    let matchesDate = true;
+    const rowDate = parsedDate(inv.date);
+
+    if (invoiceDateFilterType === "last7" && rowDate) {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 7);
+      matchesDate = rowDate >= start && rowDate <= now;
+    } else if (invoiceDateFilterType === "last30" && rowDate) {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 30);
+      matchesDate = rowDate >= start && rowDate <= now;
+    } else if (
+      invoiceDateFilterType === "custom" &&
+      rowDate &&
+      invoiceCustomDateRange.start &&
+      invoiceCustomDateRange.end
+    ) {
+      const start = parsedDate(invoiceCustomDateRange.start);
+      const end = parsedDate(invoiceCustomDateRange.end);
+      if (start && end) matchesDate = rowDate >= start && rowDate <= end;
+    }
+    return matchesDate;
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       <div style={{ display: "flex", gap: "24px" }}>
@@ -242,27 +282,21 @@ const PoInvoicePaymentTab = ({
           style={{
             padding: "20px 24px",
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            flexDirection: "column",
+            gap: "16px",
           }}
         >
-          <h2
-            style={{
-              margin: 0,
-              fontSize: "var(--text-title-2)",
-              fontWeight: "var(--font-weight-bold)",
-              color: "var(--neutral-on-surface-primary)",
-            }}
-          >
-            Invoice / AP List
-          </h2>
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <TableSearchField
-              value={invoiceSearch}
-              onChange={(e) => setInvoiceSearch(e.target.value)}
-              placeholder="Search invoice number..."
-              width="240px"
-            />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: "var(--text-title-2)",
+                fontWeight: "var(--font-weight-bold)",
+                color: "var(--neutral-on-surface-primary)",
+              }}
+            >
+              Invoice / AP List
+            </h2>
             <Button
               variant="filled"
               leftIcon={Plus}
@@ -275,6 +309,137 @@ const PoInvoicePaymentTab = ({
               Add Invoice
             </Button>
           </div>
+          
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative" }}>
+            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <div
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setPopoverTriggerRect(rect);
+                  setOpenFilterKey((prev) =>
+                    prev === "invoiceDate" ? null : "invoiceDate"
+                  );
+                }}
+              >
+                <FilterPill
+                  label="Invoice Date"
+                  active={invoiceDateFilterType !== "all"}
+                  isOpen={openFilterKey === "invoiceDate"}
+                  count={invoiceDateFilterType !== "all" ? 1 : 0}
+                />
+              </div>
+
+              {openFilterKey === "invoiceDate" ? (
+                <>
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 80 }}
+                    onClick={() => setOpenFilterKey(null)}
+                  />
+                  <div
+                    style={{
+                      position: "fixed",
+                      top: popoverTriggerRect
+                        ? `${popoverTriggerRect.bottom + 8}px`
+                        : "160px",
+                      left: popoverTriggerRect ? `${popoverTriggerRect.left}px` : "0",
+                      width: "360px",
+                      background: "var(--neutral-surface-primary)",
+                      border: "1px solid var(--neutral-line-separator-1)",
+                      borderRadius: "var(--radius-card)",
+                      boxShadow: "var(--elevation-sm)",
+                      padding: "16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "16px",
+                      zIndex: 1000,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "var(--text-title-2)",
+                          fontWeight: "var(--font-weight-bold)",
+                        }}
+                      >
+                        Invoice Date
+                      </span>
+                      <button
+                        onClick={() => {
+                          setInvoiceDateFilterType("all");
+                          setInvoiceCustomDateRange({ start: "", end: "" });
+                          setOpenFilterKey(null);
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: 0,
+                          color: "var(--status-red-primary)",
+                          cursor: "pointer",
+                          fontSize: "var(--text-body)",
+                          fontWeight: "var(--font-weight-bold)",
+                        }}
+                      >
+                        Remove Filter
+                      </button>
+                    </div>
+                    
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
+                      }}
+                    >
+                      {[
+                        { key: "all", label: "All" },
+                        { key: "last7", label: "Last 7 days" },
+                        { key: "last30", label: "Last 30 days" },
+                        { key: "custom", label: "Custom date" },
+                      ].map((opt) => (
+                        <label
+                          key={opt.key}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "12px",
+                            cursor: "pointer",
+                            fontSize: "var(--text-title-3)",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            checked={invoiceDateFilterType === opt.key}
+                            onChange={() => setInvoiceDateFilterType(opt.key)}
+                          />
+                          <span>{opt.label}</span>
+                        </label>
+                      ))}
+
+                      {invoiceDateFilterType === "custom" ? (
+                        <DateRangeInputControl
+                          value={invoiceCustomDateRange}
+                          onChange={(e) => setInvoiceCustomDateRange(e.target.value)}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            <TableSearchField
+              value={invoiceSearch}
+              onChange={(e) => setInvoiceSearch(e.target.value)}
+              placeholder="Search invoice number..."
+              width="240px"
+            />
+          </div>
         </div>
 
         <div
@@ -282,7 +447,8 @@ const PoInvoicePaymentTab = ({
             width: "100%",
             overflowX:
               invoices.filter((inv) =>
-                inv.number.toLowerCase().includes(invoiceSearch.toLowerCase())
+                inv.number.toLowerCase().includes(invoiceSearch.toLowerCase()) &&
+                matchesDateFilter(inv)
               ).length > 0
                 ? "auto"
                 : "hidden",
@@ -297,7 +463,8 @@ const PoInvoicePaymentTab = ({
           >
             {/* Table Header */}
             {invoices.filter((inv) =>
-              inv.number.toLowerCase().includes(invoiceSearch.toLowerCase())
+              inv.number.toLowerCase().includes(invoiceSearch.toLowerCase()) &&
+              matchesDateFilter(inv)
             ).length > 0 && (
               <div
                 style={{
@@ -327,11 +494,13 @@ const PoInvoicePaymentTab = ({
 
             {/* Table Body */}
             {invoices.filter((inv) =>
-              inv.number.toLowerCase().includes(invoiceSearch.toLowerCase())
+              inv.number.toLowerCase().includes(invoiceSearch.toLowerCase()) &&
+              matchesDateFilter(inv)
             ).length > 0 ? (
               invoices
                 .filter((inv) =>
-                  inv.number.toLowerCase().includes(invoiceSearch.toLowerCase())
+                  inv.number.toLowerCase().includes(invoiceSearch.toLowerCase()) &&
+                  matchesDateFilter(inv)
                 )
                 .map((inv, idx, arr) => {
                   const metrics = getInvoiceMetrics(inv);

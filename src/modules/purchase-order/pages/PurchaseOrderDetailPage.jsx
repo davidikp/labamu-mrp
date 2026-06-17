@@ -422,6 +422,10 @@ export const PurchaseOrderDetailPage = ({
     setInvoicePaymentLogs,
     invoiceSearch,
     setInvoiceSearch,
+    invoiceDateFilterType,
+    setInvoiceDateFilterType,
+    invoiceCustomDateRange,
+    setInvoiceCustomDateRange,
     invoiceRowsPerPage,
     setInvoiceRowsPerPage,
     invoiceCurrentPage,
@@ -2541,11 +2545,15 @@ export const PurchaseOrderDetailPage = ({
           poGap={poGap}
           overdueAmount={overdueAmount}
           invoiceSearch={invoiceSearch}
+          invoiceDateFilterType={invoiceDateFilterType}
+          invoiceCustomDateRange={invoiceCustomDateRange}
           currentStatus={currentStatus}
           invoices={invoices}
           invoiceCurrentPage={invoiceCurrentPage}
           invoiceRowsPerPage={invoiceRowsPerPage}
           setInvoiceSearch={setInvoiceSearch}
+          setInvoiceDateFilterType={setInvoiceDateFilterType}
+          setInvoiceCustomDateRange={setInvoiceCustomDateRange}
           setShowAddInvoiceDrawer={setShowAddInvoiceDrawer}
           setSelectedInvoiceForDetail={setSelectedInvoiceForDetail}
           setActiveInvoiceTab={setActiveInvoiceTab}

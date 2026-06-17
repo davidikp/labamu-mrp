@@ -27,6 +27,8 @@ export const usePoInvoices = ({
 
   // --- UI State ---
   const [invoiceSearch, setInvoiceSearch] = useState("");
+  const [invoiceDateFilterType, setInvoiceDateFilterType] = useState("all");
+  const [invoiceCustomDateRange, setInvoiceCustomDateRange] = useState({ start: "", end: "" });
   const [invoiceRowsPerPage, setInvoiceRowsPerPage] = useState(25);
   const [invoiceCurrentPage, setInvoiceCurrentPage] = useState(1);
   const [activeInvoiceTab, setActiveInvoiceTab] = useState("Details");
@@ -518,6 +520,10 @@ export const usePoInvoices = ({
     // UI State
     invoiceSearch,
     setInvoiceSearch,
+    invoiceDateFilterType,
+    setInvoiceDateFilterType,
+    invoiceCustomDateRange,
+    setInvoiceCustomDateRange,
     invoiceRowsPerPage,
     setInvoiceRowsPerPage,
     invoiceCurrentPage,
