@@ -10,6 +10,14 @@ import {
 import { FilterPill } from "../../../../components/common/FilterPill.jsx";
 import { DateRangeInputControl } from "../../components/DateRangeInputControl.jsx";
 
+const getProgressColor = (pct) => {
+  if (pct >= 100) return "var(--status-green-primary)";
+  if (pct >= 75) return "var(--feature-brand-primary)";
+  if (pct >= 50) return "var(--status-yellow-primary)";
+  if (pct >= 25) return "var(--status-orange-primary)";
+  return "var(--status-red-primary)";
+};
+
 const RadialBarChart = ({ items, totalValue, centerLabel, centerValue, size = 180 }) => {
   const center = size / 2;
   const gap = 16;
@@ -582,7 +590,7 @@ const PoInvoicePaymentTab = ({
                             style={{
                               width: `${invPaidRatio * 100}%`,
                               height: "100%",
-                              background: "var(--status-green-primary)",
+                              background: getProgressColor(invPaidRatio * 100),
                               borderRadius: "3px",
                             }}
                           />
@@ -606,7 +614,7 @@ const PoInvoicePaymentTab = ({
                             <span style={{ fontSize: "10px" }}>Paid</span>
                             <span
                               style={{
-                                color: "var(--status-green-primary)",
+                                color: getProgressColor(invPaidRatio * 100),
                                 fontWeight: "var(--font-weight-bold)",
                                 fontSize: "11px",
                               }}

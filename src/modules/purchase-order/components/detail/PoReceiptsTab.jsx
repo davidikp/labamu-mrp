@@ -33,6 +33,14 @@ import {
   poReferenceTableCellStyle,
 } from "./shared/PoDetailSharedComponents.jsx";
 
+const getProgressColor = (pct) => {
+  if (pct >= 100) return "var(--status-green-primary)";
+  if (pct >= 75) return "var(--feature-brand-primary)";
+  if (pct >= 50) return "var(--status-yellow-primary)";
+  if (pct >= 25) return "var(--status-orange-primary)";
+  return "var(--status-red-primary)";
+};
+
 const PoReceiptsTab = ({
   // Data
   receiptLines,
@@ -378,8 +386,18 @@ const PoReceiptsTab = ({
                       <div style={poReferenceTableCellStyle()}>
                         {line.orderedQty}
                       </div>
-                      <div style={poReferenceTableCellStyle()}>
-                        {line.receivedQty}
+                      <div style={poReferenceTableCellStyle({ display: "flex", flexDirection: "column", gap: "4px", padding: "8px 0" })}>
+                        {(() => {
+                          const pct = line.orderedQty > 0 ? Math.min((line.receivedQty / line.orderedQty) * 100, 100) : 0;
+                          return (
+                            <>
+                              <span style={{ color: getProgressColor(pct), fontWeight: "var(--font-weight-bold)" }}>{line.receivedQty}</span>
+                              <div style={{ height: "4px", background: "var(--neutral-line-separator-2)", borderRadius: "2px", overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${pct}%`, background: getProgressColor(pct), borderRadius: "2px" }} />
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                       <div style={poReferenceTableCellStyle()}>
                         {remainingQty}

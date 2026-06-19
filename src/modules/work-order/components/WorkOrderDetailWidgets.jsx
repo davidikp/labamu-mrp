@@ -8,10 +8,11 @@ import { buildCalendarDays, formatIsoDateString, parseIsoDateString } from "../.
 import { formatNumberWithCommas, parseNumberFromCommas } from "../../../utils/format/formatUtils.js";
 import { createImageUploadRecord, createSyntheticInputEvent, getDocumentPrimaryLabel, getFileExtension, getImageUploadName, getImageUploadPreviewUrl, normalizeProofDocuments } from "../../../utils/upload/uploadUtils.js";
 
-const ProgressRing = ({ percentage, color = "inherit" }) => {
+const ProgressRing = ({ percentage, color = "inherit", strokeColor }) => {
   const radius = 6;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
+  const resolvedStrokeColor = strokeColor || "var(--feature-brand-primary)";
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -34,7 +35,7 @@ const ProgressRing = ({ percentage, color = "inherit" }) => {
           cy="8"
           r={radius}
           fill="none"
-          stroke="var(--feature-brand-primary)"
+          stroke={resolvedStrokeColor}
           strokeWidth="2"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}

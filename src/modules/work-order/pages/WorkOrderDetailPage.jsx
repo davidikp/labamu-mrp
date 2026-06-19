@@ -19,6 +19,14 @@ import {
   fieldStyle,
 } from "../../purchase-order/styles/purchaseOrderInputStyles.js";
 
+const getProgressColor = (pct) => {
+  if (pct >= 100) return "var(--status-green-primary)";
+  if (pct >= 75) return "var(--feature-brand-primary)";
+  if (pct >= 50) return "var(--status-yellow-primary)";
+  if (pct >= 25) return "var(--status-orange-primary)";
+  return "var(--status-red-primary)";
+};
+
 const SearchableVendorSelect = ({
   label,
   required = false,
@@ -2760,7 +2768,12 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                           color={
                             !isUnlocked
                               ? "var(--neutral-on-surface-tertiary)"
-                              : "inherit"
+                              : getProgressColor(progress)
+                          }
+                          strokeColor={
+                            !isUnlocked
+                              ? "var(--neutral-on-surface-tertiary)"
+                              : getProgressColor(progress)
                           }
                         />
                         {!isUnlocked ? (
