@@ -81,6 +81,8 @@ const TRANSLATIONS = {
       sales_funnel_report: "Sales Funnel Report",
       work_order_monitoring: "Work Order Monitoring",
       procurement_ap_report: "Procurement & AP Report",
+      search_menu: "Search menu...",
+      no_menu_found: "No menu found",
     },
     role: {
       owner: "Owner",
@@ -142,6 +144,8 @@ const TRANSLATIONS = {
       sales_funnel_report: "Laporan Sales Funnel",
       work_order_monitoring: "Monitoring Perintah Kerja",
       procurement_ap_report: "Laporan Pengadaan & Utang Usaha",
+      search_menu: "Cari menu...",
+      no_menu_found: "Menu tidak ditemukan",
     },
     role: {
       owner: "Pemilik",

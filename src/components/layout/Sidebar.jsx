@@ -12,6 +12,7 @@ import {
   ProductIcon,
   ResourcesIcon,
   SalesIcon,
+  SearchIcon,
   Settings,
   UserGuideIcon,
   WorkOrderIcon,
@@ -150,7 +151,31 @@ const Sidebar = ({
   const [hoveredMenuItemId, setHoveredMenuItemId] = useState(null);
   const [hoveredItemRect, setHoveredItemRect] = useState(null);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const languageMenuRef = useRef(null);
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const isSearching = normalizedQuery.length > 0 && !isCollapsed;
+  const labelMatchesQuery = (label) =>
+    (label || "").toLowerCase().includes(normalizedQuery);
+
+  // When searching, keep only items whose own label matches (with all their
+  // children) or that have at least one matching child (narrowed to matches).
+  const visibleMenuItems = !isSearching
+    ? menuItems
+    : menuItems.reduce((acc, item) => {
+        if (labelMatchesQuery(item.label)) {
+          acc.push(item);
+        } else if (item.children?.length) {
+          const matchedChildren = item.children.filter((child) =>
+            labelMatchesQuery(child.label)
+          );
+          if (matchedChildren.length) {
+            acc.push({ ...item, children: matchedChildren });
+          }
+        }
+        return acc;
+      }, []);
 
   const toggleMenu = (id) => {
     setExpandedMenus((prev) =>
@@ -225,6 +250,50 @@ const Sidebar = ({
         )}
       </div>
 
+      {!isCollapsed ? (
+        <div
+          style={{
+            padding: "12px 16px",
+            borderBottom: "1px solid var(--neutral-line-separator-1)",
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              height: "40px",
+              padding: "0 12px",
+              borderRadius: "12px",
+              border: `1px solid ${baseInputBorderColor}`,
+              background: "var(--neutral-surface-primary)",
+            }}
+          >
+            <SearchIcon
+              size={18}
+              color="var(--neutral-on-surface-secondary)"
+              style={{ flexShrink: 0 }}
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("sidebar.search_menu")}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontSize: "var(--text-title-3)",
+                color: "var(--neutral-on-surface-primary)",
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+
       <div
         style={{
           flex: "1 1 auto",
@@ -235,14 +304,26 @@ const Sidebar = ({
           overflowX: "hidden",
         }}
       >
-        {menuItems.map((item) => {
+        {menuItems.length && isSearching && !visibleMenuItems.length ? (
+          <div
+            style={{
+              padding: "24px 16px",
+              fontSize: "var(--text-title-3)",
+              color: "var(--neutral-on-surface-secondary)",
+              textAlign: "center",
+            }}
+          >
+            {t("sidebar.no_menu_found")}
+          </div>
+        ) : null}
+        {visibleMenuItems.map((item) => {
           const hasChildRows = !!item.children?.length;
           const isChildSelected = item.children?.some(
             (child) => activeModule === child.id || (activeModule === "analytics" && child.id === `analytics_${viewState?.view}`)
           );
           const isParentSelected = activeModule === item.id || isChildSelected;
           const isExpanded = hasChildRows
-            ? expandedMenus.includes(item.id)
+            ? isSearching || expandedMenus.includes(item.id)
             : false;
           const rowColor = isParentSelected
             ? "var(--feature-brand-primary)"
