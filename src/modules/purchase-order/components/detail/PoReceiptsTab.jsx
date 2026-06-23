@@ -386,7 +386,7 @@ const PoReceiptsTab = ({
                       <div style={poReferenceTableCellStyle()}>
                         {line.orderedQty}
                       </div>
-                      <div style={poReferenceTableCellStyle({ display: "flex", flexDirection: "column", gap: "4px", padding: "8px 0" })}>
+                      <div style={poReferenceTableCellStyle({ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "4px", padding: "8px 0" })}>
                         {(() => {
                           const pct = line.orderedQty > 0 ? Math.min((line.receivedQty / line.orderedQty) * 100, 100) : 0;
                           return (

@@ -533,7 +533,7 @@ const APAgingReportPage = ({ onNavigate, t }) => {
                   <div style={cellStyle({ flex: `${tableColumns[3].flex} 1 0%` })}>{inv.invoiceDate}</div>
                   <div style={cellStyle({ flex: `${tableColumns[4].flex} 1 0%`, color: isOverdue ? "var(--status-red-primary)" : "var(--neutral-on-surface-primary)", fontWeight: isOverdue ? "700" : "400", flexDirection: "column", alignItems: "flex-start", justifyContent: "center" })}>
                     <div>{inv.dueDate}</div>
-                    {isOverdue && <div style={{ fontSize: "11px", fontWeight: "600" }}>({inv.overdueDays}d overdue)</div>}
+                    {isOverdue && <div style={{ fontSize: "11px", fontWeight: "600" }}>{`(${inv.overdueDays}d overdue)`}</div>}
                   </div>
                   <div style={cellStyle({ flex: `${tableColumns[5].flex} 1 0%` })}>{formatCurrency(inv.amount, currency)}</div>
                   <div style={cellStyle({ flex: `${tableColumns[6].flex} 1 0%` })}>{formatCurrency(inv.paidAmount, currency)}</div>

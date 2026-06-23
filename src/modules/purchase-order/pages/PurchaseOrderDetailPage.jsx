@@ -2577,6 +2577,7 @@ export const PurchaseOrderDetailPage = ({
         />
       ) : activeTab === "documents" ? (
         <PoDocumentsTab
+          displayValue={displayValue}
           documentFilterTriggerRef={documentFilterTriggerRef}
           showDocumentFilterMenu={showDocumentFilterMenu}
           setShowDocumentFilterMenu={setShowDocumentFilterMenu}
@@ -2977,6 +2978,7 @@ export const PurchaseOrderDetailPage = ({
       />
 
       <PoDocumentModals
+        displayValue={displayValue}
         showUploadDocumentModal={showUploadDocumentModal}
         setShowUploadDocumentModal={setShowUploadDocumentModal}
         resetDocumentUploadState={resetDocumentUploadState}

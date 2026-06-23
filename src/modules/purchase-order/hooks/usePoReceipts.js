@@ -181,7 +181,7 @@ export const usePoReceipts = ({
     }
 
     if (!hasValue) {
-      // Logic for "Please input quantity" could go here or in page
+      setReceiptErrors({ _global: "Fill at least one Receive Now field to proceed" });
       return;
     }
 

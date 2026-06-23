@@ -9,6 +9,7 @@ import {
 } from "../shared/PoDetailSharedComponents.jsx";
 
 const PoDocumentModals = ({
+  displayValue,
   // Upload Modal Props
   showUploadDocumentModal,
   setShowUploadDocumentModal,
@@ -54,7 +55,7 @@ const PoDocumentModals = ({
           setShowUploadDocumentModal(false);
           resetDocumentUploadState();
         }}
-        title="Upload Document"
+        title={displayValue ? displayValue("Upload Document") : "Upload Document"}
         width="640px"
         footer={
           <div style={{ display: "flex", gap: "12px", width: "100%" }}>
@@ -138,7 +139,7 @@ const PoDocumentModals = ({
             >
               <span style={{ color: "var(--status-red-primary)" }}>*</span>
               <span style={{ color: "var(--neutral-on-surface-primary)" }}>
-                Document Upload
+                {displayValue ? displayValue("Document Upload") : "Document Upload"}
               </span>
             </div>
             <UploadDropzone

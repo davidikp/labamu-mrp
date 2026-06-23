@@ -141,7 +141,7 @@ const TRANSLATIONS = {
       inventory_report: "Laporan Inventaris",
       sales_funnel_report: "Laporan Sales Funnel",
       work_order_monitoring: "Monitoring Perintah Kerja",
-      procurement_ap_report: "Laporan Pengadaan & AP",
+      procurement_ap_report: "Laporan Pengadaan & Utang Usaha",
     },
     role: {
       owner: "Pemilik",

@@ -3654,7 +3654,6 @@ export const PurchaseOrderCreatePage = ({
       style={{
         display: "flex",
         flexDirection: "column",
-        minHeight: "calc(100vh - 64px)",
         background: "#F5F5F7",
         position: "relative",
       }}
@@ -4064,7 +4063,7 @@ export const PurchaseOrderCreatePage = ({
 
           <div style={pageSectionStyle}>
             {sectionHeader(
-              "Recipient Information",
+              "Informasi Penerima",
               <Button
                 variant="tertiary"
                 size="small"
@@ -4155,6 +4154,18 @@ export const PurchaseOrderCreatePage = ({
                 gap: "16px",
               }}
             >
+              {formErrors.lines ? (
+                <span
+                  style={{
+                    fontSize: "var(--text-body)",
+                    color: "var(--status-red-primary)",
+                    marginTop: "-4px",
+                    marginBottom: "4px",
+                  }}
+                >
+                  {formErrors.lines}
+                </span>
+              ) : null}
               <div
                 style={{
                   border: "none",
@@ -4416,17 +4427,7 @@ export const PurchaseOrderCreatePage = ({
                   </div>
                 </div>
               </div>
-              {formErrors.lines ? (
-                <span
-                  style={{
-                    fontSize: "var(--text-body)",
-                    color: "var(--status-red-primary)",
-                  }}
-                >
-                  {formErrors.lines}
-                </span>
-              ) : null}
-            </div>
+              </div>
           </div>
 
           <div
@@ -4770,7 +4771,7 @@ export const PurchaseOrderCreatePage = ({
                       color: "var(--neutral-on-surface-primary)",
                     }}
                   >
-                    Purchase Order Line Type
+                    Tipe Baris Purchase Order
                   </span>
                 </div>
 
@@ -4936,7 +4937,7 @@ export const PurchaseOrderCreatePage = ({
                             manualName: "",
                           }));
                       }}
-                      placeholder="Enter name"
+                      placeholder="Masukkan nama"
                       error={!!productModalFieldErrors.manualName}
                       disabled={isReviseMode}
                     />
@@ -4960,7 +4961,7 @@ export const PurchaseOrderCreatePage = ({
                         manualCode: e.target.value,
                       })
                     }
-                    placeholder="Enter code"
+                    placeholder="Masukkan kode"
                     disabled={isReviseMode}
                   />
                   <div id="modal-field-manualQty">
@@ -4980,7 +4981,7 @@ export const PurchaseOrderCreatePage = ({
                             manualQty: "",
                           }));
                       }}
-                      placeholder="Enter quantity"
+                      placeholder="Masukkan jumlah"
                       error={!!productModalFieldErrors.manualQty}
                     />
                     {productModalFieldErrors.manualQty ? (
@@ -5007,7 +5008,7 @@ export const PurchaseOrderCreatePage = ({
                           manualDesc: e.target.value,
                         })
                       }
-                      placeholder="Enter description"
+                      placeholder="Masukkan deskripsi"
                       disabled={isReviseMode}
                     />
                   </div>
@@ -5047,7 +5048,7 @@ export const PurchaseOrderCreatePage = ({
                             manualPrice: "",
                           }));
                       }}
-                      placeholder="Enter unit price"
+                      placeholder="Masukkan harga satuan"
                       prefix={currencyPrefixLabel}
                       error={!!productModalFieldErrors.manualPrice}
                       disabled={isReviseMode}
@@ -5208,7 +5209,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualQty: "",
                               }));
                           }}
-                          placeholder="Enter quantity"
+                          placeholder="Masukkan jumlah"
                           suffix={selectedMaterialLine?.uom || ""}
                           hasError={!!productModalFieldErrors.manualQty}
                         />
@@ -5236,7 +5237,7 @@ export const PurchaseOrderCreatePage = ({
                               manualDesc: e.target.value,
                             })
                           }
-                          placeholder="Enter description"
+                          placeholder="Masukkan deskripsi"
                           disabled={isReviseMode}
                         />
                       </div>
@@ -5275,7 +5276,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualPrice: "",
                               }));
                           }}
-                          placeholder="Enter unit price"
+                          placeholder="Masukkan harga satuan"
                           prefix={currencyPrefixLabel}
                           hasError={!!productModalFieldErrors.manualPrice}
                           disabled={isReviseMode}
@@ -5497,7 +5498,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualQty: "",
                               }));
                           }}
-                          placeholder="Enter quantity"
+                          placeholder="Masukkan jumlah"
                           hasError={!!productModalFieldErrors.manualQty}
                         />
                         {productModalFieldErrors.manualQty ? (
@@ -5524,7 +5525,7 @@ export const PurchaseOrderCreatePage = ({
                               manualDesc: e.target.value,
                             })
                           }
-                          placeholder="Enter description"
+                          placeholder="Masukkan deskripsi"
                         />
                       </div>
                       <div id="modal-field-manualPrice"
@@ -5562,7 +5563,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualPrice: "",
                               }));
                           }}
-                          placeholder="Enter unit price"
+                          placeholder="Masukkan harga satuan"
                           prefix={currencyPrefixLabel}
                           hasError={!!productModalFieldErrors.manualPrice}
                         />
@@ -5765,7 +5766,7 @@ export const PurchaseOrderCreatePage = ({
               style={{ width: "100%" }}
               onClick={() => setShowSubmitConfirmModal(false)}
             >
-              {isReviseMode ? "Cancel" : "Keep Editing"}
+              {isReviseMode ? "Batal" : "Lanjut Edit"}
             </Button>
           </>
         }
@@ -5824,7 +5825,7 @@ export const PurchaseOrderCreatePage = ({
       <GeneralModal
         isOpen={showDiscardChangesModal}
         onClose={() => setShowDiscardChangesModal(false)}
-        title="Discard changes?"
+        title="Batalkan perubahan?"
         footer={
           <>
             <Button
@@ -5836,7 +5837,7 @@ export const PurchaseOrderCreatePage = ({
                 navigateBackWithoutPrompt();
               }}
             >
-              Yes, Discard
+              Ya, Batalkan
             </Button>
             <Button
               variant="outlined"
@@ -5844,7 +5845,7 @@ export const PurchaseOrderCreatePage = ({
               style={{ width: "100%" }}
               onClick={() => setShowDiscardChangesModal(false)}
             >
-              Keep Editing
+              Lanjut Edit
             </Button>
           </>
         }

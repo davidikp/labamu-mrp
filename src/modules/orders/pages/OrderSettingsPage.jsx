@@ -699,7 +699,7 @@ export const OrderSettingsPage = ({
       <GeneralModal
         isOpen={showDiscardChangesModal}
         onClose={() => setShowDiscardChangesModal(false)}
-        title="Discard changes?"
+        title="Batalkan perubahan?"
         footer={
           <>
             <Button
@@ -711,7 +711,7 @@ export const OrderSettingsPage = ({
                 onNavigate("list");
               }}
             >
-              Yes, Discard
+              Ya, Batalkan
             </Button>
             <Button
               variant="outlined"
@@ -719,7 +719,7 @@ export const OrderSettingsPage = ({
               style={{ width: "100%" }}
               onClick={() => setShowDiscardChangesModal(false)}
             >
-              Keep Editing
+              Lanjut Edit
             </Button>
           </>
         }

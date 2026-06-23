@@ -319,10 +319,19 @@ export const usePoDocuments = ({
   const updateDocumentFilterMenuPosition = useCallback(() => {
     if (documentFilterTriggerRef.current) {
       const rect = documentFilterTriggerRef.current.getBoundingClientRect();
+      const menuHeight = 320; // estimated height
+      let top = rect.bottom + 8;
+      let placement = "bottom";
+
+      if (rect.bottom + menuHeight > window.innerHeight) {
+        top = rect.top - 8;
+        placement = "top";
+      }
+
       setDocumentFilterMenuPosition({
-        top: rect.bottom + window.scrollY,
-        left: rect.left + window.scrollX,
-        placement: "bottom",
+        top,
+        left: rect.left,
+        placement,
       });
     }
   }, []);

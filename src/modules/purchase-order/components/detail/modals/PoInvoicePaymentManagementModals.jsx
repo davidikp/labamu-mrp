@@ -447,7 +447,7 @@ const PoInvoicePaymentManagementModals = ({
                           <span style={{ color: "var(--status-red-primary)" }}>
                             *
                           </span>{" "}
-                          Item Line {idx + 1}
+                          {`Item Line ${idx + 1}`}
                         </span>
                         {addInvoiceFormData.itemLines.length > 1 && (
                           <IconButton
@@ -1345,8 +1345,7 @@ const PoInvoicePaymentManagementModals = ({
           <div style={{ display: "flex", flexDirection: "column", gap: "16px", textAlign: "left", width: "100%" }}>
             <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)", textAlign: "center", lineHeight: "1.5" }}>
               The following items exceed their remaining PO quantity.<br/>
-              Continuing will result in quantities exceeding the<br/>
-              purchase order.
+              Continuing will result in quantities exceeding the purchase order.
             </span>
             <ul style={{ margin: 0, paddingLeft: "24px", color: "var(--neutral-on-surface-secondary)", fontSize: "14px", listStyleType: "disc" }}>
               {(exceededItems || []).map((it, idx) => (
