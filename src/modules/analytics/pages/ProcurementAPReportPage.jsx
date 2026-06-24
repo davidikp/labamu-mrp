@@ -272,17 +272,17 @@ const ProcurementAPReportPage = ({ onNavigate }) => {
   // Operational Attention logic
   const operationalIssues = useMemo(() => {
     return [
-      { label: "PO with no invoice yet", count: MOCK_REPORT_POS.filter(po => po.invoices.length === 0 && po.status === "Issued").length },
-      { label: "PO partially invoiced", count: MOCK_REPORT_POS.filter(po => {
+      { label: "PO with No Invoice Yet", count: MOCK_REPORT_POS.filter(po => po.invoices.length === 0 && po.status === "Issued").length },
+      { label: "PO Partially Invoiced", count: MOCK_REPORT_POS.filter(po => {
         const invoicedAmount = po.invoices.reduce((s, i) => s + i.amount, 0);
         return invoicedAmount > 0 && invoicedAmount < po.amount;
       }).length },
-      { label: "PO fully invoiced but not fully paid", count: MOCK_REPORT_POS.filter(po => {
+      { label: "PO Fully Invoiced But Not Fully Paid", count: MOCK_REPORT_POS.filter(po => {
         const invoicedAmount = po.invoices.reduce((s, i) => s + i.amount, 0);
         const paidAmount = po.invoices.reduce((s, i) => s + i.payments.reduce((sp, p) => sp + p.amount, 0), 0);
         return invoicedAmount >= po.amount && paidAmount < invoicedAmount;
       }).length },
-      { label: "PO revised after issue", count: MOCK_REPORT_POS.filter(po => po.status === "Revised").length },
+      { label: "PO Revised After Issue", count: MOCK_REPORT_POS.filter(po => po.status === "Revised").length },
     ];
   }, []);
 
@@ -464,10 +464,10 @@ const ProcurementAPReportPage = ({ onNavigate }) => {
           <SectionHeader title="Finance Insights" tooltip="Summarizes key vendor payment metrics, including overdue exposure and upcoming due invoices." />
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {[
-              { label: "Total outstanding liability", value: formatCurrency(metrics.outstandingAp, currency) },
-              { label: "Overdue percentage", value: `${metrics.overduePercentage.toFixed(2)}%`, isAlert: metrics.overduePercentage > 0 },
-              { label: "Largest vendor exposure", value: metrics.largestVendor[0] },
-              { label: "Upcoming due invoices (7 days)", value: metrics.invoicesDueSoonCount },
+              { label: "Total Outstanding Liability", value: formatCurrency(metrics.outstandingAp, currency) },
+              { label: "Overdue Percentage", value: `${metrics.overduePercentage.toFixed(2)}%`, isAlert: metrics.overduePercentage > 0 },
+              { label: "Largest Vendor Exposure", value: metrics.largestVendor[0] },
+              { label: "Upcoming Due Invoices (7 days)", value: metrics.invoicesDueSoonCount },
             ].map((item, idx) => (
               <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)" }}>{item.label}</span>
