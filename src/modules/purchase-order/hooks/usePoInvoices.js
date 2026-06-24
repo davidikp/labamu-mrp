@@ -107,10 +107,10 @@ export const usePoInvoices = ({
     const diffTime = today - due;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 30) return { text: "Late 1-30", variant: "blue-light" };
-    if (diffDays <= 60) return { text: "Late 31-60", variant: "yellow-light" };
-    if (diffDays <= 90) return { text: "Late 61-90", variant: "orange-light" };
-    return { text: "Late 90+", variant: "red-light" };
+    if (diffDays <= 30) return { text: "Late 1-30 days", variant: "blue-light" };
+    if (diffDays <= 60) return { text: "Late 31-60 days", variant: "yellow-light" };
+    if (diffDays <= 90) return { text: "Late 61-90 days", variant: "orange-light" };
+    return { text: "Late 90+ days", variant: "red-light" };
   }, []);
 
   const getInvoiceStatus = useCallback((invoice, metrics) => {

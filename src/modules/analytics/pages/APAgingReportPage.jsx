@@ -152,10 +152,10 @@ const APAgingReportPage = ({ onNavigate, t }) => {
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         let agingBucket = "Not Due";
-        if (diffDays > 90) agingBucket = "Late 90+";
-        else if (diffDays > 60) agingBucket = "Late 61-90";
-        else if (diffDays > 30) agingBucket = "Late 31-60";
-        else if (diffDays > 0) agingBucket = "Late 1-30";
+        if (diffDays > 90) agingBucket = "Late 90+ days";
+        else if (diffDays > 60) agingBucket = "Late 61-90 days";
+        else if (diffDays > 30) agingBucket = "Late 31-60 days";
+        else if (diffDays > 0) agingBucket = "Late 1-30 days";
 
         let status = "Open";
         if (paidAmount >= inv.amount) {
@@ -227,20 +227,20 @@ const APAgingReportPage = ({ onNavigate, t }) => {
     });
   }, [filteredData, sortConfig]);
 
-  // Summary Metrics (based on ALL unpaid/partial invoices)
+  // Summary Metrics (reflect the filters applied to the table)
   const summary = useMemo(() => {
-    return allInvoices.reduce((acc, curr) => {
+    return filteredData.reduce((acc, curr) => {
       if (curr.status === "Paid") return acc;
-      
+
       if (curr.agingBucket === "Not Due") acc.notDue += curr.outstanding;
-      else if (curr.agingBucket === "Late 1-30") acc.late1_30 += curr.outstanding;
-      else if (curr.agingBucket === "Late 31-60") acc.late31_60 += curr.outstanding;
-      else if (curr.agingBucket === "Late 61-90") acc.late61_90 += curr.outstanding;
-      else if (curr.agingBucket === "Late 90+") acc.late90Plus += curr.outstanding;
-      
+      else if (curr.agingBucket === "Late 1-30 days") acc.late1_30 += curr.outstanding;
+      else if (curr.agingBucket === "Late 31-60 days") acc.late31_60 += curr.outstanding;
+      else if (curr.agingBucket === "Late 61-90 days") acc.late61_90 += curr.outstanding;
+      else if (curr.agingBucket === "Late 90+ days") acc.late90Plus += curr.outstanding;
+
       return acc;
     }, { notDue: 0, late1_30: 0, late31_60: 0, late61_90: 0, late90Plus: 0 });
-  }, [allInvoices]);
+  }, [filteredData]);
 
   // Pagination
   const totalPages = Math.ceil(sortedData.length / rowsPerPage);
@@ -295,7 +295,7 @@ const APAgingReportPage = ({ onNavigate, t }) => {
             fontWeight: "var(--font-weight-bold)",
             color: "var(--neutral-on-surface-primary)"
           }}>
-            AP Aging (Payables Due)
+            Accounts Payable Aging Report
           </h1>
         </div>
         
@@ -313,7 +313,7 @@ const APAgingReportPage = ({ onNavigate, t }) => {
             Procurement & AP Report
           </span>
           <span style={{ color: "var(--neutral-on-surface-tertiary)" }}>/</span>
-          <span style={{ color: "var(--neutral-on-surface-secondary)" }}>AP Aging</span>
+          <span style={{ color: "var(--neutral-on-surface-secondary)" }}>Accounts Payable Aging Report</span>
         </div>
       </div>
 
@@ -321,10 +321,10 @@ const APAgingReportPage = ({ onNavigate, t }) => {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "24px", flexShrink: 0 }}>
         {[
           { label: "Not Due", value: summary.notDue, icon: <CheckCircleIcon /> },
-          { label: "Late 1–30", value: summary.late1_30, icon: <Calendar /> },
-          { label: "Late 31–60", value: summary.late31_60, icon: <Calendar /> },
-          { label: "Late 61–90", value: summary.late61_90, icon: <Calendar /> },
-          { label: "Late 90+", value: summary.late90Plus, icon: <Info />, isCritical: true },
+          { label: "Late 1-30 days", value: summary.late1_30, icon: <Calendar /> },
+          { label: "Late 31-60 days", value: summary.late31_60, icon: <Calendar /> },
+          { label: "Late 61-90 days", value: summary.late61_90, icon: <Calendar /> },
+          { label: "Late 90+ days", value: summary.late90Plus, icon: <Info />, isCritical: true },
         ].map((card, idx) => (
           <div 
             key={idx}
@@ -381,10 +381,10 @@ const APAgingReportPage = ({ onNavigate, t }) => {
               value={agingBucketFilter}
               options={[
                 { value: "Not Due", label: "Not Due" },
-                { value: "Late 1-30", label: "Late 1-30" },
-                { value: "Late 31-60", label: "Late 31-60" },
-                { value: "Late 61-90", label: "Late 61-90" },
-                { value: "Late 90+", label: "Late 90+" }
+                { value: "Late 1-30 days", label: "Late 1-30 days" },
+                { value: "Late 31-60 days", label: "Late 31-60 days" },
+                { value: "Late 61-90 days", label: "Late 61-90 days" },
+                { value: "Late 90+ days", label: "Late 90+ days" }
               ]}
               onChange={(val) => { setAgingBucketFilter(val); setCurrentPage(1); }}
             />
@@ -542,9 +542,9 @@ const APAgingReportPage = ({ onNavigate, t }) => {
                   <div style={cellStyle({ flex: `${tableColumns[9].flex} 1 0%` })}>
                     <StatusBadge variant={
                       inv.agingBucket === "Not Due" ? "grey-light" : 
-                      inv.agingBucket === "Late 1-30" ? "blue-light" :
-                      inv.agingBucket === "Late 31-60" ? "yellow-light" :
-                      inv.agingBucket === "Late 61-90" ? "orange-light" :
+                      inv.agingBucket === "Late 1-30 days" ? "blue-light" :
+                      inv.agingBucket === "Late 31-60 days" ? "yellow-light" :
+                      inv.agingBucket === "Late 61-90 days" ? "orange-light" :
                       "red-light"
                     }>
                       {inv.agingBucket}
