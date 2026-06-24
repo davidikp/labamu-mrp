@@ -729,7 +729,7 @@ const INDONESIAN_EXACT_TEXT = {
   "Search invoice number...": "Cari nomor faktur...",
   "Cari invoice number...": "Cari nomor faktur...",
   "Settlement Progress": "Progress Pembayaran",
-  "Aging Status": "Status Jatuh Tempo",
+  "Aging Status": "Status Keterlambatan",
   "Invoice Status": "Status Faktur",
   "Item Line": "Baris Item",
   "Item Lines": "Baris Item",
