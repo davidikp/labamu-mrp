@@ -492,7 +492,7 @@ const POReportPage = ({ onNavigate, t }) => {
     { label: "Vendor", flex: "1.8", key: "vendorName" },
     { label: "PO Value", flex: "1.4", key: "poValue", sortable: true },
     { label: "Vendor Invoice", flex: "1.2", key: "vendorInvoice", sortable: true },
-    { label: "Paid", flex: "1.2", key: "paid", sortable: true },
+    { label: "Paid Amount", flex: "1.2", key: "paid", sortable: true },
     { label: "Outstanding", flex: "1.4", key: "outstanding", sortable: true, tooltip: "Amount that has not been paid from the vendor invoice" },
     { label: "Uninvoiced Amount", flex: "1.4", key: "poGap", sortable: true, tooltip: "Difference between the purchase order value and vendor invoice value" },
     { label: "PO Status", flex: "1.2", key: "status" },
@@ -714,11 +714,12 @@ const POReportPage = ({ onNavigate, t }) => {
               <div 
                 key={idx} 
                 onClick={() => col.sortable && toggleSort(col.key)}
-                style={{ 
-                  flex: col.flex, 
-                  padding: "0 12px", 
-                  height: "49px", 
-                  display: "flex", 
+                style={{
+                  flex: col.flex,
+                  minWidth: 0,
+                  padding: "0 12px",
+                  height: "49px",
+                  display: "flex",
                   alignItems: "center",
                   cursor: col.sortable ? "pointer" : "default",
                   gap: "6px"
