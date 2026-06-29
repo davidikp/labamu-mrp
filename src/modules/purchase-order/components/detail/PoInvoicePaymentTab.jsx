@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus } from "../../../../components/icons/Icons.jsx";
+import { Plus, Info } from "../../../../components/icons/Icons.jsx";
 import { TablePaginationFooter } from "../../../../components/table/TablePaginationFooter.jsx";
 import { formatCurrency } from "../../../../utils/format/formatUtils.js";
 import {
@@ -107,6 +107,7 @@ const PoInvoicePaymentTab = ({
   getInvoiceMetrics,
   getAgingStatus,
   getInvoiceStatus,
+  lastInvoiceId,
 }) => {
   const [openFilterKey, setOpenFilterKey] = React.useState(null);
   const [popoverTriggerRect, setPopoverTriggerRect] = React.useState(null);
@@ -311,13 +312,56 @@ const PoInvoicePaymentTab = ({
               size="small"
               onClick={() => setShowAddInvoiceDrawer(true)}
               disabled={
-                currentStatus !== "Issued" && currentStatus !== "Completed"
+                (currentStatus !== "Issued" && currentStatus !== "Completed") ||
+                !!lastInvoiceId
               }
             >
               Add Invoice
             </Button>
           </div>
-          
+
+          {invoices.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "12px",
+                padding: "12px 16px",
+                background: "var(--feature-brand-container-lighter)",
+                border: "1px solid var(--feature-brand-primary-light)",
+                borderRadius: "12px",
+              }}
+            >
+              <Info
+                size={18}
+                color="var(--feature-brand-primary)"
+                style={{ flexShrink: 0, marginTop: "2px" }}
+              />
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span
+                  style={{
+                    fontSize: "var(--text-body)",
+                    fontWeight: "var(--font-weight-bold)",
+                    color: "var(--neutral-on-surface-primary)",
+                  }}
+                >
+                  Mark the Last Invoice
+                </span>
+                <span
+                  style={{
+                    fontSize: "var(--text-body)",
+                    color: "var(--neutral-on-surface-secondary)",
+                    lineHeight: "1.5",
+                  }}
+                >
+                  Mark the most recent invoice as the last invoice. Otherwise, the
+                  payment status will remain Partially Paid, even if all invoices
+                  have been paid.
+                </span>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", position: "relative" }}>
             <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
               <div
@@ -510,6 +554,13 @@ const PoInvoicePaymentTab = ({
                   inv.number.toLowerCase().includes(invoiceSearch.toLowerCase()) &&
                   matchesDateFilter(inv)
                 )
+                .slice()
+                .sort((a, b) => {
+                  // Pin the marked last invoice to the top, then sort by date desc.
+                  if (a.id === lastInvoiceId) return -1;
+                  if (b.id === lastInvoiceId) return 1;
+                  return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
+                })
                 .map((inv, idx, arr) => {
                   const metrics = getInvoiceMetrics(inv);
                   const aging = getAgingStatus(inv.dueDate, metrics.outstanding);
@@ -564,6 +615,24 @@ const PoInvoicePaymentTab = ({
                         <span style={{ fontWeight: "var(--font-weight-bold)" }}>
                           {inv.number}
                         </span>
+                        {inv.id === lastInvoiceId && (
+                          <span
+                            style={{
+                              alignSelf: "flex-start",
+                              marginTop: "2px",
+                              fontSize: "11px",
+                              fontWeight: "var(--font-weight-bold)",
+                              color: "var(--feature-brand-primary)",
+                              background: "var(--feature-brand-container-lighter)",
+                              border: "1px solid var(--feature-brand-primary-light)",
+                              borderRadius: "6px",
+                              padding: "2px 8px",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Last Invoice
+                          </span>
+                        )}
                       </div>
                       <div>{inv.date}</div>
                       <div>{inv.terms}</div>

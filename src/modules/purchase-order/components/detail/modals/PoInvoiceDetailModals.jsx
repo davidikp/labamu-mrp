@@ -13,6 +13,7 @@ import {
   Button,
   StatusBadge,
 } from "../shared/PoDetailSharedComponents.jsx";
+import { ToggleSwitch } from "../../../../../components/common/ToggleSwitch.jsx";
 import { DocumentTypeBadge } from "../../DocumentTypeBadge.jsx";
 
 const getProgressColor = (pct) => {
@@ -41,6 +42,9 @@ const PoInvoiceDetailModals = ({
   setShowInvoiceDetailDrawer,
   selectedInvoiceForDetail,
   handleEditInvoice,
+  lastInvoiceId,
+  isLatestDatedInvoice,
+  toggleLastInvoice,
   getInvoiceStatus,
   getAgingStatus,
   activeInvoiceTab,
@@ -319,6 +323,63 @@ const PoInvoiceDetailModals = ({
                 minHeight: 0,
               }}
             >
+              {/* Mark as Last Invoice banner — scrolls with the body (not sticky).
+                  Shown for the marked invoice, or for the latest-dated invoice
+                  when none is marked yet. */}
+              {selectedInvoiceForDetail &&
+                (lastInvoiceId === selectedInvoiceForDetail.id ||
+                  (!lastInvoiceId &&
+                    typeof isLatestDatedInvoice === "function" &&
+                    isLatestDatedInvoice(selectedInvoiceForDetail))) && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      padding: "16px",
+                      background: "var(--feature-brand-container-lighter)",
+                      borderRadius: "16px",
+                      gap: "12px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: "600",
+                          color: "var(--neutral-on-surface-primary)",
+                        }}
+                      >
+                        Mark as the last invoice
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "var(--neutral-on-surface-secondary)",
+                          lineHeight: "18px",
+                        }}
+                      >
+                        This is the most recent invoice. Mark it as the last
+                        invoice so the payment status can be set to Paid once all
+                        invoices are settled.
+                      </span>
+                    </div>
+                    <div style={{ marginTop: "2px" }}>
+                      <ToggleSwitch
+                        checked={lastInvoiceId === selectedInvoiceForDetail.id}
+                        onChange={() => toggleLastInvoice(selectedInvoiceForDetail)}
+                      />
+                    </div>
+                  </div>
+                )}
+
               {/* Invoice Information Card */}
               <div
                 style={{

@@ -1,7 +1,7 @@
 import React from "react";
 import { CheckIcon } from "../icons/Icons.jsx";
 
-const Checkbox = ({ checked, disabled, onChange }) => {
+const Checkbox = ({ checked, disabled, onChange, style }) => {
   return (
     <div
       onClick={(event) => {
@@ -21,6 +21,7 @@ const Checkbox = ({ checked, disabled, onChange }) => {
           : checked
             ? "var(--feature-brand-primary)"
             : "var(--neutral-line-outline)",
+        ...style,
       }}
     >
       {checked ? (

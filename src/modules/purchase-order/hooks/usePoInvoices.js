@@ -47,8 +47,10 @@ export const usePoInvoices = ({
   const [showVoidConfirmModal, setShowVoidConfirmModal] = useState(false);
   const [showExceedConfirmModal, setShowExceedConfirmModal] = useState(false);
   const [showItemQtyExceedConfirmModal, setShowItemQtyExceedConfirmModal] = useState(false);
+  const [showZeroAmountConfirmModal, setShowZeroAmountConfirmModal] = useState(false);
   const [exceededItems, setExceededItems] = useState([]);
   const [paymentToVoid, setPaymentToVoid] = useState(null);
+  const [lastInvoiceId, setLastInvoiceId] = useState(null);
 
   // Form States
   const [addInvoiceFormData, setAddInvoiceFormData] = useState({
@@ -126,7 +128,7 @@ export const usePoInvoices = ({
     return { text: "Open", variant: "grey-light" };
   }, []);
 
-  const addInvoicePaymentLog = useCallback((title, desc) => {
+  const addInvoicePaymentLog = useCallback((title, desc, actor) => {
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, "0");
@@ -137,8 +139,8 @@ export const usePoInvoices = ({
 
     setInvoicePaymentLogs(prev => [
       {
-        name: "Natasha Smith",
-        email: "natasha.smith@company.com",
+        name: actor?.name || "Natasha Smith",
+        email: actor?.email ?? "natasha.smith@company.com",
         title,
         desc,
         timestamp: formattedTimestamp,
@@ -146,6 +148,51 @@ export const usePoInvoices = ({
       ...prev,
     ]);
   }, []);
+
+  // --- Last Invoice (mark the most recent invoice as the closing invoice) ---
+  // Invoice dates are ISO strings ("YYYY-MM-DD"), so a string max gives the latest date.
+  const maxInvoiceDate = useMemo(
+    () => invoices.reduce((max, inv) => (!max || inv.date > max ? inv.date : max), null),
+    [invoices]
+  );
+
+  const isLatestDatedInvoice = useCallback(
+    (invoice) => !!invoice && !!maxInvoiceDate && invoice.date === maxInvoiceDate,
+    [maxInvoiceDate]
+  );
+
+  const toggleLastInvoice = useCallback((invoice) => {
+    if (!invoice) return;
+    if (lastInvoiceId === invoice.id) {
+      setLastInvoiceId(null);
+      addInvoicePaymentLog("Unmarked Invoice as the Last Invoice", invoice.number);
+      if (showToast) showToast("Invoice successfully unmarked as the Last Invoice", "dark");
+    } else {
+      setLastInvoiceId(invoice.id);
+      addInvoicePaymentLog("Marked Invoice as the Last Invoice", invoice.number);
+      if (showToast) showToast("Invoice successfully marked as the Last Invoice");
+    }
+  }, [lastInvoiceId, addInvoicePaymentLog, showToast]);
+
+  // Auto-clear the mark when it becomes invalid (marked invoice deleted, or no
+  // longer the most recent by date). Deletion is logged in handleDeleteInvoice,
+  // so the "missing" branch here clears silently to avoid a duplicate log.
+  useEffect(() => {
+    if (!lastInvoiceId) return;
+    const marked = invoices.find((inv) => inv.id === lastInvoiceId);
+    if (!marked) {
+      setLastInvoiceId(null);
+      return;
+    }
+    if (maxInvoiceDate && marked.date !== maxInvoiceDate) {
+      setLastInvoiceId(null);
+      addInvoicePaymentLog(
+        "Unmarked Invoice as the Last Invoice",
+        `${marked.number} — automatically unmarked because it is no longer the most recent invoice.`,
+        { name: "System", email: "-" }
+      );
+    }
+  }, [invoices, lastInvoiceId, maxInvoiceDate, addInvoicePaymentLog]);
 
   // --- Derived State ---
   const totalInvoiced = useMemo(() => {
@@ -402,7 +449,7 @@ export const usePoInvoices = ({
     proceedAfterQtyExceed();
   }, [addInvoiceFormData, isEditingInvoice, invoices, poTotal, saveInvoice, getRemainingPoQty, currency, getInvoiceMetrics]);
 
-  const proceedAfterQtyExceed = useCallback(() => {
+  const proceedAfterZeroAmount = useCallback(() => {
     // Check if potential total invoiced exceeds PO value
     const otherInvoicesTotal = invoices.reduce(
       (sum, inv) => (isEditingInvoice && inv.id === addInvoiceFormData.id ? sum : sum + (inv.amount || 0)),
@@ -419,6 +466,15 @@ export const usePoInvoices = ({
     saveInvoice();
   }, [invoices, isEditingInvoice, addInvoiceFormData.id, addInvoiceFormData.amount, poTotal, saveInvoice]);
 
+  const proceedAfterQtyExceed = useCallback(() => {
+    const invoiceAmount = parseFloat(addInvoiceFormData.amount) || 0;
+    if (invoiceAmount === 0) {
+      setShowZeroAmountConfirmModal(true);
+      return;
+    }
+    proceedAfterZeroAmount();
+  }, [addInvoiceFormData.amount, proceedAfterZeroAmount]);
+
   const handleDeleteInvoice = useCallback(() => {
     if (!selectedInvoiceForDetail) return;
     if (!deleteInvoiceReason.trim()) {
@@ -426,9 +482,18 @@ export const usePoInvoices = ({
       return;
     }
     const invNumber = selectedInvoiceForDetail.number;
+    const wasLastInvoice = lastInvoiceId === selectedInvoiceForDetail.id;
     setInvoices((prev) => prev.filter((i) => i.id !== selectedInvoiceForDetail.id));
     setPayments((prev) => prev.filter((p) => p.invoiceId !== selectedInvoiceForDetail.id));
     addInvoicePaymentLog("Invoice Deleted", `Invoice ${invNumber} and its associated payments were removed. Reason: ${deleteInvoiceReason}`);
+    if (wasLastInvoice) {
+      setLastInvoiceId(null);
+      addInvoicePaymentLog(
+        "Unmarked Invoice as the Last Invoice",
+        `${invNumber} — automatically unmarked because the invoice was deleted.`,
+        { name: "System", email: "-" }
+      );
+    }
     if (showToast) {
       showToast("Invoice successfully deleted");
     }
@@ -436,7 +501,7 @@ export const usePoInvoices = ({
     setShowInvoiceDetailDrawer(false);
     setDeleteInvoiceReason("");
     setDeleteInvoiceReasonError("");
-  }, [selectedInvoiceForDetail, deleteInvoiceReason, addInvoicePaymentLog, showToast]);
+  }, [selectedInvoiceForDetail, deleteInvoiceReason, addInvoicePaymentLog, showToast, lastInvoiceId]);
 
   const handleAddPayment = useCallback(() => {
     let hasError = false;
@@ -587,6 +652,13 @@ export const usePoInvoices = ({
     getInvoiceStatus,
     addInvoicePaymentLog,
 
+    // Last Invoice
+    lastInvoiceId,
+    setLastInvoiceId,
+    maxInvoiceDate,
+    isLatestDatedInvoice,
+    toggleLastInvoice,
+
     // Derived State
     totalInvoiced,
     totalPaid,
@@ -601,9 +673,12 @@ export const usePoInvoices = ({
     setShowExceedConfirmModal,
     showItemQtyExceedConfirmModal,
     setShowItemQtyExceedConfirmModal,
+    showZeroAmountConfirmModal,
+    setShowZeroAmountConfirmModal,
     exceededItems,
     saveInvoice,
     proceedAfterQtyExceed,
+    proceedAfterZeroAmount,
 
     // Handlers
     simulateInvoiceOcr,

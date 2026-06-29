@@ -68,9 +68,12 @@ const PoInvoicePaymentManagementModals = ({
   setShowExceedConfirmModal,
   showItemQtyExceedConfirmModal,
   setShowItemQtyExceedConfirmModal,
+  showZeroAmountConfirmModal,
+  setShowZeroAmountConfirmModal,
   exceededItems,
   saveInvoice,
   proceedAfterQtyExceed,
+  proceedAfterZeroAmount,
   deleteInvoiceReason,
   setDeleteInvoiceReason,
   deleteInvoiceReasonError,
@@ -1328,6 +1331,48 @@ const PoInvoicePaymentManagementModals = ({
               onClick={() => setShowExceedConfirmModal(false)}
             >
               Cancel
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Zero Invoice Amount Confirmation Modal */}
+      <GeneralModal
+        isOpen={showZeroAmountConfirmModal}
+        onClose={() => setShowZeroAmountConfirmModal(false)}
+        title="Zero Invoice Amount Detected"
+        width="420px"
+        centeredHeader
+        zIndex={15000}
+        description="This invoice has a total amount of 0. Please review them before saving, or continue if this is intentional."
+        descriptionStyle={{ fontSize: "14px" }}
+        footer={
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              width: "100%",
+            }}
+          >
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setShowZeroAmountConfirmModal(false);
+                proceedAfterZeroAmount();
+              }}
+            >
+              Continue to Save
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => setShowZeroAmountConfirmModal(false)}
+            >
+              Go Back to Edit
             </Button>
           </div>
         }

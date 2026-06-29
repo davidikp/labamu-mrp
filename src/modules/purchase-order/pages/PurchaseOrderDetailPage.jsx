@@ -482,6 +482,9 @@ export const PurchaseOrderDetailPage = ({
     getAgingStatus,
     getInvoiceStatus,
     addInvoicePaymentLog,
+    lastInvoiceId,
+    isLatestDatedInvoice,
+    toggleLastInvoice,
     totalInvoiced,
     totalPaid,
     outstandingAmount,
@@ -501,9 +504,12 @@ export const PurchaseOrderDetailPage = ({
     setShowExceedConfirmModal,
     showItemQtyExceedConfirmModal,
     setShowItemQtyExceedConfirmModal,
+    showZeroAmountConfirmModal,
+    setShowZeroAmountConfirmModal,
     exceededItems,
     saveInvoice,
     proceedAfterQtyExceed,
+    proceedAfterZeroAmount,
   } = usePoInvoices({
     initialInvoices,
     initialPayments,
@@ -524,13 +530,16 @@ export const PurchaseOrderDetailPage = ({
       return getInvoiceStatus(inv, metrics);
     });
     const allPaid = statuses.every((s) => s.text === "Paid");
-    if (allPaid) return { text: "Paid", variant: "green-light" };
+    // "Paid" requires a last invoice to be marked AND every invoice fully paid.
+    // Otherwise fall through to the regular states (a fully-paid-but-unmarked PO
+    // stays "Partially Paid").
+    if (lastInvoiceId && allPaid) return { text: "Paid", variant: "green-light" };
     const hasOverdue = statuses.some((s) => s.text === "Overdue");
     if (hasOverdue) return { text: "Overdue", variant: "red-light" };
     const anyPaid = statuses.some((s) => s.text === "Paid" || s.text === "Partially Paid");
     if (anyPaid) return { text: "Partially Paid", variant: "blue-light" };
     return { text: "Unpaid", variant: "grey-light" };
-  }, [invoices, getInvoiceMetrics, getInvoiceStatus]);
+  }, [invoices, getInvoiceMetrics, getInvoiceStatus, lastInvoiceId]);
 
   // Sync invoices and payments back to MOCK_PO_TABLE_DATA for cache
   useEffect(() => {
@@ -2565,6 +2574,7 @@ export const PurchaseOrderDetailPage = ({
           getInvoiceMetrics={getInvoiceMetrics}
           getAgingStatus={getAgingStatus}
           getInvoiceStatus={getInvoiceStatus}
+          lastInvoiceId={lastInvoiceId}
         />
       ) : activeTab === "3-ways-match" ? (
         <PoThreeWayMatchTab
@@ -3052,6 +3062,9 @@ export const PurchaseOrderDetailPage = ({
         setShowInvoiceDetailDrawer={setShowInvoiceDetailDrawer}
         selectedInvoiceForDetail={selectedInvoiceForDetail}
         handleEditInvoice={handleEditInvoice}
+        lastInvoiceId={lastInvoiceId}
+        isLatestDatedInvoice={isLatestDatedInvoice}
+        toggleLastInvoice={toggleLastInvoice}
         getInvoiceStatus={getInvoiceStatus}
         getAgingStatus={getAgingStatus}
         activeInvoiceTab={activeInvoiceTab}
@@ -3110,9 +3123,12 @@ export const PurchaseOrderDetailPage = ({
         setShowExceedConfirmModal={setShowExceedConfirmModal}
         showItemQtyExceedConfirmModal={showItemQtyExceedConfirmModal}
         setShowItemQtyExceedConfirmModal={setShowItemQtyExceedConfirmModal}
+        showZeroAmountConfirmModal={showZeroAmountConfirmModal}
+        setShowZeroAmountConfirmModal={setShowZeroAmountConfirmModal}
         exceededItems={exceededItems}
         saveInvoice={saveInvoice}
         proceedAfterQtyExceed={proceedAfterQtyExceed}
+        proceedAfterZeroAmount={proceedAfterZeroAmount}
         deleteInvoiceReason={deleteInvoiceReason}
         setDeleteInvoiceReason={setDeleteInvoiceReason}
         deleteInvoiceReasonError={deleteInvoiceReasonError}

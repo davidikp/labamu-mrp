@@ -395,8 +395,8 @@ const APAgingReportPage = ({ onNavigate, t }) => {
               options={["all", ...new Set(allInvoices.map(inv => inv.vendorName))].map(v => ({ value: v, label: v === "all" ? "Vendor" : v }))}
               onChange={(val) => { setVendorFilter(val); setCurrentPage(1); }}
             />
-            <MultiSelectDropdown 
-              placeholder="Status"
+            <MultiSelectDropdown
+              placeholder="Invoice Status"
               value={invoiceStatusFilter}
               options={[
                 { value: "Open", label: "Open" },
