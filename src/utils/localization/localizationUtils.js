@@ -547,6 +547,14 @@ const INDONESIAN_EXACT_TEXT = {
   "Mark as the final invoice": "Tandai sebagai Faktur Terakhir",
   "Mark this invoice as the final invoice for this PO. This confirms that no further invoices are expected once all related invoices are paid.":
     "Tandai tagihan ini sebagai tagihan terakhir untuk Purchase Order ini. Ini menandakan bahwa tidak akan ada lagi tagihan setelah semua tagihan terkait dibayar.",
+  "Final Invoice": "Faktur Terakhir",
+  "Marked Invoice as the Final Invoice": "Menandai Faktur sebagai Faktur Terakhir",
+  "Unmarked Invoice as the Final Invoice":
+    "Membatalkan Penandaan Faktur sebagai Faktur Terakhir",
+  "Invoice successfully marked as the Final Invoice":
+    "Faktur berhasil ditandai sebagai faktur terakhir.",
+  "Invoice successfully unmarked as the Final Invoice":
+    "Penandaan faktur sebagai faktur terakhir berhasil dibatalkan.",
   "No payments added yet.": "Belum ada pembayaran yang ditambahkan.",
   "Notes & Attachments": "Catatan & Lampiran",
   "Attachments": "Lampiran",
@@ -790,6 +798,14 @@ const INDONESIAN_FRAGMENT_REPLACEMENTS = [
   ["Drag file or ", "Tarik file atau "],
   ["browse file", "telusuri file"],
   [": Received ", ": Diterima "],
+  [
+    "automatically unmarked because it is no longer the most recent invoice.",
+    "Penandaan sebagai faktur terakhir dibatalkan secara otomatis karena bukan lagi faktur terbaru.",
+  ],
+  [
+    "automatically unmarked because the invoice was deleted.",
+    "Penandaan sebagai faktur terakhir dibatalkan secara otomatis karena faktur dihapus.",
+  ],
   [" at ", " pada "],
 ];
 
