@@ -323,7 +323,7 @@ const PoInvoiceDetailModals = ({
                 minHeight: 0,
               }}
             >
-              {/* Mark as Last Invoice banner — scrolls with the body (not sticky).
+              {/* Mark as Final Invoice banner — scrolls with the body (not sticky).
                   Shown for the marked invoice, or for the latest-dated invoice
                   when none is marked yet. */}
               {selectedInvoiceForDetail &&
@@ -357,7 +357,7 @@ const PoInvoiceDetailModals = ({
                           color: "var(--neutral-on-surface-primary)",
                         }}
                       >
-                        Mark as the last invoice
+                        Mark as the final invoice
                       </span>
                       <span
                         style={{
@@ -366,9 +366,9 @@ const PoInvoiceDetailModals = ({
                           lineHeight: "18px",
                         }}
                       >
-                        This is the most recent invoice. Mark it as the last
-                        invoice so the payment status can be set to Paid once all
-                        invoices are settled.
+                        Mark this invoice as the final invoice for this PO. This
+                        confirms that no further invoices are expected once all
+                        related invoices are paid.
                       </span>
                     </div>
                     <div style={{ marginTop: "2px" }}>

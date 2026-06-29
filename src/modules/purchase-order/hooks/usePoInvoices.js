@@ -149,7 +149,7 @@ export const usePoInvoices = ({
     ]);
   }, []);
 
-  // --- Last Invoice (mark the most recent invoice as the closing invoice) ---
+  // --- Final Invoice (mark the most recent invoice as the closing invoice) ---
   // Invoice dates are ISO strings ("YYYY-MM-DD"), so a string max gives the latest date.
   const maxInvoiceDate = useMemo(
     () => invoices.reduce((max, inv) => (!max || inv.date > max ? inv.date : max), null),
@@ -165,12 +165,12 @@ export const usePoInvoices = ({
     if (!invoice) return;
     if (lastInvoiceId === invoice.id) {
       setLastInvoiceId(null);
-      addInvoicePaymentLog("Unmarked Invoice as the Last Invoice", invoice.number);
-      if (showToast) showToast("Invoice successfully unmarked as the Last Invoice", "dark");
+      addInvoicePaymentLog("Unmarked Invoice as the Final Invoice", invoice.number);
+      if (showToast) showToast("Invoice successfully unmarked as the Final Invoice", "dark");
     } else {
       setLastInvoiceId(invoice.id);
-      addInvoicePaymentLog("Marked Invoice as the Last Invoice", invoice.number);
-      if (showToast) showToast("Invoice successfully marked as the Last Invoice");
+      addInvoicePaymentLog("Marked Invoice as the Final Invoice", invoice.number);
+      if (showToast) showToast("Invoice successfully marked as the Final Invoice");
     }
   }, [lastInvoiceId, addInvoicePaymentLog, showToast]);
 
@@ -187,7 +187,7 @@ export const usePoInvoices = ({
     if (maxInvoiceDate && marked.date !== maxInvoiceDate) {
       setLastInvoiceId(null);
       addInvoicePaymentLog(
-        "Unmarked Invoice as the Last Invoice",
+        "Unmarked Invoice as the Final Invoice",
         `${marked.number} — automatically unmarked because it is no longer the most recent invoice.`,
         { name: "System", email: "-" }
       );
@@ -489,7 +489,7 @@ export const usePoInvoices = ({
     if (wasLastInvoice) {
       setLastInvoiceId(null);
       addInvoicePaymentLog(
-        "Unmarked Invoice as the Last Invoice",
+        "Unmarked Invoice as the Final Invoice",
         `${invNumber} — automatically unmarked because the invoice was deleted.`,
         { name: "System", email: "-" }
       );
@@ -652,7 +652,7 @@ export const usePoInvoices = ({
     getInvoiceStatus,
     addInvoicePaymentLog,
 
-    // Last Invoice
+    // Final Invoice
     lastInvoiceId,
     setLastInvoiceId,
     maxInvoiceDate,

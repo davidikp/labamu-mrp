@@ -320,7 +320,7 @@ const PoInvoicePaymentTab = ({
             </Button>
           </div>
 
-          {invoices.length > 0 && (
+          {invoices.length > 0 && !lastInvoiceId && (
             <div
               style={{
                 display: "flex",
@@ -345,7 +345,7 @@ const PoInvoicePaymentTab = ({
                     color: "var(--neutral-on-surface-primary)",
                   }}
                 >
-                  Mark the Last Invoice
+                  Mark the Final Invoice
                 </span>
                 <span
                   style={{
@@ -354,9 +354,9 @@ const PoInvoicePaymentTab = ({
                     lineHeight: "1.5",
                   }}
                 >
-                  Mark the most recent invoice as the last invoice. Otherwise, the
-                  payment status will remain Partially Paid, even if all invoices
-                  have been paid.
+                  Mark the latest invoice as final to confirm that no further
+                  invoices are expected for this PO. Once all related invoices are
+                  paid, the PO payment status can be completed.
                 </span>
               </div>
             </div>
@@ -556,7 +556,7 @@ const PoInvoicePaymentTab = ({
                 )
                 .slice()
                 .sort((a, b) => {
-                  // Pin the marked last invoice to the top, then sort by date desc.
+                  // Pin the marked final invoice to the top, then sort by date desc.
                   if (a.id === lastInvoiceId) return -1;
                   if (b.id === lastInvoiceId) return 1;
                   return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
@@ -630,7 +630,7 @@ const PoInvoicePaymentTab = ({
                               whiteSpace: "nowrap",
                             }}
                           >
-                            Last Invoice
+                            Final Invoice
                           </span>
                         )}
                       </div>
