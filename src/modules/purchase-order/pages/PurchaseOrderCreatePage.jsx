@@ -2712,13 +2712,28 @@ export const PurchaseOrderCreatePage = ({
     JSON.stringify(buildFormDirtySnapshot()) !==
     initialDirtySnapshotRef.current;
 
+  const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+  const scrollToFormField = (fieldKey) => {
+    setTimeout(() => {
+      const el = document.getElementById(`form-field-${fieldKey}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
+  };
+
   const validateMandatoryFields = () => {
     const nextErrors = {};
     if (!vendorSearch.trim()) nextErrors.vendor = "Field cannot be empty";
     if (!poDate) nextErrors.poDate = "Field cannot be empty";
     if (!currency) nextErrors.currency = "Field cannot be empty";
     if (!lines.length) nextErrors.lines = "Add at least one product line";
+    const emailVal = (vendorDetails.email || "").trim();
+    if (emailVal && !isValidEmail(emailVal)) nextErrors.email = "Invalid email format";
     setFormErrors(nextErrors);
+    // Scroll to the first field with an error, in visual top-to-bottom order.
+    const fieldOrder = ["vendor", "email", "poDate", "currency", "lines"];
+    const firstErrorKey = fieldOrder.find((key) => nextErrors[key]);
+    if (firstErrorKey) scrollToFormField(firstErrorKey);
     return Object.keys(nextErrors).length === 0;
   };
 
@@ -3450,8 +3465,8 @@ export const PurchaseOrderCreatePage = ({
         const min = String(now.getMinutes()).padStart(2, "0");
         const formattedTimestamp = `${yyyy}-${mm}-${dd} at ${hh}:${min}`;
 
-        const logTitle = approvalOn 
-          ? "Revise Requested" 
+        const logTitle = approvalOn
+          ? "Revision Submitted"
           : `Revised to Version ${nextVersionNumber}.0`;
 
         payload.formData.receiptLogs.unshift({
@@ -3761,7 +3776,7 @@ export const PurchaseOrderCreatePage = ({
                 gap: "16px",
               }}
             >
-              <div style={rowWrapStyle}>
+              <div style={rowWrapStyle} id="form-field-vendor">
                 {fieldLabelCol(
                   "Vendor Name",
                   "Select an existing vendor or add a new one.",
@@ -3954,7 +3969,7 @@ export const PurchaseOrderCreatePage = ({
                 />
               </div>
 
-              <div style={rowWrapStyle}>
+              <div style={rowWrapStyle} id="form-field-email">
                 {fieldLabelCol("Email")}
                 <InputField
                   value={vendorDetails.email}
@@ -3964,6 +3979,7 @@ export const PurchaseOrderCreatePage = ({
                       email: e.target.value,
                     })
                   }
+                  error={formErrors.email}
                   disabled={((isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled) || isVendorLocked}
                   placeholder="Input email"
                 />
@@ -3999,7 +4015,7 @@ export const PurchaseOrderCreatePage = ({
                 gap: "16px",
               }}
             >
-              <div style={rowWrapStyle}>
+              <div style={rowWrapStyle} id="form-field-poDate">
                 {fieldLabelCol(
                   "Purchase Order Date",
                   "The date when this purchase order is created.",
@@ -4027,7 +4043,7 @@ export const PurchaseOrderCreatePage = ({
                   disabled={isReviseMode}
                 />
               </div>
-              <div style={rowWrapStyle}>
+              <div style={rowWrapStyle} id="form-field-currency">
                 {fieldLabelCol(
                   "Currency",
                   "Used for all prices in this purchase order.",
@@ -4133,7 +4149,7 @@ export const PurchaseOrderCreatePage = ({
             </div>
           </div>
 
-          <div style={pageSectionStyle}>
+          <div style={pageSectionStyle} id="form-field-lines">
             {sectionHeader(
               "Purchase Order Lines",
               <Button
