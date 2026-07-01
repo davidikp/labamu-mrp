@@ -557,6 +557,8 @@ const INDONESIAN_EXACT_TEXT = {
     "Penandaan faktur sebagai Faktur Terakhir berhasil dibatalkan",
   "Revision Submitted": "Revisi Diajukan",
   "Invalid email format": "Format email tidak valid",
+  "Enter invoice amount...": "Masukkan nominal faktur...",
+  "Enter item quantity...": "Masukkan jumlah item...",
   "Zero Unit Price Detected": "Harga Satuan Bernilai Nol",
   "Some items have a unit price of 0. Please review them before submitting, or continue if this is intentional.":
     "Beberapa barang memiliki harga satuan sebesar IDR 0. Silakan periksa kembali sebelum mengajukan, atau lanjutkan jika data tersebut sudah benar.",

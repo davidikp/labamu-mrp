@@ -399,7 +399,7 @@ const PoInvoicePaymentManagementModals = ({
               <InputField
                 label="Invoice Amount"
                 required
-                placeholder="0"
+                placeholder="Enter invoice amount..."
                 prefix={currency}
                 value={formatNumberWithCommas(addInvoiceFormData.amount)}
                 onChange={(e) => {
@@ -522,7 +522,7 @@ const PoInvoicePaymentManagementModals = ({
                         <InputField
                           label="Item Quantity"
                           required
-                          placeholder="0"
+                          placeholder="Enter item quantity..."
                           value={
                             itemObj.qty === ""
                               ? ""
