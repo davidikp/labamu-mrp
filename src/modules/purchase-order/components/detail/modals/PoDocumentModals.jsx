@@ -9,7 +9,6 @@ import {
 } from "../shared/PoDetailSharedComponents.jsx";
 
 const PoDocumentModals = ({
-  displayValue,
   // Upload Modal Props
   showUploadDocumentModal,
   setShowUploadDocumentModal,
@@ -22,6 +21,7 @@ const PoDocumentModals = ({
   documentUploadFileObject,
   documentUploadError,
   documentUploadCardFile,
+  documentUploadDescription,
   setDocumentUploadDescription,
   documentUploadDescriptionError,
 
@@ -55,7 +55,7 @@ const PoDocumentModals = ({
           setShowUploadDocumentModal(false);
           resetDocumentUploadState();
         }}
-        title={displayValue ? displayValue("Upload Document") : "Upload Document"}
+        title="Upload Document"
         width="640px"
         footer={
           <div style={{ display: "flex", gap: "12px", width: "100%" }}>
@@ -102,13 +102,11 @@ const PoDocumentModals = ({
               onChange={(nextValue) => setDocumentUploadDocumentType(nextValue)}
               options={[
                 { value: "invoice", label: "Invoice" },
+                { value: "invoice_payment", label: "Invoice Payment" },
                 { value: "delivery_note", label: "Delivery Note" },
                 { value: "packing_list", label: "Packing List" },
                 { value: "quotation_vendor", label: "Quotation (Vendor)" },
-                {
-                  value: "contract_agreement",
-                  label: "Contract / Agreement",
-                },
+                { value: "contract_agreement", label: "Contract / Agreement" },
                 { value: "other", label: "Other" },
               ]}
               borderRadius="12px"
@@ -139,7 +137,7 @@ const PoDocumentModals = ({
             >
               <span style={{ color: "var(--status-red-primary)" }}>*</span>
               <span style={{ color: "var(--neutral-on-surface-primary)" }}>
-                {displayValue ? displayValue("Document Upload") : "Document Upload"}
+                Document Upload
               </span>
             </div>
             <UploadDropzone
@@ -166,6 +164,7 @@ const PoDocumentModals = ({
           {documentUploadFileObject ? (
             <UploadDescriptionCard
               file={documentUploadCardFile}
+              description={documentUploadDescription || ""}
               onRemove={resetDocumentUploadState}
               onDescriptionChange={setDocumentUploadDescription}
               descriptionRequired={true}
@@ -258,13 +257,11 @@ const PoDocumentModals = ({
               onChange={(nextValue) => setEditDocumentTypeValue(nextValue)}
               options={[
                 { value: "invoice", label: "Invoice" },
+                { value: "invoice_payment", label: "Invoice Payment" },
                 { value: "delivery_note", label: "Delivery Note" },
                 { value: "packing_list", label: "Packing List" },
                 { value: "quotation_vendor", label: "Quotation (Vendor)" },
-                {
-                  value: "contract_agreement",
-                  label: "Contract / Agreement",
-                },
+                { value: "contract_agreement", label: "Contract / Agreement" },
                 { value: "other", label: "Other" },
               ]}
               borderRadius="12px"

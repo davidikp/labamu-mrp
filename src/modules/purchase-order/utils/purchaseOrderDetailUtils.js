@@ -66,26 +66,20 @@ export const buildReceiptStateFromLines = (
   normalizedSeededLogs.forEach((log) => {
     (log.items || []).forEach((item) => {
       const receivedNow = Number(item.receivedNow) || 0;
-      if (receivedNow <= 0) return;
-      const keys = [item.id, item.code, item.item].filter(Boolean);
-      keys.forEach((key) => {
-        const keyString = String(key);
-        seededReceivedQtyByKey.set(
-          keyString,
-          (seededReceivedQtyByKey.get(keyString) || 0) + receivedNow
-        );
-      });
+      if (receivedNow <= 0 || !item.id) return;
+      
+      const keyString = String(item.id);
+      seededReceivedQtyByKey.set(
+        keyString,
+        (seededReceivedQtyByKey.get(keyString) || 0) + receivedNow
+      );
     });
   });
 
   const baseLines = (lines || []).map((line) => {
     const orderedQty = Number(line.qty || line.orderedQty || 0);
     const initialReceivedQty = Number(line.receivedQty || 0);
-    const seededReceivedQty = Math.max(
-      Number(seededReceivedQtyByKey.get(String(line.id)) || 0),
-      Number(seededReceivedQtyByKey.get(String(line.code || "")) || 0),
-      Number(seededReceivedQtyByKey.get(String(line.item || "")) || 0)
-    );
+    const seededReceivedQty = Number(seededReceivedQtyByKey.get(String(line.id)) || 0);
     return {
       id: line.id,
       type: line.type || "manual",
@@ -94,6 +88,8 @@ export const buildReceiptStateFromLines = (
       code: line.code || line.sku || "-",
       desc: line.desc || "-",
       woRef: line.woRef || "-",
+      assignmentId: line.assignmentId || "-",
+      outsourceSteps: line.outsourceSteps || [],
       orderedQty,
       receivedQty: shouldBeCompleted
         ? orderedQty
@@ -189,5 +185,46 @@ export const sortLogsLatest = (logs = []) => {
 };
 
 export const ensureCompletedLogIsLatest = (logs = [], currentStatus) => {
-  return sortLogsLatest(logs);
+  const sortedLogs = sortLogsLatest(logs);
+  if (currentStatus !== "Completed") return sortedLogs;
+
+  const completedLogIndex = sortedLogs.findIndex(
+    (log) => log.title === "Completed"
+  );
+  if (completedLogIndex === -1) return sortedLogs;
+
+  const nextLogs = [...sortedLogs];
+  const completedLog = { ...nextLogs[completedLogIndex] };
+  nextLogs.splice(completedLogIndex, 1);
+
+  const nonInvoiceLogs = nextLogs.filter(
+    (log) =>
+      ![
+        "Invoice Added",
+        "Invoice Updated",
+        "Invoice Deleted",
+        "Payment Added",
+        "Payment Voided",
+        "Marked Invoice as the Final Invoice",
+        "Unmarked Invoice as the Final Invoice",
+      ].includes(log.title)
+  );
+
+  const latestExistingTimestamp =
+    nonInvoiceLogs.length > 0
+      ? Math.max(
+          ...nonInvoiceLogs.map((log) => parseActivityTimestamp(log.timestamp))
+        )
+      : parseActivityTimestamp(completedLog.timestamp);
+
+  const safeBaseTimestamp =
+    Number.isFinite(latestExistingTimestamp) && latestExistingTimestamp > 0
+      ? latestExistingTimestamp
+      : Date.now();
+
+  completedLog.timestamp = formatActivityTimestamp(
+    new Date(safeBaseTimestamp + 60 * 1000)
+  );
+
+  return sortLogsLatest([completedLog, ...nextLogs]);
 };

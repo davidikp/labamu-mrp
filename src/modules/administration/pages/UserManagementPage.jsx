@@ -14,11 +14,12 @@ import {
 import { Button } from "../../../components/common/Button.jsx";
 import { Checkbox } from "../../../components/common/Checkbox.jsx";
 import { DropdownSelect } from "../../../components/common/DropdownSelect.jsx";
-import { FilterPill } from "../../../components/common/FilterPill.jsx";
+import { FilterMenu } from "../../../components/molecules/FilterMenu.jsx";
 import { IconButton } from "../../../components/common/IconButton.jsx";
 import { StatusBadge } from "../../../components/common/StatusBadge.jsx";
 import { TablePaginationFooter } from "../../../components/table/TablePaginationFooter.jsx";
 import { TableSearchField } from "../../../components/table/TableSearchField.jsx";
+import { FormField, InputField, UnifiedInputShell } from "../../../components/index.js";
 import {
   MOCK_ADMIN_GROUPS,
   MOCK_ADMIN_ROLES,
@@ -80,239 +81,7 @@ const Tooltip = ({ content, children }) => {
   );
 };
 
-const FormField = ({
-  label,
-  required = false,
-  children,
-  error,
-  helperText,
-}) => (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: "8px",
-      width: "100%",
-    }}
-  >
-    {label ? (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "2px",
-          fontSize: "var(--text-body)",
-          fontWeight: "var(--font-weight-regular)",
-        }}
-      >
-        {required ? (
-          <span style={{ color: "var(--status-red-primary)" }}>*</span>
-        ) : null}
-        <span style={{ color: "var(--neutral-on-surface-primary)" }}>
-          {label}
-        </span>
-      </div>
-    ) : null}
-    {children}
-    {error ? (
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "var(--status-red-primary)",
-        }}
-      >
-        {error}
-      </span>
-    ) : null}
-    {!error && helperText ? (
-      <span
-        style={{
-          fontSize: "var(--text-desc)",
-          color: "var(--neutral-on-surface-secondary)",
-        }}
-      >
-        {helperText}
-      </span>
-    ) : null}
-  </div>
-);
 
-const baseInputBorderColor = "#e9e9e9";
-
-const inputFrameStyle = (disabled = false, hasError = false) => ({
-  border: `1px solid ${
-    hasError
-      ? "var(--status-red-primary)"
-      : disabled
-        ? "var(--neutral-line-outline)"
-        : baseInputBorderColor
-  }`,
-  borderRadius: "10px",
-  background: disabled
-    ? "var(--neutral-surface-grey-lighter)"
-    : "var(--neutral-surface-primary)",
-  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-  boxSizing: "border-box",
-});
-
-const inputControlStyle = (disabled = false, hasValue = false) => ({
-  width: "100%",
-  outline: "none",
-  fontSize: "var(--text-subtitle-1)",
-  color: disabled
-    ? "var(--neutral-on-surface-tertiary)"
-    : hasValue
-      ? "var(--neutral-on-surface-primary)"
-      : "var(--neutral-on-surface-tertiary)",
-  fontFamily: "Lato, sans-serif",
-  boxSizing: "border-box",
-});
-
-const focusInputFrame = (el) => {
-  if (!el) return;
-  el.style.borderColor = "var(--feature-brand-primary)";
-  el.style.boxShadow = "0 0 0 3px rgba(0, 104, 255, 0.08)";
-};
-
-const blurInputFrame = (el, disabled = false, hasError = false) => {
-  if (!el) return;
-  el.style.borderColor = hasError
-    ? "var(--status-red-primary)"
-    : disabled
-      ? "var(--neutral-line-outline)"
-      : baseInputBorderColor;
-  el.style.boxShadow = "none";
-};
-
-const UnifiedInputShell = ({
-  children,
-  disabled = false,
-  hasError = false,
-  style = {},
-  onFocus,
-  onBlur,
-}) => (
-  <div
-    style={{
-      minHeight: "46px",
-      height: "auto",
-      width: "100%",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      border: `1px solid ${
-        hasError
-          ? "var(--status-red-primary)"
-          : disabled
-            ? "var(--neutral-line-outline)"
-            : baseInputBorderColor
-      }`,
-      borderRadius: "10px",
-      background: disabled
-        ? "var(--neutral-surface-grey-lighter)"
-        : "var(--neutral-surface-primary)",
-      padding: "0 16px",
-      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-      boxSizing: "border-box",
-      overflow: "visible",
-      ...style,
-    }}
-    onFocus={onFocus}
-    onBlur={onBlur}
-  >
-    {children}
-  </div>
-);
-
-const InputField = ({
-  label,
-  required,
-  type = "text",
-  placeholder,
-  value,
-  onChange,
-  disabled,
-  icon: Icon,
-  max,
-  multiline = false,
-  error,
-  helperText,
-  ...rest
-}) => (
-  <FormField
-    label={label}
-    required={required}
-    error={error}
-    helperText={helperText}
-  >
-    <div style={{ position: "relative", width: "100%" }}>
-      {multiline ? (
-        <textarea
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-          {...rest}
-          style={{
-            minHeight: "88px",
-            padding: "12px 16px",
-            width: "100%",
-            resize: "vertical",
-            border: "1px solid transparent",
-            background: disabled
-              ? "var(--neutral-surface-grey-lighter)"
-              : "var(--neutral-surface-primary)",
-            ...inputFrameStyle(disabled, !!error),
-            ...inputControlStyle(disabled, !!value),
-            cursor: disabled ? "not-allowed" : "text",
-          }}
-          onFocus={(e) => focusInputFrame(e.currentTarget)}
-          onBlur={(e) => blurInputFrame(e.currentTarget, disabled, !!error)}
-        />
-      ) : (
-        <input
-          type={type}
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-          max={max}
-          {...rest}
-          style={{
-            height: "48px",
-            padding: Icon ? "0 40px 0 16px" : "0 16px",
-            border: "1px solid transparent",
-            background: disabled
-              ? "var(--neutral-surface-grey-lighter)"
-              : "var(--neutral-surface-primary)",
-            ...inputFrameStyle(disabled, !!error),
-            ...inputControlStyle(disabled, !!value),
-            cursor: disabled ? "not-allowed" : "text",
-          }}
-          onFocus={(e) => focusInputFrame(e.currentTarget)}
-          onBlur={(e) => blurInputFrame(e.currentTarget, disabled, !!error)}
-        />
-      )}
-      {Icon ? (
-        <Icon
-          size={20}
-          color={
-            disabled
-              ? "var(--neutral-line-outline)"
-              : "var(--neutral-on-surface-tertiary)"
-          }
-          style={{
-            position: "absolute",
-            right: "16px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            pointerEvents: "none",
-          }}
-        />
-      ) : null}
-    </div>
-  </FormField>
-);
 
 const poReferenceTableFrameStyle = {
   overflow: "hidden",
@@ -833,9 +602,7 @@ const AdministrationUserManagement = ({ isSidebarCollapsed }) => {
       role: "all",
     },
   });
-  const [openToolbarFilterKey, setOpenToolbarFilterKey] = useState(null);
-  const [toolbarFilterTriggerRect, setToolbarFilterTriggerRect] = useState(null);
-  const [pendingUserEdits, setPendingUserEdits] = useState({});
+const [pendingUserEdits, setPendingUserEdits] = useState({});
   const [userChangesModal, setUserChangesModal] = useState(null);
   const [roleChangesExpanded, setRoleChangesExpanded] = useState(false);
   const [teamChangesExpanded, setTeamChangesExpanded] = useState(false);
@@ -1431,13 +1198,13 @@ const AdministrationUserManagement = ({ isSidebarCollapsed }) => {
         .toLowerCase()
         .includes(userSearch);
     const matchesRole =
-      tableFiltersByTab.users.role === "all" ||
+      !tableFiltersByTab.users.role || tableFiltersByTab.users.role === "all" ||
       user.role === tableFiltersByTab.users.role;
     const matchesGroup =
-      tableFiltersByTab.users.group === "all" ||
+      !tableFiltersByTab.users.group || tableFiltersByTab.users.group === "all" ||
       user.group === tableFiltersByTab.users.group;
     const matchesStatus =
-      tableFiltersByTab.users.status === "all" ||
+      !tableFiltersByTab.users.status || tableFiltersByTab.users.status === "all" ||
       user.status === tableFiltersByTab.users.status;
 
     return matchesSearch && matchesRole && matchesGroup && matchesStatus;
@@ -1450,7 +1217,7 @@ const AdministrationUserManagement = ({ isSidebarCollapsed }) => {
         .toLowerCase()
         .includes(roleSearch);
     const matchesStatus =
-      tableFiltersByTab.roles.status === "all" ||
+      !tableFiltersByTab.roles.status || tableFiltersByTab.roles.status === "all" ||
       role.status === tableFiltersByTab.roles.status;
     return matchesSearch && matchesStatus;
   });
@@ -1462,7 +1229,7 @@ const AdministrationUserManagement = ({ isSidebarCollapsed }) => {
         .toLowerCase()
         .includes(groupSearch);
     const matchesRole =
-      tableFiltersByTab.groups.role === "all" ||
+      !tableFiltersByTab.groups.role || tableFiltersByTab.groups.role === "all" ||
       group.allowedRoles.includes(tableFiltersByTab.groups.role);
     return matchesSearch && matchesRole;
   });
@@ -1511,63 +1278,6 @@ const AdministrationUserManagement = ({ isSidebarCollapsed }) => {
       background: "var(--neutral-surface-primary)",
     };
 
-    const toolbarFilterConfig = (() => {
-      if (!openToolbarFilterKey) return null;
-
-      if (openToolbarFilterKey === "users-role") {
-        return {
-          title: "Role",
-          value: tableFiltersByTab.users.role,
-          options: [{ value: "all", label: "All Roles" }, ...roleOptions],
-          onChange: (nextValue) => updateTableFilter("users", "role", nextValue),
-        };
-      }
-      if (openToolbarFilterKey === "users-team") {
-        return {
-          title: "Team",
-          value: tableFiltersByTab.users.group,
-          options: [
-            { value: "all", label: "All Teams" },
-            ...groupOptions.filter((option) => option.value !== "-"),
-          ],
-          onChange: (nextValue) => updateTableFilter("users", "group", nextValue),
-        };
-      }
-      if (openToolbarFilterKey === "users-status") {
-        return {
-          title: "Status",
-          value: tableFiltersByTab.users.status,
-          options: [
-            { value: "all", label: "All Status" },
-            { value: "Active", label: "Active" },
-            { value: "Inactive", label: "Inactive" },
-          ],
-          onChange: (nextValue) => updateTableFilter("users", "status", nextValue),
-        };
-      }
-      if (openToolbarFilterKey === "roles-status") {
-        return {
-          title: "Status",
-          value: tableFiltersByTab.roles.status,
-          options: [
-            { value: "all", label: "All Status" },
-            { value: "Active", label: "Active" },
-            { value: "Inactive", label: "Inactive" },
-          ],
-          onChange: (nextValue) => updateTableFilter("roles", "status", nextValue),
-        };
-      }
-      if (openToolbarFilterKey === "groups-role") {
-        return {
-          title: "Role",
-          value: tableFiltersByTab.groups.role,
-          options: [{ value: "all", label: "All Roles" }, ...roleOptions],
-          onChange: (nextValue) => updateTableFilter("groups", "role", nextValue),
-        };
-      }
-      return null;
-    })();
-
     if (activeTab === "users") {
       return (
         <div style={{ display: "flex", flexDirection: "column" }}>
@@ -1580,157 +1290,30 @@ const AdministrationUserManagement = ({ isSidebarCollapsed }) => {
                 position: "relative",
               }}
             >
-              <div
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setToolbarFilterTriggerRect(rect);
-                  setOpenToolbarFilterKey((prev) =>
-                    prev === "users-role" ? null : "users-role"
-                  );
-                }}
-              >
-                <FilterPill
-                  label="Role"
-                  active={tableFiltersByTab.users.role !== "all"}
-                  isOpen={openToolbarFilterKey === "users-role"}
-                  count={tableFiltersByTab.users.role !== "all" ? 1 : 0}
-                />
-              </div>
-              <div
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setToolbarFilterTriggerRect(rect);
-                  setOpenToolbarFilterKey((prev) =>
-                    prev === "users-team" ? null : "users-team"
-                  );
-                }}
-              >
-                <FilterPill
-                  label="Team"
-                  active={tableFiltersByTab.users.group !== "all"}
-                  isOpen={openToolbarFilterKey === "users-team"}
-                  count={tableFiltersByTab.users.group !== "all" ? 1 : 0}
-                />
-              </div>
-              <div
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setToolbarFilterTriggerRect(rect);
-                  setOpenToolbarFilterKey((prev) =>
-                    prev === "users-status" ? null : "users-status"
-                  );
-                }}
-              >
-                <FilterPill
-                  label="Status"
-                  active={tableFiltersByTab.users.status !== "all"}
-                  isOpen={openToolbarFilterKey === "users-status"}
-                  count={tableFiltersByTab.users.status !== "all" ? 1 : 0}
-                />
-              </div>
-
-              {openToolbarFilterKey && toolbarFilterConfig ? (
-                <>
-                  <div
-                    style={{ position: "fixed", inset: 0, zIndex: 80 }}
-                    onClick={() => setOpenToolbarFilterKey(null)}
-                  />
-                  <div
-                    style={{
-                      position: "fixed",
-                      top: toolbarFilterTriggerRect
-                        ? `${toolbarFilterTriggerRect.bottom + 8}px`
-                        : "160px",
-                      left: toolbarFilterTriggerRect
-                        ? `${toolbarFilterTriggerRect.left}px`
-                        : "0",
-                      width: "360px",
-                      background: "var(--neutral-surface-primary)",
-                      border: "1px solid var(--neutral-line-separator-1)",
-                      borderRadius: "var(--radius-card)",
-                      boxShadow: "var(--elevation-sm)",
-                      padding: "16px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "16px",
-                      zIndex: 1000,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "var(--text-title-2)",
-                          fontWeight: "var(--font-weight-bold)",
-                        }}
-                      >
-                        {toolbarFilterConfig.title}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          toolbarFilterConfig.onChange("all");
-                          setOpenToolbarFilterKey(null);
-                        }}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          padding: 0,
-                          color: "var(--status-red-primary)",
-                          cursor: "pointer",
-                          fontSize: "var(--text-body)",
-                          fontWeight: "var(--font-weight-bold)",
-                        }}
-                      >
-                        Remove Filter
-                      </button>
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "12px",
-                        maxHeight: "260px",
-                        overflowY: "auto",
-                        paddingRight: "4px",
-                      }}
-                    >
-                      {toolbarFilterConfig.options.map((option) => (
-                        <label
-                          key={String(option.value)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "12px",
-                            cursor: "pointer",
-                            fontSize: "var(--text-title-3)",
-                          }}
-                        >
-                          <input
-                            type="radio"
-                            name={`admin-toolbar-filter-${openToolbarFilterKey}`}
-                            checked={
-                              String(toolbarFilterConfig.value) ===
-                              String(option.value)
-                            }
-                            onChange={() => {
-                              toolbarFilterConfig.onChange(option.value);
-                              setOpenToolbarFilterKey(null);
-                            }}
-                          />
-                          <span>{option.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : null}
+              <FilterMenu
+                label="Role"
+                searchable={false}
+                options={roleOptions}
+                value={tableFiltersByTab.users.role}
+                onChange={(v) => updateTableFilter("users", "role", v)}
+                allValue="all"
+              />
+              <FilterMenu
+                label="Team"
+                searchable={false}
+                options={groupOptions.filter((o) => o.value !== "-")}
+                value={tableFiltersByTab.users.group}
+                onChange={(v) => updateTableFilter("users", "group", v)}
+                allValue="all"
+              />
+              <FilterMenu
+                label="Status"
+                searchable={false}
+                options={[{ value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" }]}
+                value={tableFiltersByTab.users.status}
+                onChange={(v) => updateTableFilter("users", "status", v)}
+                allValue="all"
+              />
             </div>
 
             <TableSearchField
@@ -1810,122 +1393,14 @@ const AdministrationUserManagement = ({ isSidebarCollapsed }) => {
               position: "relative",
             }}
           >
-            <div
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setToolbarFilterTriggerRect(rect);
-                setOpenToolbarFilterKey((prev) =>
-                  prev === "roles-status" ? null : "roles-status"
-                );
-              }}
-            >
-              <FilterPill
-                label="Status"
-                active={tableFiltersByTab.roles.status !== "all"}
-                isOpen={openToolbarFilterKey === "roles-status"}
-                count={tableFiltersByTab.roles.status !== "all" ? 1 : 0}
-              />
-            </div>
-
-            {openToolbarFilterKey === "roles-status" && toolbarFilterConfig ? (
-              <>
-                <div
-                  style={{ position: "fixed", inset: 0, zIndex: 80 }}
-                  onClick={() => setOpenToolbarFilterKey(null)}
-                />
-                <div
-                  style={{
-                    position: "fixed",
-                    top: toolbarFilterTriggerRect
-                      ? `${toolbarFilterTriggerRect.bottom + 8}px`
-                      : "160px",
-                    left: toolbarFilterTriggerRect
-                      ? `${toolbarFilterTriggerRect.left}px`
-                      : "0",
-                    width: "360px",
-                    background: "var(--neutral-surface-primary)",
-                    border: "1px solid var(--neutral-line-separator-1)",
-                    borderRadius: "var(--radius-card)",
-                    boxShadow: "var(--elevation-sm)",
-                    padding: "16px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "16px",
-                    zIndex: 1000,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "var(--text-title-2)",
-                        fontWeight: "var(--font-weight-bold)",
-                      }}
-                    >
-                      {toolbarFilterConfig.title}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        toolbarFilterConfig.onChange("all");
-                        setOpenToolbarFilterKey(null);
-                      }}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        padding: 0,
-                        color: "var(--status-red-primary)",
-                        cursor: "pointer",
-                        fontSize: "var(--text-body)",
-                        fontWeight: "var(--font-weight-bold)",
-                      }}
-                    >
-                      Remove Filter
-                    </button>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "12px",
-                    }}
-                  >
-                    {toolbarFilterConfig.options.map((option) => (
-                      <label
-                        key={String(option.value)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "12px",
-                          cursor: "pointer",
-                          fontSize: "var(--text-title-3)",
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="admin-toolbar-filter-roles-status"
-                          checked={
-                            String(toolbarFilterConfig.value) ===
-                            String(option.value)
-                          }
-                          onChange={() => {
-                            toolbarFilterConfig.onChange(option.value);
-                            setOpenToolbarFilterKey(null);
-                          }}
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </>
-            ) : null}
+            <FilterMenu
+              label="Status"
+              searchable={false}
+              options={[{ value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" }]}
+              value={tableFiltersByTab.roles.status}
+              onChange={(v) => updateTableFilter("roles", "status", v)}
+              allValue="all"
+            />
           </div>
           <TableSearchField
             value={tableSearchByTab.roles}
@@ -1948,125 +1423,14 @@ const AdministrationUserManagement = ({ isSidebarCollapsed }) => {
             position: "relative",
           }}
         >
-          <div
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setToolbarFilterTriggerRect(rect);
-              setOpenToolbarFilterKey((prev) =>
-                prev === "groups-role" ? null : "groups-role"
-              );
-            }}
-          >
-            <FilterPill
-              label="Role"
-              active={tableFiltersByTab.groups.role !== "all"}
-              isOpen={openToolbarFilterKey === "groups-role"}
-              count={tableFiltersByTab.groups.role !== "all" ? 1 : 0}
-            />
-          </div>
-
-          {openToolbarFilterKey === "groups-role" && toolbarFilterConfig ? (
-            <>
-              <div
-                style={{ position: "fixed", inset: 0, zIndex: 80 }}
-                onClick={() => setOpenToolbarFilterKey(null)}
-              />
-              <div
-                style={{
-                  position: "fixed",
-                  top: toolbarFilterTriggerRect
-                    ? `${toolbarFilterTriggerRect.bottom + 8}px`
-                    : "160px",
-                  left: toolbarFilterTriggerRect
-                    ? `${toolbarFilterTriggerRect.left}px`
-                    : "0",
-                  width: "360px",
-                  background: "var(--neutral-surface-primary)",
-                  border: "1px solid var(--neutral-line-separator-1)",
-                  borderRadius: "var(--radius-card)",
-                  boxShadow: "var(--elevation-sm)",
-                  padding: "16px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "16px",
-                  zIndex: 1000,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "var(--text-title-2)",
-                      fontWeight: "var(--font-weight-bold)",
-                    }}
-                  >
-                    {toolbarFilterConfig.title}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      toolbarFilterConfig.onChange("all");
-                      setOpenToolbarFilterKey(null);
-                    }}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      color: "var(--status-red-primary)",
-                      cursor: "pointer",
-                      fontSize: "var(--text-body)",
-                      fontWeight: "var(--font-weight-bold)",
-                    }}
-                  >
-                    Remove Filter
-                  </button>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "12px",
-                    maxHeight: "260px",
-                    overflowY: "auto",
-                    paddingRight: "4px",
-                  }}
-                >
-                  {toolbarFilterConfig.options.map((option) => (
-                    <label
-                      key={String(option.value)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "12px",
-                        cursor: "pointer",
-                        fontSize: "var(--text-title-3)",
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name="admin-toolbar-filter-groups-role"
-                        checked={
-                          String(toolbarFilterConfig.value) ===
-                          String(option.value)
-                        }
-                        onChange={() => {
-                          toolbarFilterConfig.onChange(option.value);
-                          setOpenToolbarFilterKey(null);
-                        }}
-                      />
-                      <span>{option.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </>
-          ) : null}
+          <FilterMenu
+            label="Role"
+            searchable={false}
+            options={roleOptions}
+            value={tableFiltersByTab.groups.role}
+            onChange={(v) => updateTableFilter("groups", "role", v)}
+            allValue="all"
+          />
         </div>
         <TableSearchField
           value={tableSearchByTab.groups}

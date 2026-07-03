@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 
 // Icons
-import { ImageAssetIcon } from "../../../components/icons/Icons.jsx";
+import { ImageAssetIcon, HelpCircle } from "../../../components/icons/Icons.jsx";
+
+// Notifications
+import { useNotifications } from "../../../context/NotificationContext.jsx";
 
 // Constants
 import {
@@ -64,7 +67,6 @@ import {
   poReferenceTableHeaderCellStyle,
   poReferenceTableCellStyle,
   poReferenceTableEmptyStateStyle,
-  tabButtonStyle
 } from "../components/detail/shared/PoDetailSharedComponents.jsx";
 
 // Utils
@@ -86,13 +88,12 @@ import {
   formatUploadFileSize,
   getImageUploadPreviewUrl,
   normalizeProofDocuments,
-  createUploadDocumentRecord,
 } from "../../../utils/upload/uploadUtils.js";
 
 // Common UI Components
 import { GeneralModal } from "../../../components/modal/GeneralModal.jsx";
 import { Sidebar } from "../../../components/layout/Sidebar.jsx";
-
+import { addWoActivityLog } from "../../work-order/pages/WorkOrderDetailPage.jsx";
 
 export const PurchaseOrderDetailPage = ({
   onNavigate,
@@ -122,7 +123,18 @@ export const PurchaseOrderDetailPage = ({
         initialData !== null &&
         (initialData.formData || initialData.receiptLines)
       ) {
-        return mockMatch ? { ...mockMatch, ...initialData } : initialData;
+        const merged = mockMatch ? { ...mockMatch, ...initialData } : initialData;
+        // Prefer the live mock's formData lines — they include any newly-injected assignment lines
+        if (mockMatch?.formData?.lines?.length) {
+          return {
+            ...merged,
+            formData: {
+              ...merged.formData,
+              lines: mockMatch.formData.lines,
+            },
+          };
+        }
+        return merged;
       }
       return mockMatch || initialData;
     }
@@ -147,7 +159,19 @@ export const PurchaseOrderDetailPage = ({
         initialData !== null &&
         (initialData.formData || initialData.receiptLines)
       ) {
-        setLocalPoData(mockMatch ? { ...mockMatch, ...initialData } : initialData);
+        const merged = mockMatch ? { ...mockMatch, ...initialData } : initialData;
+        // Prefer the live mock's formData lines — they include any newly-injected assignment lines
+        if (mockMatch?.formData?.lines?.length) {
+          setLocalPoData({
+            ...merged,
+            formData: {
+              ...merged.formData,
+              lines: mockMatch.formData.lines,
+            },
+          });
+        } else {
+          setLocalPoData(merged);
+        }
       } else {
         setLocalPoData(mockMatch || initialData);
       }
@@ -170,6 +194,7 @@ export const PurchaseOrderDetailPage = ({
   } = usePoVersions({ basePoData: localPoData });
 
   const poNumber = typeof initialData === 'string' ? initialData : (initialData?.poNumber || "PO-202603-0001");
+  const { notify, currentUser: notifUser } = useNotifications();
   const [currentStatus, setCurrentStatus] = useState(
     displayData?.status || "Draft"
   );
@@ -195,22 +220,31 @@ export const PurchaseOrderDetailPage = ({
     ? displayValue(formData?.poDate)
     : displayData?.createdDate || "2026-03-20";
 
-  const createdAtDate = displayData?.createdAt || "2026-03-20";
+  const mockLines = useMemo(() => {
+    const lines = hasDraftData
+      ? (formData?.lines || []).map((line, index) => ({
+        ...line,
+        id: line.id || `po-line-${index}`,
+        item: line.item || `Item ${index + 1}`,
+        sku: line.sku || "-",
+        qty: parseFloat(line.qty) || 0,
+        price: parseFloat(line.price) || 0,
+      }))
+      : displayData?.lines || [];
 
-  const mockLines = useMemo(
-    () =>
-      hasDraftData
-        ? (formData?.lines || []).map((line, index) => ({
-          ...line,
-          id: line.id || `po-line-${index}`,
-          item: line.item || `Item ${index + 1}`,
-          sku: line.sku || "-",
-          qty: parseFloat(line.qty) || 0,
-          price: parseFloat(line.price) || 0,
-        }))
-        : displayData?.lines || [],
-    [hasDraftData, formData, displayData]
-  );
+    return [...lines].sort((a, b) => {
+      const typeWeight = { wo: 1, material: 2, manual: 3 };
+      const aType = typeWeight[a.type] || 99;
+      const bType = typeWeight[b.type] || 99;
+      if (aType !== bType) return aType - bType;
+
+      const aRef = a.woRef && a.woRef !== "-" ? a.woRef : "";
+      const bRef = b.woRef && b.woRef !== "-" ? b.woRef : "";
+      if (aRef < bRef) return -1;
+      if (aRef > bRef) return 1;
+      return 0;
+    });
+  }, [hasDraftData, formData, displayData]);
 
   const subtotal = useMemo(() => {
     return mockLines.reduce((sum, line) => sum + (line.qty || 0) * (line.price || 0), 0);
@@ -329,12 +363,23 @@ export const PurchaseOrderDetailPage = ({
     currentStatus,
   });
   const initialReceiptLines = useMemo(() => {
-    const rawLines = displayData?.receiptLines || 
+    const lines = displayData?.receiptLines || 
       displayData?.formData?.receiptLines || 
       displayData?.lines || 
       displayData?.formData?.lines || 
       [];
-    return rawLines.filter(l => !l.isDeleted);
+    return [...lines].sort((a, b) => {
+      const typeWeight = { wo: 1, material: 2, manual: 3 };
+      const aType = typeWeight[a.type] || 99;
+      const bType = typeWeight[b.type] || 99;
+      if (aType !== bType) return aType - bType;
+
+      const aRef = a.woRef && a.woRef !== "-" ? a.woRef : "";
+      const bRef = b.woRef && b.woRef !== "-" ? b.woRef : "";
+      if (aRef < bRef) return -1;
+      if (aRef > bRef) return 1;
+      return 0;
+    });
   }, [displayData]);
   const initialReceiptLogs = useMemo(() => displayData?.receiptLogs || displayData?.formData?.receiptLogs || [], [displayData]);
 
@@ -385,34 +430,6 @@ export const PurchaseOrderDetailPage = ({
   const initialPayments = useMemo(() => displayData?.payments || [], [displayData]);
   const initialInvoiceLogs = useMemo(() => [], []);
 
-  const addDocumentFromAction = useCallback((fileObject, description, docType) => {
-    if (!fileObject) return;
-    const modifiedLabel = "Mar 31, 2026";
-    const newDoc = createUploadDocumentRecord(fileObject, {
-      id: `doc-${Date.now()}`,
-      name: fileObject.name,
-      description: description,
-      meta: `Uploaded by Natasha Smith on ${modifiedLabel}`,
-      documentType: docType,
-      modifiedDate: modifiedLabel,
-      size: formatUploadFileSize(fileObject.size || 0),
-    });
-
-    setDocuments((prev) => [newDoc, ...prev]);
-    setDocumentActivityLogs((prev) => [
-      {
-        name: "Natasha Smith",
-        email: "natasha.smith@company.com",
-        title: "Document Uploaded",
-        desc: newDoc.description
-          ? `${newDoc.description} (${newDoc.name})`
-          : newDoc.name,
-        timestamp: getCurrentLogTimestamp(),
-      },
-      ...prev,
-    ]);
-  }, [setDocuments, setDocumentActivityLogs]);
-
   const {
     invoices,
     setInvoices,
@@ -422,10 +439,6 @@ export const PurchaseOrderDetailPage = ({
     setInvoicePaymentLogs,
     invoiceSearch,
     setInvoiceSearch,
-    invoiceDateFilterType,
-    setInvoiceDateFilterType,
-    invoiceCustomDateRange,
-    setInvoiceCustomDateRange,
     invoiceRowsPerPage,
     setInvoiceRowsPerPage,
     invoiceCurrentPage,
@@ -470,14 +483,6 @@ export const PurchaseOrderDetailPage = ({
     setAutoPrefillInvoice,
     autoPrefillPayment,
     setAutoPrefillPayment,
-    deleteInvoiceReason,
-    setDeleteInvoiceReason,
-    deleteInvoiceReasonError,
-    setDeleteInvoiceReasonError,
-    voidPaymentReason,
-    setVoidPaymentReason,
-    voidPaymentReasonError,
-    setVoidPaymentReasonError,
     getInvoiceMetrics,
     getAgingStatus,
     getInvoiceStatus,
@@ -508,8 +513,16 @@ export const PurchaseOrderDetailPage = ({
     setShowZeroAmountConfirmModal,
     exceededItems,
     saveInvoice,
+    checkPoValueAndSave,
     proceedAfterQtyExceed,
-    proceedAfterZeroAmount,
+    deleteInvoiceReason,
+    setDeleteInvoiceReason,
+    deleteInvoiceReasonError,
+    setDeleteInvoiceReasonError,
+    voidPaymentReason,
+    setVoidPaymentReason,
+    voidPaymentReasonError,
+    setVoidPaymentReasonError,
   } = usePoInvoices({
     initialInvoices,
     initialPayments,
@@ -520,37 +533,8 @@ export const PurchaseOrderDetailPage = ({
     poNumber,
     vendorName: initialData?.vendorName,
     showToast,
-    addDocumentFromAction,
+    onAddDocument: (doc) => setDocuments((prev) => [doc, ...prev]),
   });
-
-  const overallPaymentStatus = useMemo(() => {
-    if (invoices.length === 0) return { text: "Unpaid", variant: "grey-light" };
-    const statuses = invoices.map((inv) => {
-      const metrics = getInvoiceMetrics(inv);
-      return getInvoiceStatus(inv, metrics);
-    });
-    const allPaid = statuses.every((s) => s.text === "Paid");
-    // "Paid" requires a last invoice to be marked AND every invoice fully paid.
-    // Otherwise fall through to the regular states (a fully-paid-but-unmarked PO
-    // stays "Partially Paid").
-    if (lastInvoiceId && allPaid) return { text: "Paid", variant: "green-light" };
-    const hasOverdue = statuses.some((s) => s.text === "Overdue");
-    if (hasOverdue) return { text: "Overdue", variant: "red-light" };
-    const anyPaid = statuses.some((s) => s.text === "Paid" || s.text === "Partially Paid");
-    if (anyPaid) return { text: "Partially Paid", variant: "blue-light" };
-    return { text: "Unpaid", variant: "grey-light" };
-  }, [invoices, getInvoiceMetrics, getInvoiceStatus, lastInvoiceId]);
-
-  // Sync invoices and payments back to MOCK_PO_TABLE_DATA for cache
-  useEffect(() => {
-    if (poNumber) {
-      const row = MOCK_PO_TABLE_DATA.find((r) => r.poNumber === poNumber);
-      if (row) {
-        row.invoices = invoices;
-        row.payments = payments;
-      }
-    }
-  }, [invoices, payments, poNumber]);
 
   const [threeWaysMatchCurrentPage, setThreeWaysMatchCurrentPage] = useState(1);
   const [threeWaysMatchRowsPerPage, setThreeWaysMatchRowsPerPage] = useState(25);
@@ -601,34 +585,63 @@ export const PurchaseOrderDetailPage = ({
 
 
   const threeWaysMatchData = useMemo(() => {
-    return mockLines.reduce((acc, line) => {
+    const linesToProcess = [...mockLines];
+    const allKnownLines = new Map();
+
+    if (versions && versions.length > 0) {
+      versions.forEach(v => {
+        (v.data?.lines || []).forEach(l => {
+          if (!allKnownLines.has(l.id)) allKnownLines.set(l.id, l);
+        });
+      });
+    }
+    if (initialData?.lines) {
+      initialData.lines.forEach(l => {
+        if (!allKnownLines.has(l.id)) allKnownLines.set(l.id, l);
+      });
+    }
+    if (localPoData?.lines) {
+      localPoData.lines.forEach(l => {
+        if (!allKnownLines.has(l.id)) allKnownLines.set(l.id, l);
+      });
+    }
+
+    allKnownLines.forEach((origLine) => {
+      if (!mockLines.find(l => l.id === origLine.id)) {
+        const hasInvoice = invoices.some(inv => (inv.itemLines || []).some(il => String(il.id) === String(origLine.id) || String(il.id) === `l${origLine.id}`));
+        if (hasInvoice) {
+          if (!linesToProcess.find(l => l.id === origLine.id)) {
+            linesToProcess.push({
+              ...origLine,
+              qty: 0,
+              isDeleted: true
+            });
+          }
+        }
+      }
+    });
+
+    return linesToProcess.map((line) => {
       const receiptLine = receiptLines.find((rl) => rl.id === line.id);
       const receivedQty = receiptLine ? receiptLine.receivedQty : 0;
 
       let invoicedQty = 0;
-      let hasInvoice = false;
       invoices.forEach((inv) => {
         (inv.itemLines || []).forEach((il) => {
           const ilIdStr = String(il.id);
           if (ilIdStr === String(line.id) || ilIdStr === `l${line.id}`) {
             invoicedQty += Number(il.qty) || 0;
-            hasInvoice = true;
           }
         });
       });
 
-      if (line.isDeleted && !hasInvoice) {
-        return acc;
-      }
-
-      acc.push({
+      return {
         ...line,
         receivedQty,
         invoicedQty,
-      });
-      return acc;
-    }, []);
-  }, [mockLines, receiptLines, invoices]);
+      };
+    });
+  }, [mockLines, receiptLines, invoices, initialData, versions, localPoData]);
   const detailNotes = hasDraftData
     ? displayValue(formData?.notes)
     : "Please ensure all items are packaged securely to prevent damage during transit. Deliveries are only accepted between 08:00 AM and 04:00 PM on weekdays.";
@@ -649,6 +662,30 @@ export const PurchaseOrderDetailPage = ({
 
 
 
+
+  const computePaymentStatus = (invList, payList) => {
+    if (!invList || invList.length === 0) return "Unpaid";
+    const today = new Date();
+    let allPaid = true;
+    let anyOverdue = false;
+    let anyPartial = false;
+    let anyPaid = false;
+    for (const inv of invList) {
+      const paid = payList.filter(p => !p.isVoid && p.invoiceId === inv.id).reduce((s, p) => s + (p.amount || 0), 0);
+      const outstanding = Math.max((inv.amount || 0) - paid, 0);
+      const isOverdue = new Date(inv.dueDate) < today && outstanding > 0;
+      if (outstanding > 0) allPaid = false;
+      if (isOverdue) anyOverdue = true;
+      if (paid > 0) anyPaid = true;
+      if (paid > 0 && outstanding > 0) anyPartial = true;
+    }
+    // "Paid" requires a final invoice to be marked AND every invoice fully paid.
+    // Otherwise a fully-paid-but-unmarked PO stays "Partially Paid".
+    if (lastInvoiceId && allPaid) return "Paid";
+    if (anyOverdue) return "Overdue";
+    if (anyPartial || anyPaid) return "Partially Paid";
+    return "Unpaid";
+  };
 
   const showHeaderEdit =
     currentStatus === "Draft" || currentStatus === "Need Revision";
@@ -982,8 +1019,24 @@ export const PurchaseOrderDetailPage = ({
     if (nextStatus === "Issued") {
       syncPoToStockBatches("issue");
     }
+
+    updateMockWoDataWithPoStatus({
+      status: nextStatus,
+      statusKey: nextStatusKey,
+      sBadge: nextBadge,
+      receiptLogs: receiptLogs, // assuming it's available, otherwise passing empty is fine since no new logs
+    });
     
     setShowDetailSubmitConfirmModal(false);
+
+    // Notification: submitted for approval → notify all configured approvers.
+    if (approvalOn) {
+      notify("purchase_order", "submitted", {
+        entityId: poNumber,
+        submitterName: notifUser.name,
+        submitterUser: notifUser,
+      });
+    }
 
     if (
       initialData?.from === "work_order_detail" &&
@@ -1045,6 +1098,9 @@ export const PurchaseOrderDetailPage = ({
             image:
               initialData?.returnTo?.data?.image ||
               mockLines.find((line) => line.type === "wo")?.image ||
+              "",
+            assignmentId:
+              mockLines.find((line) => line.type === "wo")?.assignmentId ||
               "",
           },
           assignedOutput:
@@ -1119,6 +1175,9 @@ export const PurchaseOrderDetailPage = ({
               initialData?.returnTo?.data?.image ||
               mockLines.find((line) => line.type === "wo")?.image ||
               "",
+            assignmentId:
+              mockLines.find((line) => line.type === "wo")?.assignmentId ||
+              "",
           },
           assignedOutput:
             mockLines.find((line) => line.type === "wo")?.qty || 0,
@@ -1155,6 +1214,38 @@ export const PurchaseOrderDetailPage = ({
     });
   };
 
+
+  const updateMockWoDataWithPoStatus = (statusInfo) => {
+    MOCK_WO_TABLE_DATA.forEach(wo => {
+      let hasChanges = false;
+      const nextVendors = (wo.vendors || []).map(v => {
+        if (v.poNumber === poNumber) {
+          hasChanges = true;
+          const isApproved = statusInfo.status === "Issued" || statusInfo.status === "Completed";
+          return {
+            ...v,
+            ...(isApproved ? getApprovedVendorReturnState(v) : {}),
+            isPoApproved: isApproved,
+            poStatus: statusInfo.status,
+            poBadge: statusInfo.sBadge,
+            poStatusKey: statusInfo.statusKey,
+            poDetailData: buildCurrentPoSnapshot({
+              status: statusInfo.status,
+              statusKey: statusInfo.statusKey,
+              sBadge: statusInfo.sBadge,
+              receiptLogs: statusInfo.receiptLogs,
+              revisionMessage: statusInfo.revisionMessage,
+              canceledMessage: statusInfo.canceledMessage,
+            }),
+          };
+        }
+        return v;
+      });
+      if (hasChanges) {
+        wo.vendors = nextVendors;
+      }
+    });
+  };
 
   const handleSubmitDecision = () => {
     const meta = getDecisionMeta();
@@ -1196,6 +1287,14 @@ export const PurchaseOrderDetailPage = ({
         setLocalPoData(MOCK_PO_TABLE_DATA[poIndex]);
       }
 
+      updateMockWoDataWithPoStatus({
+        status: "Canceled",
+        statusKey: nextStatusKey,
+        sBadge: "red",
+        receiptLogs: nextReceiptLogs,
+        canceledMessage: trimmedComment,
+      });
+
       if (
         currentStatus === "Issued" &&
         !hasReceiptHistory &&
@@ -1207,6 +1306,14 @@ export const PurchaseOrderDetailPage = ({
           data: clearLinkedWorkOrderVendorPo(returnData.data),
         });
       }
+
+      // Notification: rejected → notify latest submitter (CC approvers).
+      notify("purchase_order", "rejected", {
+        entityId: poNumber,
+        approverName: notifUser.name,
+        reason: trimmedComment,
+        submitterUser: notifUser,
+      });
 
       handlePoAction("Purchase order successfully canceled");
     } else if (decisionType === "revision") {
@@ -1241,6 +1348,14 @@ export const PurchaseOrderDetailPage = ({
         setLocalPoData(MOCK_PO_TABLE_DATA[poIndex]);
       }
 
+      updateMockWoDataWithPoStatus({
+        status: "Need Revision",
+        statusKey: nextStatusKey,
+        sBadge: "yellow",
+        receiptLogs: nextReceiptLogs,
+        revisionMessage: trimmedComment,
+      });
+
       if (
         initialData?.from === "work_order_detail" &&
         returnData?.data
@@ -1272,6 +1387,14 @@ export const PurchaseOrderDetailPage = ({
           data: updatedReturnData,
         });
       }
+
+      // Notification: need revision → notify latest submitter (CC approvers).
+      notify("purchase_order", "need_revision", {
+        entityId: poNumber,
+        approverName: notifUser.name,
+        note: trimmedComment,
+        submitterUser: notifUser,
+      });
 
       handlePoAction("Purchase order revision successfully requested");
     } else {
@@ -1308,6 +1431,13 @@ export const PurchaseOrderDetailPage = ({
         setLocalPoData(MOCK_PO_TABLE_DATA[poIndex]);
       }
 
+      updateMockWoDataWithPoStatus({
+        status: "Issued",
+        statusKey: resolvePoStatusKey("Issued"),
+        sBadge: "blue",
+        receiptLogs: nextReceiptLogs,
+      });
+
       if (
         initialData?.from === "work_order_detail" &&
         returnData?.data
@@ -1337,6 +1467,21 @@ export const PurchaseOrderDetailPage = ({
         setReturnData({
           ...returnData,
           data: updatedReturnData,
+        });
+      }
+
+      // Notification: all approved → Issued. Notify latest submitter (CC
+      // approvers), plus a cross-module in-app to the linked Work Order creator.
+      notify("purchase_order", "all_approved", {
+        entityId: poNumber,
+        submitterUser: notifUser,
+      });
+      const linkedWo = (mockLines || []).find((l) => l.woRef)?.woRef;
+      if (linkedWo) {
+        notify("purchase_order", "wo_cross_module", {
+          entityId: poNumber,
+          workOrderNo: linkedWo,
+          woCreatorUser: notifUser,
         });
       }
 
@@ -1519,7 +1664,7 @@ export const PurchaseOrderDetailPage = ({
           email: "-",
           title: "Completed",
           desc: "All ordered items have been fully received.",
-          timestamp: "2026-03-30 at 11:00",
+          timestamp: `${createdDate} at 17:30`,
         },
         {
           name: approvalEnabled
@@ -1630,6 +1775,34 @@ export const PurchaseOrderDetailPage = ({
     const receivedNowMap = {};
     affectedLines.forEach(line => {
       receivedNowMap[line.id] = Number(line.receiveNow) || 0;
+      
+      // Update Work Order Mock based on assignmentId
+      if (line.type === "wo" && line.woRef && line.woRef !== "-" && line.assignmentId) {
+        const wo = MOCK_WO_TABLE_DATA.find(w => w.wo === line.woRef);
+        if (wo && wo.vendors) {
+          const vendor = wo.vendors.find(v => v.assignmentId === line.assignmentId);
+          if (vendor) {
+            const receivedNow = Number(line.receiveNow) || 0;
+            vendor.receivedOutput = (Number(vendor.receivedOutput) || 0) + receivedNow;
+            if (!vendor.receipts) vendor.receipts = [];
+            vendor.receipts.push({
+              receiptId: `RCPT-${String(vendor.receipts.length + 1).padStart(4, "0")}`,
+              amount: receivedNow,
+              date: submittedDate,
+              attachment: normalizedProofDocuments[0]?.file?.name || normalizedProofDocuments[0]?.name || "proof.pdf",
+              attachments: normalizedProofDocuments,
+              note: normalizedReceiptNotes,
+            });
+            if (vendor.receivedOutput >= Number(vendor.output)) {
+              vendor.status = "Completed";
+              vendor.receivedDate = submittedDate;
+            } else if (vendor.receivedOutput > 0) {
+              vendor.status = "Partially Received";
+            }
+            addWoActivityLog(line.woRef, "Assignment Receipt", `Received ${receivedNow} items for ${line.assignmentId}`);
+          }
+        }
+      }
     });
     syncPoToStockBatches("receipt", { receivedNowMap });
     
@@ -1695,87 +1868,98 @@ export const PurchaseOrderDetailPage = ({
       let nextRoutingStages = [...(woData.routingStages || [])];
       let nextRoutingUpdates = [...(woData.routingUpdates || [])];
 
+      if (showAutoAdjustWoMessage && workOrderReceivedNow > 0) {
+        const totalExternalReceived = (woData.vendors || []).reduce((sum, v) => {
+          if (v.poNumber === poNumber) {
+            const currentReceived = Number(v.receivedOutput || 0);
+            const vReceivedNow = affectedLines.reduce((s, l) => {
+              if (l.type === "wo" && l.assignmentId === v.assignmentId) {
+                return s + (Number(l.receiveNow) || 0);
+              }
+              return s;
+            }, 0);
+            return sum + currentReceived + vReceivedNow;
+          }
+          if (v.name !== "Internal") {
+            return sum + Number(v.receivedOutput || 0);
+          }
+          return sum;
+        }, 0);
+
+        const outsourceSteps = woData.outsourceSteps || [];
+        if (outsourceSteps.length > 0) {
+          const minStep = Math.min(...outsourceSteps);
+          const stageIndex = nextRoutingStages.findIndex((s) => s.step === minStep);
+          
+          if (stageIndex > 0) {
+            nextRoutingStages = nextRoutingStages.map((stage, idx) => {
+              if (idx < stageIndex) {
+                const currentComp = Number(stage.totalComp || stage.comp || 0);
+                if (currentComp < totalExternalReceived) {
+                   return {
+                     ...stage,
+                     comp: totalExternalReceived,
+                     totalComp: totalExternalReceived
+                   };
+                }
+              }
+              return stage;
+            });
+
+            const now = new Date();
+            const formattedDate = now.toLocaleString("en-US", {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            }).replace(",", "");
+
+            nextRoutingUpdates.push({
+              qty: totalExternalReceived,
+              timestamp: formattedDate,
+              poNumber: poNumber,
+              vendorName: initialData?.vendorName || "Vendor A",
+              fullDate: now.toISOString(),
+            });
+          }
+        }
+      }
+
       const updatedReturnData = {
         ...woData,
         vendors: (woData.vendors || []).map((vendor) => {
           if (vendor.poNumber !== poNumber) return vendor;
 
+          const vendorReceivedNow = affectedLines.reduce((s, l) => {
+            if (l.type === "wo" && l.assignmentId === vendor.assignmentId) {
+              return s + (Number(l.receiveNow) || 0);
+            }
+            return s;
+          }, 0);
+
           const vendorOutput = Number(vendor.output || 0);
           const currentVendorReceived = Number(vendor.receivedOutput || 0);
 
           const nextVendorReceived =
-            workOrderReceivedNow > 0
+            vendorReceivedNow > 0
               ? vendorOutput > 0
                 ? Math.min(
                   vendorOutput,
-                  currentVendorReceived + workOrderReceivedNow
+                  currentVendorReceived + vendorReceivedNow
                 )
-                  : currentVendorReceived + workOrderReceivedNow
+                  : currentVendorReceived + vendorReceivedNow
               : currentVendorReceived;
-
-          const totalExternalReceived = (woData.vendors || []).reduce((sum, v) => {
-            if (v.poNumber === poNumber) {
-              const currentReceived = Number(v.receivedOutput || 0);
-              return sum + currentReceived + workOrderReceivedNow;
-            }
-            if (v.name !== "Internal") {
-              return sum + Number(v.receivedOutput || 0);
-            }
-            return sum;
-          }, 0);
-
-          if (showAutoAdjustWoMessage) {
-            const outsourceSteps = woData.outsourceSteps || [];
-            if (outsourceSteps.length > 0) {
-              const minStep = Math.min(...outsourceSteps);
-              const stageIndex = nextRoutingStages.findIndex((s) => s.step === minStep);
-              
-              if (stageIndex > 0) {
-                // Update previous stages
-                nextRoutingStages = nextRoutingStages.map((stage, idx) => {
-                  if (idx < stageIndex) {
-                    const currentComp = Number(stage.totalComp || stage.comp || 0);
-                    if (currentComp < totalExternalReceived) {
-                       return {
-                         ...stage,
-                         comp: totalExternalReceived,
-                         totalComp: totalExternalReceived
-                       };
-                    }
-                  }
-                  return stage;
-                });
-
-                // Add history entry
-                const now = new Date();
-                const formattedDate = now.toLocaleString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                }).replace(",", ""); // e.g. "Apr 22 14:32"
-
-                nextRoutingUpdates.push({
-                  qty: totalExternalReceived,
-                  timestamp: formattedDate,
-                  poNumber: poNumber,
-                  vendorName: initialData?.vendorName || "Vendor A",
-                  fullDate: now.toISOString(),
-                });
-              }
-            }
-          }
 
           const vendorFullyReceived =
             vendorOutput > 0 && nextVendorReceived >= vendorOutput;
 
           const nextVendorReceipt =
-            workOrderReceivedNow > 0
+            vendorReceivedNow > 0
               ? {
                 id: `receipt-log-${Date.now()}`,
                 receiptNumber: nextReceiptEntry.receiptNumber,
-                amount: workOrderReceivedNow,
+                amount: vendorReceivedNow,
                 date: submittedDate,
                 time: submittedTime,
                 receivedBy: receiptReceivedBy || "Natasha Smith",
@@ -1796,13 +1980,13 @@ export const PurchaseOrderDetailPage = ({
             poStatusKey: nextPoStatusKey,
             poDetailData: nextPoSnapshot,
             status:
-              workOrderReceivedNow > 0 || nextVendorReceived > 0
+              vendorReceivedNow > 0 || nextVendorReceived > 0
                 ? vendorFullyReceived
                   ? "Completed"
                   : "Partially Received"
                 : vendor.status,
             receivedDate:
-              workOrderReceivedNow > 0
+              vendorReceivedNow > 0
                 ? vendorFullyReceived
                   ? submittedDate
                   : vendor.receivedDate || ""
@@ -1907,10 +2091,10 @@ export const PurchaseOrderDetailPage = ({
         isExportingPdf={isExportingPdf}
         initialData={initialData}
         createdDate={createdDate}
-        createdAtDate={createdAtDate}
+        actualCreatedDate={displayData?.createdDate || createdDate}
         expectedDeliveryDate={expectedDeliveryDate}
         currencyLabel={currencyLabel}
-        overallPaymentStatus={overallPaymentStatus}
+        paymentStatus={computePaymentStatus(invoices, payments)}
         revisionMessage={revisionMessage}
         canceledMessage={canceledMessage}
         showHeaderEdit={showHeaderEdit}
@@ -2044,21 +2228,21 @@ export const PurchaseOrderDetailPage = ({
                     width: "100%",
                   }}
                 >
-                  <div style={{ overflowX: mockLines.filter(l => !l.isDeleted).length > 0 ? "auto" : "hidden", width: "100%" }}>
-                    <div
-                      style={{
-                        minWidth: mockLines.filter(l => !l.isDeleted).length > 0 ? "1466px" : "100%",
-                        width: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                      }}
-                    >
-                      {mockLines.filter(l => !l.isDeleted).length > 0 && (
+                  <div style={{ overflowX: mockLines.length > 0 ? "auto" : "hidden", width: "100%" }}>
+                      <div
+                        style={{
+                          minWidth: "100%",
+                          width: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                        }}
+                      >
+                      {mockLines.length > 0 && (
                         <div
                           style={{
                             display: "grid",
                             gridTemplateColumns:
-                              "76px minmax(220px, 1.5fr) minmax(220px, 2.5fr) 110px 64px 130px 130px",
+                              "76px minmax(140px, 1.2fr) minmax(160px, 1.8fr) minmax(140px, 1.2fr) 60px 110px 110px",
                             gap: "8px",
                             padding: "0 16px",
                             height: "49px",
@@ -2075,7 +2259,7 @@ export const PurchaseOrderDetailPage = ({
                           <span>Type</span>
                           <span>Item</span>
                           <span style={{ paddingRight: "24px" }}>Description</span>
-                          <span>WO Ref</span>
+                          <span>WO Ref & Assignment</span>
                           <span style={{ textAlign: "left" }}>Qty</span>
                           <span style={{ textAlign: "right" }}>Unit Price</span>
                           <span style={{ textAlign: "right" }}>Subtotal</span>
@@ -2094,8 +2278,8 @@ export const PurchaseOrderDetailPage = ({
                         </div>
                       )}
 
-                      {mockLines.filter(l => !l.isDeleted).length > 0 ? (
-                        mockLines.filter(l => !l.isDeleted).map((line, idx, arr) => {
+                      {mockLines.length > 0 ? (
+                        mockLines.map((line, idx) => {
                           const isWO = line.type === "wo";
                           const lineSubtotal =
                             (parseFloat(line.qty) || 0) *
@@ -2110,7 +2294,7 @@ export const PurchaseOrderDetailPage = ({
                               style={{
                                 display: "grid",
                                 gridTemplateColumns:
-                                  "76px minmax(220px, 1.5fr) minmax(220px, 2.5fr) 110px 64px 130px 130px",
+                                  "76px minmax(140px, 1.2fr) minmax(160px, 1.8fr) minmax(140px, 1.2fr) 60px 110px 110px",
                                 gap: "8px",
                                 padding: "0 16px",
                                 minHeight: "64px",
@@ -2119,13 +2303,13 @@ export const PurchaseOrderDetailPage = ({
                                 position: "relative",
                                 width: "100%",
                                 borderBottom:
-                                  idx === arr.length - 1
+                                  idx === mockLines.length - 1
                                     ? "none"
                                     : "1px solid var(--neutral-line-separator-1)",
                                 boxSizing: "border-box",
                               }}
                             >
-                              <div style={{ justifySelf: "start" }}>
+                              <div>
                                 <StatusBadge
                                   variant={
                                     isWO
@@ -2233,7 +2417,7 @@ export const PurchaseOrderDetailPage = ({
                                   </span>
                                 </div>
                               </div>
-                              <div style={{ minWidth: 0, padding: "12px 0", paddingRight: "24px" }}>
+                              <div style={{ minWidth: 0, padding: "16px 0", paddingRight: "24px" }}>
                                 <span
                                   style={{
                                     display: "block",
@@ -2247,7 +2431,7 @@ export const PurchaseOrderDetailPage = ({
                                   {displayValue(line.desc)}
                                 </span>
                               </div>
-                              <div style={{ minWidth: 0 }}>
+                              <div style={{ minWidth: 0, padding: "12px 0", paddingRight: "16px" }}>
                                 <span
                                   onClick={() => {
                                     if (!line.woRef || line.woRef === "-")
@@ -2281,14 +2465,39 @@ export const PurchaseOrderDetailPage = ({
                                       line.woRef && line.woRef !== "-"
                                         ? "pointer"
                                         : "default",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
+                                    whiteSpace: "normal",
+                                    wordBreak: "break-all",
                                   }}
-                                  title={displayValue(line.woRef)}
                                 >
                                   {displayValue(line.woRef)}
                                 </span>
+                                {line.assignmentId && line.assignmentId !== "-" && (
+                                  <div style={{ marginTop: "4px", width: "100%", lineHeight: "1.4" }}>
+                                    <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)", whiteSpace: "normal", wordBreak: "break-word" }}>
+                                      Assignment: <span>{line.assignmentId}</span>
+                                    </span>
+                                    {line.outsourceSteps && line.outsourceSteps.length > 0 && (
+                                      <span style={{ display: "inline-flex", alignItems: "center", marginLeft: "4px", verticalAlign: "-2px" }}>
+                                      <Tooltip 
+                                        content={
+                                          <div style={{ display: "flex", flexDirection: "column", gap: "4px", textAlign: "left" }}>
+                                            {line.outsourceSteps.map(step => {
+                                              const woData = MOCK_WO_TABLE_DATA.find(w => w.wo === line.woRef);
+                                              const stage = woData?.routingStages?.find(s => s.step === step);
+                                              return <div key={step}>Step {step}: {stage ? `${stage.route} - ${stage.op}` : "Unknown Stage"}</div>;
+                                            })}
+                                          </div>
+                                        } 
+                                        position="top"
+                                      >
+                                        <div style={{ display: "flex", alignItems: "center" }}>
+                                          <HelpCircle size={14} color="var(--neutral-on-surface-tertiary)" style={{ cursor: "pointer" }} />
+                                        </div>
+                                      </Tooltip>
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                               <div
                                 style={{
@@ -2554,15 +2763,11 @@ export const PurchaseOrderDetailPage = ({
           poGap={poGap}
           overdueAmount={overdueAmount}
           invoiceSearch={invoiceSearch}
-          invoiceDateFilterType={invoiceDateFilterType}
-          invoiceCustomDateRange={invoiceCustomDateRange}
           currentStatus={currentStatus}
           invoices={invoices}
           invoiceCurrentPage={invoiceCurrentPage}
           invoiceRowsPerPage={invoiceRowsPerPage}
           setInvoiceSearch={setInvoiceSearch}
-          setInvoiceDateFilterType={setInvoiceDateFilterType}
-          setInvoiceCustomDateRange={setInvoiceCustomDateRange}
           setShowAddInvoiceDrawer={setShowAddInvoiceDrawer}
           setSelectedInvoiceForDetail={setSelectedInvoiceForDetail}
           setActiveInvoiceTab={setActiveInvoiceTab}
@@ -2587,13 +2792,8 @@ export const PurchaseOrderDetailPage = ({
         />
       ) : activeTab === "documents" ? (
         <PoDocumentsTab
-          displayValue={displayValue}
-          documentFilterTriggerRef={documentFilterTriggerRef}
-          showDocumentFilterMenu={showDocumentFilterMenu}
-          setShowDocumentFilterMenu={setShowDocumentFilterMenu}
           documentTypeFilters={documentTypeFilters}
           setDocumentTypeFilters={setDocumentTypeFilters}
-          documentFilterMenuPosition={documentFilterMenuPosition}
           documentTypeFilterOptions={documentTypeFilterOptions}
           documentSearch={documentSearch}
           setDocumentSearch={setDocumentSearch}
@@ -2605,8 +2805,6 @@ export const PurchaseOrderDetailPage = ({
           openDocumentMenuId={openDocumentMenuId}
           setOpenDocumentMenuId={setOpenDocumentMenuId}
           documentMenuPosition={documentMenuPosition}
-          updateDocumentFilterMenuPosition={updateDocumentFilterMenuPosition}
-          toggleDocumentTypeFilter={toggleDocumentTypeFilter}
           resetDocumentUploadState={resetDocumentUploadState}
           setShowUploadDocumentModal={setShowUploadDocumentModal}
           handleDocumentAction={handleDocumentAction}
@@ -2988,7 +3186,6 @@ export const PurchaseOrderDetailPage = ({
       />
 
       <PoDocumentModals
-        displayValue={displayValue}
         showUploadDocumentModal={showUploadDocumentModal}
         setShowUploadDocumentModal={setShowUploadDocumentModal}
         resetDocumentUploadState={resetDocumentUploadState}
@@ -3000,6 +3197,7 @@ export const PurchaseOrderDetailPage = ({
         documentUploadFileObject={documentUploadFileObject}
         documentUploadError={documentUploadError}
         documentUploadCardFile={documentUploadCardFile}
+        documentUploadDescription={documentUploadDescription}
         setDocumentUploadDescription={setDocumentUploadDescription}
         documentUploadDescriptionError={documentUploadDescriptionError}
         showRenameDocumentModal={showRenameDocumentModal}
@@ -3022,6 +3220,7 @@ export const PurchaseOrderDetailPage = ({
       />
 
       <PoReceiptModals
+        receiptLines={receiptLines}
         showAdjustWoModal={showAdjustWoModal}
         setShowAdjustWoModal={setShowAdjustWoModal}
         handleContinueFromAdjustWo={handleContinueFromAdjustWo}
@@ -3127,8 +3326,8 @@ export const PurchaseOrderDetailPage = ({
         setShowZeroAmountConfirmModal={setShowZeroAmountConfirmModal}
         exceededItems={exceededItems}
         saveInvoice={saveInvoice}
+        checkPoValueAndSave={checkPoValueAndSave}
         proceedAfterQtyExceed={proceedAfterQtyExceed}
-        proceedAfterZeroAmount={proceedAfterZeroAmount}
         deleteInvoiceReason={deleteInvoiceReason}
         setDeleteInvoiceReason={setDeleteInvoiceReason}
         deleteInvoiceReasonError={deleteInvoiceReasonError}

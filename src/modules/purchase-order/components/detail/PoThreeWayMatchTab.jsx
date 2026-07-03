@@ -111,7 +111,6 @@ const PoThreeWayMatchTab = ({
                   const isReceivedMatched = line.receivedQty === line.qty;
                   const isInvoicedMatched = line.invoicedQty === line.qty;
                   const quantityLabel =
-                    line.isDeleted ? "0" :
                     line.type === "material" && line.uom
                       ? `${line.qty} ${line.uom}`
                       : `${line.qty} Pcs`;
@@ -212,25 +211,23 @@ const PoThreeWayMatchTab = ({
                             overflow: "hidden",
                           }}
                         >
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span
-                              style={{
-                                display: "block",
-                                fontSize: "var(--text-title-3)",
-                                fontWeight: "var(--font-weight-bold)",
-                                color: "var(--neutral-on-surface-primary)",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                              }}
-                              title={line.item}
-                            >
-                              {line.item}
-                            </span>
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: "var(--text-title-3)",
+                              fontWeight: "var(--font-weight-bold)",
+                              color: "var(--neutral-on-surface-primary)",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                            title={line.item}
+                          >
+                            {line.item}
                             {line.isDeleted && (
-                              <StatusBadge variant="red-light">Deleted</StatusBadge>
+                              <StatusBadge variant="red-light" style={{ marginLeft: "8px" }}>Deleted</StatusBadge>
                             )}
-                          </div>
+                          </span>
                           <span
                             style={{
                               display: "block",

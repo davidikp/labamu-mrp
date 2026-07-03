@@ -107,6 +107,7 @@ import {
   MOCK_PO_TABLE_DATA,
 } from "../../../modules/purchase-order/mock/purchaseOrderMocks.js";
 import { MOCK_STOCK_BATCHES } from "../../../modules/materials/mock/batchesMocks.js";
+import { addWoActivityLog } from "../../work-order/pages/WorkOrderDetailPage.jsx";
 import { PurchaseOrderListPage } from "../../../modules/purchase-order/pages/PurchaseOrderListPage.jsx";
 import { PurchaseOrderSettingsPage } from "../../../modules/purchase-order/pages/PurchaseOrderSettingsPage.jsx";
 import {
@@ -153,7 +154,6 @@ import {
 import { Button } from "../../../components/common/Button.jsx";
 import { Checkbox } from "../../../components/common/Checkbox.jsx";
 import { DropdownSelect } from "../../../components/common/DropdownSelect.jsx";
-import { FilterPill } from "../../../components/common/FilterPill.jsx";
 import { IconButton } from "../../../components/common/IconButton.jsx";
 import { ListStatusCounterCard } from "../../../components/common/ListStatusCounterCard.jsx";
 import { StatusBadge } from "../../../components/common/StatusBadge.jsx";
@@ -162,902 +162,13 @@ import { GeneralModal } from "../../../components/modal/GeneralModal.jsx";
 import { Sidebar } from "../../../components/layout/Sidebar.jsx";
 import { TablePaginationFooter } from "../../../components/table/TablePaginationFooter.jsx";
 import { TableSearchField } from "../../../components/table/TableSearchField.jsx";
+import { Tooltip, UnifiedInputShell, FormField, LabelValue, PhoneInputField, DateInputControl, InputField, UploadDropzone } from "../../../components/index.js";
 
-const Tooltip = ({ content, children, style = {} }) => {
-  const [isVisible, setIsVisible] = useState(false);
 
-  return (
-    <div
-      style={{
-        position: "relative",
-        display: "block",
-        width: "100%",
-        ...style,
-      }}
-      onMouseEnter={() => setIsVisible(true)}
-      onMouseLeave={() => setIsVisible(false)}
-    >
-      {children}
-      {isVisible ? (
-        <div
-          style={{
-            position: "absolute",
-            bottom: "100%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            marginBottom: "8px",
-            maxWidth: "1600px",
-            width: "max-content",
-            padding: "8px 12px",
-            borderRadius: "8px",
-            background: "var(--neutral-on-surface-primary)",
-            color: "var(--neutral-surface-primary)",
-            fontSize: "var(--text-desc)",
-            lineHeight: "1.6",
-            boxShadow: "var(--elevation-sm)",
-            zIndex: 1000,
-            textAlign: "center",
-            pointerEvents: "none",
-          }}
-        >
-          {content}
-          <div
-            style={{
-              position: "absolute",
-              top: "100%",
-              left: "50%",
-              transform: "translateX(-50%)",
-              borderWidth: "6px",
-              borderStyle: "solid",
-              borderColor:
-                "var(--neutral-on-surface-primary) transparent transparent transparent",
-            }}
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-};
 
-const LabelValue = ({ label, value, badge }) => {
-  const displayValue =
-    typeof value === "object" && value !== null ? JSON.stringify(value) : value;
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "var(--neutral-on-surface-secondary)",
-        }}
-      >
-        {label}
-      </span>
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        {badge ? (
-          <StatusBadge variant={badge.variant}>{badge.text}</StatusBadge>
-        ) : (
-          <span
-            style={{
-              fontSize: "var(--text-title-3)",
-              fontWeight: "var(--font-weight-bold)",
-              color: "var(--neutral-on-surface-primary)",
-            }}
-          >
-            {displayValue}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-};
 
-const FormField = ({
-  label,
-  required = false,
-  children,
-  error,
-  helperText,
-  headerRight,
-}) => (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: "8px",
-      width: "100%",
-    }}
-  >
-    {label || headerRight ? (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontSize: "var(--text-body)",
-          fontWeight: "var(--font-weight-regular)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
-          {required ? (
-            <span style={{ color: "var(--status-red-primary)" }}>*</span>
-          ) : null}
-          {label && (
-            <span style={{ color: "var(--neutral-on-surface-primary)" }}>
-              {label}
-            </span>
-          )}
-        </div>
-        {headerRight && (
-          <span style={{ color: "var(--neutral-on-surface-tertiary)", fontSize: "12px" }}>
-            {headerRight}
-          </span>
-        )}
-      </div>
-    ) : null}
-    {children}
-    {error ? (
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "var(--status-red-primary)",
-          marginTop: "-4px",
-        }}
-      >
-        {error}
-      </span>
-    ) : null}
-    {!error && helperText ? (
-      <span
-        style={{
-          fontSize: "var(--text-desc)",
-          color: "var(--neutral-on-surface-secondary)",
-          marginTop: "-4px",
-        }}
-      >
-        {helperText}
-      </span>
-    ) : null}
-  </div>
-);
 
-const UnifiedInputShell = ({
-  children,
-  disabled = false,
-  hasError = false,
-  style = {},
-  onFocus,
-  onBlur,
-}) => (
-  <div
-    style={{
-      minHeight: "46px",
-      height: "auto",
-      width: "100%",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      border: `1px solid ${hasError
-          ? "var(--status-red-primary)"
-          : disabled
-            ? "var(--neutral-line-outline)"
-            : baseInputBorderColor
-        }`,
-      borderRadius: "10px",
-      background: disabled
-        ? "var(--neutral-surface-grey-lighter)"
-        : "var(--neutral-surface-primary)",
-      padding: "0 16px",
-      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-      boxSizing: "border-box",
-      overflow: "visible",
-      ...style,
-    }}
-    onFocus={onFocus}
-    onBlur={onBlur}
-  >
-    {children}
-  </div>
-);
-
-const PhoneInputField = ({
-  label,
-  required = false,
-  value = "",
-  onChange,
-  disabled,
-  error,
-  helperText,
-}) => {
-  const normalizePhoneValue = (input) => {
-    if (!input) return { countryCode: "+62", number: "" };
-    const matched = COUNTRY_CODE_OPTIONS.find(
-      (opt) => input.startsWith(`${opt.code} `) || input === opt.code
-    );
-    if (matched) {
-      const nextNumber = input
-        .replace(`${matched.code} `, "")
-        .replace(matched.code, "")
-        .trim();
-      return { countryCode: matched.code, number: nextNumber };
-    }
-    return { countryCode: "+62", number: input.trim() };
-  };
-
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0, width: 300, placement: "bottom" });
-  const parsedValue = normalizePhoneValue(value);
-  const selectedOption =
-    COUNTRY_CODE_OPTIONS.find((opt) => opt.code === parsedValue.countryCode) ||
-    COUNTRY_CODE_OPTIONS[0];
-  const filteredOptions = COUNTRY_CODE_OPTIONS.filter((opt) => {
-    const q = search.toLowerCase();
-    return (
-      opt.code.toLowerCase().includes(q) || opt.label.toLowerCase().includes(q)
-    );
-  });
-
-  const emitChange = (nextCountryCode, nextNumber) => {
-    const composed = nextNumber?.trim()
-      ? `${nextCountryCode} ${nextNumber.trim()}`
-      : nextCountryCode;
-    onChange?.(composed);
-  };
-
-  const updatePopoverPosition = (el) => {
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const estimatedHeight = 400;
-    const padding = 12;
-    const openAbove = 
-      window.innerHeight - rect.bottom < estimatedHeight + 16 &&
-      rect.top > estimatedHeight + 16;
-    
-    setPopoverPos({
-      top: openAbove ? rect.top - estimatedHeight - padding : rect.bottom + padding,
-      left: Math.min(rect.left, window.innerWidth - 316),
-      width: Math.min(300, window.innerWidth - 32),
-      placement: openAbove ? "top" : "bottom",
-    });
-  };
-
-  return (
-    <FormField
-      label={label}
-      required={required}
-      error={error}
-      helperText={helperText}
-    >
-      <UnifiedInputShell
-        disabled={disabled}
-        hasError={!!error}
-        style={{ position: "relative", zIndex: isOpen ? 200 : "auto" }}
-        onFocus={(e) => focusInputFrame(e.currentTarget)}
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget)) {
-            blurInputFrame(e.currentTarget, !!disabled, !!error);
-          }
-        }}
-      >
-        <div style={{ position: "relative", flexShrink: 0 }}>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={(e) => {
-              if (disabled) return;
-              const nextOpen = !isOpen;
-              if (nextOpen) updatePopoverPosition(e.currentTarget);
-              setIsOpen(nextOpen);
-            }}
-            style={{
-              background: "transparent",
-              border: "none",
-              padding: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              cursor: disabled ? "not-allowed" : "pointer",
-              color: disabled
-                ? "var(--neutral-on-surface-tertiary)"
-                : "var(--neutral-on-surface-primary)",
-              fontSize: "var(--text-subtitle-1)",
-              fontFamily: "Lato, sans-serif",
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ fontSize: "18px", lineHeight: 1 }}>
-              {selectedOption.flag}
-            </span>
-            <span style={{ whiteSpace: "nowrap" }}>{selectedOption.code}</span>
-            <ChevronDownIcon
-              size={18}
-              color="var(--neutral-on-surface-secondary)"
-              style={{
-                transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 0.2s ease",
-              }}
-            />
-          </button>
-
-          {isOpen && !disabled ? (
-            <>
-              <div
-                style={{ position: "fixed", inset: 0, zIndex: 9998 }}
-                onClick={() => {
-                  setIsOpen(false);
-                  setSearch("");
-                }}
-              />
-              <div
-                style={{
-                  position: "fixed",
-                  top: `${popoverPos.top}px`,
-                  left: `${popoverPos.left}px`,
-                  width: `${popoverPos.width}px`,
-                  maxHeight: "400px",
-                  display: "flex",
-                  flexDirection: "column",
-                  background: "var(--neutral-surface-primary)",
-                  border: `1px solid ${baseInputBorderColor}`,
-                  borderRadius: "16px",
-                  boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.12)",
-                  zIndex: 9999,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    padding: "16px 20px",
-                    borderBottom: `1px solid ${baseInputBorderColor}`,
-                  }}
-                >
-                  <TableSearchField
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search country or code..."
-                    width="100%"
-                    minWidth="0"
-                    fontSize="14px"
-                  />
-                </div>
-                <div style={{ maxHeight: "320px", overflowY: "auto" }}>
-                  {filteredOptions.map((opt, index) => (
-                    <div
-                      key={opt.code}
-                      onClick={() => {
-                        emitChange(opt.code, parsedValue.number);
-                        setIsOpen(false);
-                        setSearch("");
-                      }}
-                      onMouseEnter={(e) =>
-                      (e.currentTarget.style.background =
-                        "var(--neutral-surface-grey-lighter)")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.currentTarget.style.background =
-                        "var(--neutral-surface-primary)")
-                      }
-                      style={{
-                        borderTop:
-                          index === 0
-                            ? "none"
-                            : `1px solid ${baseInputBorderColor}`,
-                        padding: "12px 20px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "14px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span style={{ fontSize: "20px", lineHeight: 1 }}>
-                        {opt.flag}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "14px",
-                          color: "var(--neutral-on-surface-primary)",
-                          minWidth: "44px",
-                        }}
-                      >
-                        {opt.code}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "14px",
-                          color: "var(--neutral-on-surface-secondary)",
-                        }}
-                      >
-                        {opt.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          ) : null}
-        </div>
-        <input
-          type="text"
-          placeholder="Input phone number"
-          value={parsedValue.number}
-          onChange={(e) => {
-            let nextValue = e.target.value;
-            if (nextValue.startsWith("0")) {
-              nextValue = nextValue.slice(1);
-            }
-            emitChange(selectedOption.code, nextValue);
-          }}
-          disabled={disabled}
-          style={{
-            flex: 1,
-            height: "100%",
-            minWidth: 0,
-            border: "none",
-            outline: "none",
-            padding: 0,
-            background: "transparent",
-            fontSize: "var(--text-subtitle-1)",
-            color: disabled
-              ? "var(--neutral-on-surface-tertiary)"
-              : parsedValue.number
-                ? "var(--neutral-on-surface-primary)"
-                : "var(--neutral-on-surface-tertiary)",
-            fontFamily: "Lato, sans-serif",
-          }}
-        />
-      </UnifiedInputShell>
-    </FormField>
-  );
-};
-
-const DateInputControl = ({
-  value = "",
-  onChange,
-  disabled = false,
-  hasError = false,
-  placeholder = "yyyy-mm-dd",
-  fieldHeight = "48px",
-  borderRadius = "10px",
-  fontSize = "var(--text-subtitle-1)",
-  style = {},
-  minDate,
-  maxDate,
-}) => {
-  const triggerRef = useRef(null);
-  const popoverRef = useRef(null);
-  const todayIso = formatIsoDateString(new Date());
-  const selectedDate = parseIsoDateString(value);
-  const [isOpen, setIsOpen] = useState(false);
-  const [viewDate, setViewDate] = useState(
-    selectedDate || parseIsoDateString(todayIso) || new Date()
-  );
-  const [popoverPos, setPopoverPos] = useState({
-    top: 0,
-    left: 0,
-    width: 360,
-    placement: "bottom",
-  });
-  const [selectionMode, setSelectionMode] = useState("days"); // "days", "months", "years"
-
-  const updatePopoverPosition = () => {
-    if (!triggerRef.current || typeof window === "undefined") return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const width = Math.max(
-      360,
-      Math.min(DATE_PICKER_POPOVER_WIDTH, window.innerWidth - 16)
-    );
-    const estimatedHeight = 360;
-    const openAbove =
-      window.innerHeight - rect.bottom < estimatedHeight + 16 &&
-      rect.top > estimatedHeight + 16;
-    const maxLeft = Math.max(8, window.innerWidth - width - 8);
-    const leftAlign = rect.left;
-    const left = Math.min(Math.max(8, leftAlign), maxLeft);
-    setPopoverPos({
-      left,
-      top: openAbove ? rect.top - 8 : rect.bottom + 8,
-      width,
-      placement: openAbove ? "top" : "bottom",
-    });
-  };
-
-  useEffect(() => {
-    if (!isOpen) return;
-    updatePopoverPosition();
-
-    const handlePointerDown = (event) => {
-      if (
-        triggerRef.current?.contains(event.target) ||
-        popoverRef.current?.contains(event.target)
-      ) {
-        return;
-      }
-      setIsOpen(false);
-    };
-
-    const handleViewportChange = () => updatePopoverPosition();
-
-    document.addEventListener("mousedown", handlePointerDown);
-    window.addEventListener("resize", handleViewportChange);
-    window.addEventListener("scroll", handleViewportChange, true);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      window.removeEventListener("resize", handleViewportChange);
-      window.removeEventListener("scroll", handleViewportChange, true);
-    };
-  }, [isOpen]);
-
-  const calendarDays = buildCalendarDays(viewDate);
-  const monthLabel = DATE_PICKER_MONTHS[viewDate.getMonth()];
-  const yearLabel = viewDate.getFullYear();
-
-  return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        disabled={disabled}
-        onClick={() => {
-          if (disabled) return;
-          setViewDate(selectedDate || new Date());
-          setIsOpen((prev) => !prev);
-        }}
-        style={{
-          width: "100%",
-          height: fieldHeight,
-          border: `1px solid ${
-            hasError
-              ? "var(--status-red-primary)"
-              : isOpen
-                ? "var(--feature-brand-primary)"
-                : disabled
-                  ? "var(--neutral-line-outline)"
-                  : baseInputBorderColor
-          }`,
-          borderRadius,
-          background: disabled
-            ? "var(--neutral-surface-grey-lighter)"
-            : "var(--neutral-surface-primary)",
-          boxShadow: isOpen ? "0 0 0 3px rgba(0, 104, 255, 0.08)" : "none",
-          padding: "0 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          cursor: disabled ? "not-allowed" : "pointer",
-          textAlign: "left",
-          transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-          ...style,
-        }}
-      >
-        <span
-          style={{
-            fontSize,
-            color: disabled
-              ? "var(--neutral-on-surface-tertiary)"
-              : value
-                ? "var(--neutral-on-surface-primary)"
-                : "var(--neutral-on-surface-tertiary)",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {value || placeholder}
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {value && !disabled && (
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onChange) onChange(createSyntheticInputEvent(""));
-              }}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "2px",
-                borderRadius: "50%",
-                background: "var(--neutral-surface-grey-lighter)",
-                cursor: "pointer",
-                color: "var(--neutral-on-surface-secondary)",
-              }}
-            >
-              <CloseIcon size={14} color="var(--neutral-on-surface-secondary)" />
-            </div>
-          )}
-          <CalendarIcon
-            size={18}
-            color={
-              disabled
-                ? "var(--neutral-line-outline)"
-                : "var(--neutral-on-surface-secondary)"
-            }
-          />
-        </div>
-      </button>
-
-      {isOpen ? (
-        <div
-          ref={popoverRef}
-          style={{
-            position: "fixed",
-            top: `${popoverPos.top}px`,
-            left: `${popoverPos.left}px`,
-            width: `${popoverPos.width}px`,
-            transform:
-              popoverPos.placement === "top" ? "translateY(-100%)" : "none",
-            background: "var(--neutral-surface-primary)",
-            border: "1px solid var(--neutral-line-separator-2)",
-            borderRadius: "12px",
-            boxShadow: "0px 6px 15px -2px rgba(16, 24, 40, 0.08)",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-            zIndex: 10020,
-          }}
-        >
-          {selectionMode === "days" ? (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "12px 16px",
-                  margin: "4px 8px 8px",
-                  border: "1px solid var(--neutral-line-separator-1)",
-                  borderRadius: "12px",
-                  background: "var(--neutral-surface-primary)",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setViewDate(
-                      new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)
-                    )
-                  }
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    padding: "4px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                  }}
-                >
-                  <ChevronLeftIcon size={18} color="var(--neutral-on-surface-secondary)" />
-                </button>
-                <div style={{ display: "flex", gap: "48px", alignItems: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectionMode("months")}
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      fontSize: "var(--text-title-2)",
-                      fontWeight: "var(--font-weight-bold)",
-                      color: "var(--neutral-on-surface-primary)",
-                      cursor: "pointer",
-                      padding: "4px 8px",
-                      borderRadius: "4px"
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = "var(--neutral-surface-grey-lighter)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                  >
-                    {monthLabel.substring(0, 3).toUpperCase()}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectionMode("years")}
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      fontSize: "var(--text-title-2)",
-                      fontWeight: "var(--font-weight-bold)",
-                      color: "var(--neutral-on-surface-primary)",
-                      cursor: "pointer",
-                      padding: "4px 8px",
-                      borderRadius: "4px"
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = "var(--neutral-surface-grey-lighter)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                  >
-                    {yearLabel}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setViewDate(
-                      new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)
-                    )
-                  }
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    padding: "4px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                  }}
-                >
-                  <ChevronRightIcon
-                    size={18}
-                    color="var(--neutral-on-surface-secondary)"
-                  />
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-                  rowGap: "8px",
-                  columnGap: "16px",
-                  paddingTop: "4px",
-                }}
-              >
-                {DATE_PICKER_WEEKDAYS.map((weekday) => (
-                  <div
-                    key={weekday}
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      padding: "8px 0",
-                      fontSize: "var(--text-title-3)",
-                      color: "var(--neutral-on-surface-secondary)",
-                    }}
-                  >
-                    {weekday}
-                  </div>
-                ))}
-              </div>
-
-              <div
-                style={{
-                  height: "4px",
-                  background: "var(--neutral-surface-grey-lighter)",
-                  width: "100%",
-                }}
-              />
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-                  rowGap: "8px",
-                  columnGap: "16px",
-                }}
-              >
-                {calendarDays.map((day) => {
-                  const isSelected = day.iso === value;
-                  const isToday = day.iso === todayIso;
-                  const isDisabled = (minDate && day.iso < minDate) || (maxDate && day.iso > maxDate);
-                  
-                  return (
-                    <button
-                      key={day.iso}
-                      type="button"
-                      disabled={isDisabled}
-                      onClick={() => {
-                        if (isDisabled) return;
-                        onChange?.(createSyntheticInputEvent(day.iso));
-                        setIsOpen(false);
-                      }}
-                      style={{
-                        width: "34px",
-                        height: "34px",
-                        margin: "0 auto",
-                        border: "none",
-                        borderRadius: "999px",
-                        background: isSelected
-                          ? "var(--feature-brand-primary)"
-                          : isToday
-                            ? "var(--feature-brand-container)"
-                            : "transparent",
-                        color: isDisabled
-                          ? "var(--neutral-line-separator-2)"
-                          : isSelected
-                            ? "var(--feature-brand-on-primary)"
-                            : isToday
-                              ? "var(--feature-brand-primary)"
-                              : day.isCurrentMonth
-                                ? "var(--neutral-on-surface-primary)"
-                                : "var(--neutral-line-separator-2)",
-                        fontSize: "var(--text-subtitle-1)",
-                        fontWeight: isToday || isSelected ? "var(--font-weight-bold)" : "var(--font-weight-regular)",
-                        cursor: isDisabled ? "not-allowed" : "pointer",
-                        position: "relative",
-                        opacity: isDisabled ? 0.5 : 1
-                      }}
-                    >
-                      {day.day}
-                      {isToday && !isSelected && (
-                        <div 
-                          style={{
-                            position: "absolute",
-                            bottom: "4px",
-                            left: "50%",
-                            transform: "translateX(-50%)",
-                            width: "4px",
-                            height: "4px",
-                            borderRadius: "50%",
-                            background: "var(--feature-brand-primary)"
-                          }}
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          ) : selectionMode === "months" ? (
-            <div style={{ padding: "8px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-                {DATE_PICKER_MONTHS.map((m, idx) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      setViewDate(new Date(viewDate.getFullYear(), idx, 1));
-                      setSelectionMode("days");
-                    }}
-                    style={{
-                      padding: "12px 8px",
-                      border: "none",
-                      borderRadius: "8px",
-                      background: viewDate.getMonth() === idx ? "var(--feature-brand-primary)" : "transparent",
-                      color: viewDate.getMonth() === idx ? "var(--feature-brand-on-primary)" : "var(--neutral-on-surface-primary)",
-                      fontSize: "var(--text-title-3)",
-                      fontWeight: "500",
-                      cursor: "pointer"
-                    }}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div style={{ padding: "8px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px" }}>
-                {Array.from({ length: 12 }, (_, i) => viewDate.getFullYear() - 5 + i).map(y => (
-                  <button
-                    key={y}
-                    type="button"
-                    onClick={() => {
-                      setViewDate(new Date(y, viewDate.getMonth(), 1));
-                      setSelectionMode("days");
-                    }}
-                    style={{
-                      padding: "12px 8px",
-                      border: "none",
-                      borderRadius: "8px",
-                      background: viewDate.getFullYear() === y ? "var(--feature-brand-primary)" : "transparent",
-                      color: viewDate.getFullYear() === y ? "var(--feature-brand-on-primary)" : "var(--neutral-on-surface-primary)",
-                      fontSize: "var(--text-title-3)",
-                      fontWeight: "500",
-                      cursor: "pointer"
-                    }}
-                  >
-                    {y}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : null}
-    </>
-  );
-};
 
 const DateRangeInputControl = ({
   value = { start: "", end: "" },
@@ -1130,7 +241,7 @@ const DateRangeInputControl = ({
 
     return (
       <div style={{ flex: 1, minWidth: "280px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", padding: "0 4px" }}>
+        <div className="flex justify-between items-center" style={{ marginBottom: "16px", padding: "0 4px" }}>
           {isFirst ? (
             <button type="button" onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))} style={{ border: "none", background: "transparent", cursor: "pointer", padding: "4px" }}><ChevronLeftIcon size={20} /></button>
           ) : <div style={{ width: 28 }} />}
@@ -1254,139 +365,6 @@ const DateRangeInputControl = ({
 
 function isRangePart(s, e) { return s || e; }
 
-const InputField = ({
-  label,
-  required,
-  type = "text",
-  placeholder,
-  value,
-  onChange,
-  disabled,
-  icon: Icon,
-  max,
-  maxLength,
-  showCounter,
-  multiline = false,
-  error,
-  helperText,
-  headerRight,
-  ...rest
-}) => (
-  <FormField
-    label={label}
-    required={required}
-    error={error}
-    helperText={helperText}
-    headerRight={headerRight}
-  >
-    <div style={{ position: "relative", width: "100%" }}>
-      {multiline ? (
-        <textarea
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-          maxLength={maxLength}
-          {...rest}
-          style={{
-            minHeight: "100px",
-            padding: showCounter ? "12px 16px 32px 16px" : "12px 16px",
-            width: "100%",
-            resize: "vertical",
-            border: "1px solid transparent",
-            background: disabled
-              ? "var(--neutral-surface-grey-lighter)"
-              : "var(--neutral-surface-primary)",
-            ...inputFrameStyle(disabled, !!error),
-            ...inputControlStyle(disabled, value),
-            cursor: disabled ? "not-allowed" : "text",
-          }}
-          onFocus={(e) => focusInputFrame(e.currentTarget)}
-          onBlur={(e) => blurInputFrame(e.currentTarget, disabled, !!error)}
-        />
-      ) : type === "date" ? (
-        <DateInputControl
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-          hasError={!!error}
-          placeholder={placeholder || "yyyy-mm-dd"}
-          minDate={rest.min}
-          maxDate={max}
-        />
-      ) : (
-        <input
-          type={type === "number" ? "text" : type}
-          placeholder={placeholder}
-          value={type === "number" ? formatNumberWithCommas(value) : value}
-          onChange={(e) => {
-            if (type === "number") {
-              const raw = parseNumberFromCommas(e.target.value);
-              if (raw === "" || !isNaN(raw) || raw === "-") {
-                onChange?.({
-                  ...e,
-                  target: { ...e.target, value: raw },
-                });
-              }
-            } else {
-              onChange?.(e);
-            }
-          }}
-          disabled={disabled}
-          max={max}
-          maxLength={maxLength}
-          {...rest}
-          style={{
-            height: "48px",
-            padding: Icon ? "0 40px 0 16px" : showCounter ? "0 60px 0 16px" : "0 16px",
-            border: "1px solid transparent",
-            background: disabled
-              ? "var(--neutral-surface-grey-lighter)"
-              : "var(--neutral-surface-primary)",
-            ...inputFrameStyle(disabled, !!error),
-            ...inputControlStyle(disabled, value),
-            cursor: disabled ? "not-allowed" : "text",
-          }}
-          onFocus={(e) => focusInputFrame(e.currentTarget)}
-          onBlur={(e) => blurInputFrame(e.currentTarget, disabled, !!error)}
-        />
-      )}
-      {showCounter && maxLength && (
-        <div
-          style={{
-            position: "absolute",
-            right: "12px",
-            bottom: multiline ? "12px" : "50%",
-            transform: multiline ? "none" : "translateY(50%)",
-            fontSize: "12px",
-            color: "var(--neutral-on-surface-tertiary)",
-            pointerEvents: "none",
-            zIndex: 10,
-          }}
-        >
-          {String(value || "").length}/{maxLength}
-        </div>
-      )}
-      {Icon && type !== "date" ? (
-        <Icon
-          size={20}
-          color={
-            disabled
-              ? "var(--neutral-line-outline)"
-              : "var(--neutral-on-surface-tertiary)"
-          }
-          style={{
-            position: "absolute",
-            right: "16px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            pointerEvents: "none",
-          }}
-        />
-      ) : null}
-    </div>
-  </FormField>
-);
 
 const openDocumentLink = (doc, fallbackHandler) => {
   if (doc?.previewUrl && typeof window !== "undefined") {
@@ -1396,107 +374,7 @@ const openDocumentLink = (doc, fallbackHandler) => {
   fallbackHandler?.(doc);
 };
 
-const UploadDropzone = ({
-  multiple = false,
-  accept = ".pdf,.jpg,.jpeg,.png,.webp",
-  maxFiles = 1,
-  maxText,
-  allowedText = "Allowed formats (PDF, JPG, JPEG, PNG, WebP)",
-  disabled = false,
-  error = "",
-  onFilesSelected,
-}) => {
-  const handleIncomingFiles = (fileList) => {
-    if (disabled) return;
-    const nextFiles = Array.from(fileList || []);
-    if (nextFiles.length === 0) return;
-    onFilesSelected?.(nextFiles);
-  };
 
-  return (
-    <label
-      onDragOver={(e) => {
-        if (disabled) return;
-        e.preventDefault();
-      }}
-      onDrop={(e) => {
-        if (disabled) return;
-        e.preventDefault();
-        handleIncomingFiles(e.dataTransfer?.files);
-      }}
-      style={{
-        width: "100%",
-        minHeight: "168px",
-        borderRadius: "24px",
-        border: `2px dashed ${error ? "var(--status-red-primary)" : "var(--feature-brand-primary)"
-          }`,
-        background: "var(--neutral-surface-primary)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "8px",
-        padding: "24px",
-        textAlign: "center",
-        boxSizing: "border-box",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.55 : 1,
-      }}
-    >
-      <CloudUploadIcon
-        size={40}
-        color={
-          error ? "var(--status-red-primary)" : "var(--feature-brand-primary)"
-        }
-      />
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "#A9A9A9",
-          lineHeight: "18px",
-          letterSpacing: "0.0825px",
-        }}
-      >
-        {maxText ||
-          (maxFiles === 1 ? "Max 1 file, 25MB each" : "Max 3 files, 25MB each")}
-      </span>
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "#A9A9A9",
-          lineHeight: "18px",
-          letterSpacing: "0.0825px",
-        }}
-      >
-        {allowedText}
-      </span>
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "var(--neutral-on-surface-primary)",
-          lineHeight: "18px",
-          letterSpacing: "0.0825px",
-        }}
-      >
-        Drag file or{" "}
-        <span style={{ color: "var(--feature-brand-primary)" }}>
-          browse file
-        </span>
-      </span>
-      <input
-        type="file"
-        accept={accept}
-        multiple={multiple}
-        disabled={disabled}
-        style={{ display: "none" }}
-        onChange={(e) => {
-          handleIncomingFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
-    </label>
-  );
-};
 
 const UploadDescriptionCard = ({
   file,
@@ -1558,7 +436,7 @@ const UploadDescriptionCard = ({
     </div>
 
     {!hideDescriptionField ? (
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div className="flex flex-col gap-x-sm">
         <div
           style={{
             display: "flex",
@@ -1740,7 +618,7 @@ const ImageUploadField = ({
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+    <div className="flex flex-col gap-sm">
       <span
         style={{
           fontSize: "var(--text-title-3)",
@@ -1750,7 +628,7 @@ const ImageUploadField = ({
         {label}
       </span>
 
-      <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+      <div className="flex gap-md" style={{ flexWrap: "wrap" }}>
         {normalizedImages.map((image, index) => {
           const previewUrl = getImageUploadPreviewUrl(image);
           const imageName = getImageUploadName(image);
@@ -2075,7 +953,7 @@ const SectionCard = ({ title, children, rightAction }) => (
         alignItems: "center",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div className="flex items-center gap-x-sm">
         <div
           style={{
             width: "4px",
@@ -2243,26 +1121,6 @@ const poReferenceTableEmptyStateStyle = {
   background: "var(--neutral-surface-primary)",
 };
 
-const tabButtonStyle = (isActive) => ({
-  height: "40px",
-  padding: "0 18px",
-  borderRadius: "100px",
-  border: isActive
-    ? "1px solid var(--feature-brand-primary)"
-    : "1px solid transparent",
-  background: isActive
-    ? "var(--neutral-surface-primary)"
-    : "rgba(255,255,255,0.56)",
-  color: isActive
-    ? "var(--feature-brand-primary)"
-    : "var(--neutral-on-surface-secondary)",
-  fontSize: "var(--text-title-3)",
-  fontWeight: isActive
-    ? "var(--font-weight-bold)"
-    : "var(--font-weight-regular)",
-  cursor: "pointer",
-});
-
 const summaryMetricLabelStyle = {
   fontSize: "var(--text-title-3)",
   color: "var(--neutral-on-surface-secondary)",
@@ -2305,8 +1163,15 @@ export const PurchaseOrderCreatePage = ({
     cb(...args);
   };
   const pageTopRef = useRef(null);
+  const isFromWorkOrderAssignment =
+    initialData?.source === "work_order_vendor_assignment";
+  const isEditMode = initialData?.source === "edit_purchase_order";
+  const isReviseMode = initialData?.source === "revise_purchase_order";
+  const editFormData = initialData?.formData || null;
+  const editPoNumber = initialData?.poNumber || editFormData?.poNumber || null;
+
   const navigateBackWithoutPrompt = () => {
-    if (initialData?.source === "work_order_vendor_assignment") {
+    if (isFromWorkOrderAssignment) {
       if (initialData?.returnTo) {
         onNavigate(
           initialData.returnTo.view || "detail",
@@ -2327,6 +1192,18 @@ export const PurchaseOrderCreatePage = ({
       );
       return;
     }
+    
+    if (isEditMode || isReviseMode) {
+      if (editPoNumber) {
+        onNavigate("po_detail", {
+          poNumber: editPoNumber,
+          formData: editFormData,
+          ...(initialData?.from ? { from: initialData.from } : {}),
+          ...(initialData?.returnTo ? { returnTo: initialData.returnTo } : {})
+        });
+        return;
+      }
+    }
     onNavigate("list");
   };
 
@@ -2338,11 +1215,7 @@ export const PurchaseOrderCreatePage = ({
     navigateBackWithoutPrompt();
   };
 
-  const isFromWorkOrderAssignment =
-    initialData?.source === "work_order_vendor_assignment";
-  const isEditMode = initialData?.source === "edit_purchase_order";
-  const isReviseMode = initialData?.source === "revise_purchase_order";
-  const editFormData = initialData?.formData || null;
+
   const prefilledVendor = initialData?.vendorData || null;
   const linkedWorkOrder =
     initialData?.workOrder ||
@@ -2372,7 +1245,8 @@ export const PurchaseOrderCreatePage = ({
     const buildLinkedWorkOrderDescription = (
       workOrderNo,
       steps = [],
-      stageRows = []
+      stageRows = [],
+      assignmentId = ""
     ) => {
       const normalizedSteps = Array.from(
         new Set(
@@ -2381,16 +1255,16 @@ export const PurchaseOrderCreatePage = ({
             .filter((step) => Number.isFinite(step))
         )
       ).sort((a, b) => a - b);
-      const baseDescription = `Generated from ${workOrderNo || "work order"}. It covers these routing stages:`;
+      const baseDescription = `Generated from ${workOrderNo || "work order"}${assignmentId ? ` with assignment ${assignmentId}` : ""}. It covers these routing stages:`;
 
-      if (normalizedSteps.length === 0) return `Generated from ${workOrderNo || "work order"}.`;
+      if (normalizedSteps.length === 0) return `Generated from ${workOrderNo || "work order"}${assignmentId ? ` with assignment ${assignmentId}` : ""}.`;
 
       const stageLabels = normalizedSteps.map((step) => {
         const matchedStage = (stageRows || []).find(
           (stage) => Number(stage.step) === step
         );
         const operationName = matchedStage?.op || matchedStage?.operation;
-        return operationName ? operationName : `routing step ${step}`;
+        return operationName ? `Step ${step}: ${operationName}` : `Step ${step}`;
       });
       const stackedLabels = stageLabels.map((label) => `- ${label}`).join("\n");
       return `${baseDescription}\n${stackedLabels}`;
@@ -2398,7 +1272,8 @@ export const PurchaseOrderCreatePage = ({
   const generatedWorkOrderDescription = buildLinkedWorkOrderDescription(
     linkedWorkOrder?.wo,
     linkedOutsourceSteps,
-    linkedRoutingStages
+    linkedRoutingStages,
+    linkedWorkOrder?.assignmentId
   );
   const getWorkOrderSourceId = (line) =>
     line?.sourceWorkOrderLineId || line?.id || "";
@@ -2479,8 +1354,6 @@ export const PurchaseOrderCreatePage = ({
   const [revisionReasonError, setRevisionReasonError] = useState("");
   const [showDiscardChangesModal, setShowDiscardChangesModal] = useState(false);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
-  const [showOngoingInvoiceModal, setShowOngoingInvoiceModal] = useState(false);
-  const [linePendingDeletion, setLinePendingDeletion] = useState(null);
   const [isVendorEditingEnabled, setIsVendorEditingEnabled] = useState(false);
   const [showVendorEditConfirm, setShowVendorEditConfirm] = useState(false);
   const [pendingVendorAction, setPendingVendorAction] = useState(null);
@@ -2497,6 +1370,9 @@ export const PurchaseOrderCreatePage = ({
   const [productModalFieldErrors, setProductModalFieldErrors] = useState({});
   const [productModalError, setProductModalError] = useState("");
   const [editingLineId, setEditingLineId] = useState(null);
+  const [lineToDelete, setLineToDelete] = useState(null);
+  const [showDeleteConfirmationModal, setShowDeleteConfirmationModal] = useState(false);
+  const [deleteConfirmationInvoiceIds, setDeleteConfirmationInvoiceIds] = useState("");
 
   const [lines, setLines] = useState(() => {
     if (editFormData?.lines?.length) return editFormData.lines;
@@ -2525,6 +1401,8 @@ export const PurchaseOrderCreatePage = ({
           qty: linkedAssignedOutput,
           price: 0,
           woRef: linkedWorkOrder?.wo || "-",
+          assignmentId: linkedWorkOrder?.assignmentId || "-",
+          outsourceSteps: linkedOutsourceSteps,
           lockedFromWorkOrder: true,
           sourceWorkOrderLineId: "generated-work-order-line",
         },
@@ -2567,6 +1445,8 @@ export const PurchaseOrderCreatePage = ({
       qty: linkedAssignedOutput,
       price: 250000,
       image: linkedWorkOrder?.image || null,
+      assignmentId: linkedWorkOrder?.assignmentId || "-",
+      outsourceSteps: linkedOutsourceSteps,
     }
     : null;
   const vendorSpecificWorkOrderLines = selectedVendorRecord
@@ -2712,28 +1592,13 @@ export const PurchaseOrderCreatePage = ({
     JSON.stringify(buildFormDirtySnapshot()) !==
     initialDirtySnapshotRef.current;
 
-  const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-
-  const scrollToFormField = (fieldKey) => {
-    setTimeout(() => {
-      const el = document.getElementById(`form-field-${fieldKey}`);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 100);
-  };
-
   const validateMandatoryFields = () => {
     const nextErrors = {};
     if (!vendorSearch.trim()) nextErrors.vendor = "Field cannot be empty";
     if (!poDate) nextErrors.poDate = "Field cannot be empty";
     if (!currency) nextErrors.currency = "Field cannot be empty";
     if (!lines.length) nextErrors.lines = "Add at least one product line";
-    const emailVal = (vendorDetails.email || "").trim();
-    if (emailVal && !isValidEmail(emailVal)) nextErrors.email = "Invalid email format";
     setFormErrors(nextErrors);
-    // Scroll to the first field with an error, in visual top-to-bottom order.
-    const fieldOrder = ["vendor", "email", "poDate", "currency", "lines"];
-    const firstErrorKey = fieldOrder.find((key) => nextErrors[key]);
-    if (firstErrorKey) scrollToFormField(firstErrorKey);
     return Object.keys(nextErrors).length === 0;
   };
 
@@ -2753,11 +1618,9 @@ export const PurchaseOrderCreatePage = ({
           ? "ready_to_send"
           : "issued",
     sBadge: badge,
-    documents: initialData?.formData?.documents || initialData?.documents || [],
     invoices: initialData?.formData?.invoices || initialData?.invoices || [],
     payments: initialData?.formData?.payments || initialData?.payments || [],
     invoicePaymentLogs: initialData?.formData?.invoicePaymentLogs || initialData?.invoicePaymentLogs || [],
-    receiptLogs: initialData?.formData?.receiptLogs || initialData?.receiptLogs || [],
     ...(initialData?.from ? { from: initialData.from } : {}),
     ...(initialData?.returnTo ? { returnTo: initialData.returnTo } : {}),
     formData: {
@@ -3151,6 +2014,8 @@ export const PurchaseOrderCreatePage = ({
         : false,
       sourceWorkOrderLineId: getWorkOrderSourceId(targetLine),
       sourceMaterialLineId: "",
+      assignmentId: targetLine.assignmentId,
+      outsourceSteps: targetLine.outsourceSteps,
     };
 
     setLines((prev) =>
@@ -3165,25 +2030,44 @@ export const PurchaseOrderCreatePage = ({
     setProductModalFieldErrors({});
   };
 
-  const handleRemoveLine = (lineId) => {
-    const line = lines.find((l) => l.id === lineId);
-    if (!line) return;
-
-    if (isReviseMode && (line.type === "material" || line.type === "manual")) {
-      const invoices = initialData?.formData?.invoices || initialData?.invoices || [];
-      const linkedInvoices = invoices.filter(inv => inv.itemLines?.some(il => String(il.id) === String(lineId) || String(il.id) === `l${lineId}`));
-
-      if (linkedInvoices.length > 0) {
-        const invoiceNumbers = linkedInvoices.map(inv => inv.number || inv.id).join(', ');
-        setLinePendingDeletion({ id: lineId, invoices: invoiceNumbers });
-        setShowOngoingInvoiceModal(true);
+  const handleRemoveLine = (line) => {
+    if (isReviseMode) {
+      let allInvoices = initialData?.formData?.invoices || initialData?.invoices || [];
+      if (!allInvoices.length && initialData?.poNumber) {
+        const mockPo = MOCK_PO_TABLE_DATA.find(p => p.poNumber === initialData.poNumber);
+        if (mockPo) allInvoices = mockPo.invoices || [];
+      }
+      const linkedInvoices = allInvoices.filter(inv => inv.itemLines?.some(il => String(il.id) === String(line.id) || String(il.id) === `l${line.id}`));
+      if (linkedInvoices && linkedInvoices.length > 0) {
+        setLineToDelete(line);
+        setDeleteConfirmationInvoiceIds(linkedInvoices.map(inv => inv.number).join(", "));
+        setShowDeleteConfirmationModal(true);
         return;
       }
     }
-
     setLines((prev) =>
-      prev.filter((l) => l.id !== lineId || l.lockedFromWorkOrder)
+      prev.filter((l) => l.id !== line.id || l.lockedFromWorkOrder)
     );
+  };
+
+  const updateMockWoTableData = (targetPoNumber, payload, targetAssignmentId, poLinkSnapshot) => {
+    if (initialData?.workOrder?.wo && targetAssignmentId) {
+      const woData = MOCK_WO_TABLE_DATA.find((w) => w.wo === initialData.workOrder.wo);
+      if (woData && woData.vendors) {
+        const vendorIndex = woData.vendors.findIndex(v => v.assignmentId === targetAssignmentId);
+        if (vendorIndex !== -1) {
+          woData.vendors[vendorIndex] = {
+            ...woData.vendors[vendorIndex],
+            poNumber: targetPoNumber,
+            isPoApproved: payload.status === "Issued" || payload.status === "Approved",
+            poStatus: payload.status,
+            poBadge: payload.sBadge,
+            poStatusKey: payload.statusKey,
+            poDetailData: poLinkSnapshot,
+          };
+        }
+      }
+    }
   };
 
   const handleSaveDraft = () => {
@@ -3225,17 +2109,25 @@ export const PurchaseOrderCreatePage = ({
       initialData?.returnTo?.data
     ) {
       const targetPoNumber = payload.poNumber;
+      const targetAssignmentId = initialData?.workOrder?.assignmentId;
       const updatedReturnData = {
         ...initialData.returnTo.data,
         vendors: (initialData.returnTo.data.vendors || []).map((vendor) => {
-          const isTargetVendor =
-            vendor.name === vendorSearch ||
-            vendor.poNumber === initialData?.poNumber;
+          // For work order source: match ONLY the specific assignment ID
+          // For order detail source: match by vendor name/id
+          const isTargetVendor = initialData?.source === "work_order_vendor_assignment"
+            ? targetAssignmentId
+              ? vendor.assignmentId === targetAssignmentId
+              : (vendor.name === (initialData?.vendorData?.name || vendorSearch?.trim()) &&
+                 vendor.poNumber === (initialData?.poNumber || ""))
+            : (vendor.name === (initialData?.vendorData?.name || vendorSearch?.trim()) ||
+               vendor.id === initialData?.vendorData?.id ||
+               vendor.poNumber === initialData?.poNumber);
           if (!isTargetVendor) return vendor;
           return {
             ...vendor,
             poNumber: targetPoNumber,
-            isPoApproved: false,
+            isPoApproved: payload.status === "Issued" || payload.status === "Approved",
             poStatus: payload.status,
             poBadge: payload.sBadge,
             poStatusKey: payload.statusKey,
@@ -3243,6 +2135,16 @@ export const PurchaseOrderCreatePage = ({
           };
         }),
       };
+
+      updateMockWoTableData(targetPoNumber, payload, targetAssignmentId, poLinkSnapshot);
+
+      if (initialData?.workOrder?.wo && targetAssignmentId) {
+        addWoActivityLog(
+          initialData.workOrder.wo,
+          "Purchase Order Linked",
+          `${targetPoNumber} linked to assignment ${targetAssignmentId}`
+        );
+      }
 
       navigationPayload.from = initialData?.source === "order_detail_material_add" ? "order_detail" : "work_order_detail";
       navigationPayload.returnTo = {
@@ -3276,9 +2178,9 @@ export const PurchaseOrderCreatePage = ({
 
     // Check if PO date is in the future
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(poDate);
-    if (selectedDate > today) {
+    // Format today as YYYY-MM-DD in local time
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    if (poDate > todayString) {
       setFormErrors((prev) => ({
         ...prev,
         poDate: "Purchase order date cannot be later than today",
@@ -3495,12 +2397,20 @@ export const PurchaseOrderCreatePage = ({
       initialData?.returnTo?.data
     ) {
       const targetPoNumber = payload.poNumber;
+      const targetAssignmentId = initialData?.workOrder?.assignmentId;
       const updatedReturnData = {
         ...initialData.returnTo.data,
         vendors: (initialData.returnTo.data.vendors || []).map((vendor) => {
-          const isTargetVendor =
-            vendor.name === vendorSearch ||
-            vendor.poNumber === initialData?.poNumber;
+          // For work order source: match ONLY the specific assignment ID
+          // For order detail source: match by vendor name/id
+          const isTargetVendor = initialData?.source === "work_order_vendor_assignment"
+            ? targetAssignmentId
+              ? vendor.assignmentId === targetAssignmentId
+              : (vendor.name === (initialData?.vendorData?.name || vendorSearch?.trim()) &&
+                 vendor.poNumber === (initialData?.poNumber || ""))
+            : (vendor.name === (initialData?.vendorData?.name || vendorSearch?.trim()) ||
+               vendor.id === initialData?.vendorData?.id ||
+               vendor.poNumber === initialData?.poNumber);
           if (!isTargetVendor) return vendor;
           return {
             ...vendor,
@@ -3513,6 +2423,16 @@ export const PurchaseOrderCreatePage = ({
           };
         }),
       };
+
+      updateMockWoTableData(targetPoNumber, payload, targetAssignmentId, poLinkSnapshot);
+
+      if (initialData?.workOrder?.wo && targetAssignmentId) {
+        addWoActivityLog(
+          initialData.workOrder.wo,
+          "Purchase Order Linked",
+          `${targetPoNumber} linked to assignment ${targetAssignmentId}`
+        );
+      }
 
       payload.from = initialData?.source === "order_detail_material_add" ? "order_detail" : "work_order_detail";
       payload.returnTo = {
@@ -3669,6 +2589,7 @@ export const PurchaseOrderCreatePage = ({
       style={{
         display: "flex",
         flexDirection: "column",
+        minHeight: "calc(100vh - 64px)",
         background: "#F5F5F7",
         position: "relative",
       }}
@@ -3684,7 +2605,7 @@ export const PurchaseOrderCreatePage = ({
           background: "#F5F5F7",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div className="flex flex-col gap-x-sm">
           <div
             style={{
               display: "flex",
@@ -3776,14 +2697,14 @@ export const PurchaseOrderCreatePage = ({
                 gap: "16px",
               }}
             >
-              <div style={rowWrapStyle} id="form-field-vendor">
+              <div style={rowWrapStyle}>
                 {fieldLabelCol(
                   "Vendor Name",
                   "Select an existing vendor or add a new one.",
                   true
                 )}
-                <div style={{ position: "relative" }}>
-                  <div style={{ position: "relative" }}>
+                <div className="relative">
+                  <div className="relative">
                     <input
                       value={vendorSearch}
                       onChange={(e) => handleVendorInputChange(e.target.value)}
@@ -3969,7 +2890,7 @@ export const PurchaseOrderCreatePage = ({
                 />
               </div>
 
-              <div style={rowWrapStyle} id="form-field-email">
+              <div style={rowWrapStyle}>
                 {fieldLabelCol("Email")}
                 <InputField
                   value={vendorDetails.email}
@@ -3979,7 +2900,6 @@ export const PurchaseOrderCreatePage = ({
                       email: e.target.value,
                     })
                   }
-                  error={formErrors.email}
                   disabled={((isFromWorkOrderAssignment || isEditMode || isReviseMode) && !isVendorEditingEnabled) || isVendorLocked}
                   placeholder="Input email"
                 />
@@ -4015,7 +2935,7 @@ export const PurchaseOrderCreatePage = ({
                 gap: "16px",
               }}
             >
-              <div style={rowWrapStyle} id="form-field-poDate">
+              <div style={rowWrapStyle}>
                 {fieldLabelCol(
                   "Purchase Order Date",
                   "The date when this purchase order is created.",
@@ -4043,7 +2963,7 @@ export const PurchaseOrderCreatePage = ({
                   disabled={isReviseMode}
                 />
               </div>
-              <div style={rowWrapStyle} id="form-field-currency">
+              <div style={rowWrapStyle}>
                 {fieldLabelCol(
                   "Currency",
                   "Used for all prices in this purchase order.",
@@ -4079,7 +2999,7 @@ export const PurchaseOrderCreatePage = ({
 
           <div style={pageSectionStyle}>
             {sectionHeader(
-              "Informasi Penerima",
+              "Recipient Information",
               <Button
                 variant="tertiary"
                 size="small"
@@ -4149,7 +3069,7 @@ export const PurchaseOrderCreatePage = ({
             </div>
           </div>
 
-          <div style={pageSectionStyle} id="form-field-lines">
+          <div style={pageSectionStyle}>
             {sectionHeader(
               "Purchase Order Lines",
               <Button
@@ -4170,18 +3090,6 @@ export const PurchaseOrderCreatePage = ({
                 gap: "16px",
               }}
             >
-              {formErrors.lines ? (
-                <span
-                  style={{
-                    fontSize: "var(--text-body)",
-                    color: "var(--status-red-primary)",
-                    marginTop: "-4px",
-                    marginBottom: "4px",
-                  }}
-                >
-                  {formErrors.lines}
-                </span>
-              ) : null}
               <div
                 style={{
                   border: "none",
@@ -4190,16 +3098,16 @@ export const PurchaseOrderCreatePage = ({
                   width: "100%",
                 }}
               >
-                <div style={{ overflowX: lines.filter(l => !l.isDeleted).length > 0 ? "auto" : "hidden", width: "100%" }}>
+                <div style={{ overflowX: lines.length > 0 ? "auto" : "hidden", width: "100%" }}>
                   <div
                     style={{
-                      minWidth: lines.filter(l => !l.isDeleted).length > 0 ? "1466px" : "100%",
+                      minWidth: lines.length > 0 ? "1466px" : "100%",
                       width: "100%",
                       display: "flex",
                       flexDirection: "column",
                     }}
                   >
-                    {lines.filter(l => !l.isDeleted).length > 0 && (
+                    {lines.length > 0 && (
                       <div
                         style={{
                           display: "grid",
@@ -4230,8 +3138,19 @@ export const PurchaseOrderCreatePage = ({
                       </div>
                     )}
 
-                      {lines.filter(l => !l.isDeleted).length > 0 ? (
-                      lines.filter(l => !l.isDeleted).map((line, idx, arr) => {
+                      {lines.length > 0 ? (
+                      [...lines].sort((a, b) => {
+                        const typeWeight = { wo: 1, material: 2, manual: 3 };
+                        const aType = typeWeight[a.type] || 99;
+                        const bType = typeWeight[b.type] || 99;
+                        if (aType !== bType) return aType - bType;
+
+                        const aRef = a.woRef && a.woRef !== "-" ? a.woRef : "";
+                        const bRef = b.woRef && b.woRef !== "-" ? b.woRef : "";
+                        if (aRef < bRef) return -1;
+                        if (aRef > bRef) return 1;
+                        return 0;
+                      }).map((line, idx) => {
                         const isLockedWorkOrderLine =
                           !!line.lockedFromWorkOrder;
                         const lineSubtotal =
@@ -4254,7 +3173,7 @@ export const PurchaseOrderCreatePage = ({
                               minHeight: "64px",
                               alignItems: "center",
                               borderBottom:
-                                idx === arr.length - 1
+                                idx === lines.length - 1
                                   ? "none"
                                   : "1px solid var(--neutral-line-separator-1)",
                               background: "var(--neutral-surface-primary)",
@@ -4406,7 +3325,7 @@ export const PurchaseOrderCreatePage = ({
                               <Button
                                 variant="tertiary"
                                 size="small"
-                                onClick={() => handleRemoveLine(line.id)}
+                                onClick={() => handleRemoveLine(line)}
                                 disabled={isLockedWorkOrderLine || (isReviseMode && line.type === "wo")}
                                 style={{ 
                                   color: (isLockedWorkOrderLine || (isReviseMode && line.type === "wo")) 
@@ -4443,7 +3362,17 @@ export const PurchaseOrderCreatePage = ({
                   </div>
                 </div>
               </div>
-              </div>
+              {formErrors.lines ? (
+                <span
+                  style={{
+                    fontSize: "var(--text-body)",
+                    color: "var(--status-red-primary)",
+                  }}
+                >
+                  {formErrors.lines}
+                </span>
+              ) : null}
+            </div>
           </div>
 
           <div
@@ -4519,7 +3448,7 @@ export const PurchaseOrderCreatePage = ({
                 </span>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <div className="flex flex-col gap-md">
                 {feeLines.map((fee) => (
                   <div
                     key={fee.id}
@@ -4679,7 +3608,7 @@ export const PurchaseOrderCreatePage = ({
         >
           Cancel
         </Button>
-        <div style={{ display: "flex", gap: "12px" }}>
+        <div className="flex gap-sm">
           {!isReviseMode && (
             <Button size="medium" variant="outlined" onClick={handleSaveDraft}>
               {isEditMode ? "Save Changes" : "Save as Draft"}
@@ -4690,6 +3619,52 @@ export const PurchaseOrderCreatePage = ({
           </Button>
         </div>
       </div>
+
+      {showDeleteConfirmationModal ? (
+        <GeneralModal
+          isOpen={showDeleteConfirmationModal}
+          onClose={() => {
+            setShowDeleteConfirmationModal(false);
+            setLineToDelete(null);
+            setDeleteConfirmationInvoiceIds("");
+          }}
+          title="Delete Item?"
+          description={`This item is linked to invoice ${deleteConfirmationInvoiceIds}. Are you sure you want to delete it?`}
+          size="small"
+          centeredHeader={true}
+          footer={
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+              <Button
+                variant="danger-filled"
+                size="large"
+                style={{ width: "100%" }}
+                onClick={() => {
+                  setLines((prev) =>
+                    prev.filter((l) => l.id !== lineToDelete.id || l.lockedFromWorkOrder)
+                  );
+                  setShowDeleteConfirmationModal(false);
+                  setLineToDelete(null);
+                  setDeleteConfirmationInvoiceIds("");
+                }}
+              >
+                Delete Item
+              </Button>
+              <Button
+                variant="outlined"
+                size="large"
+                style={{ width: "100%" }}
+                onClick={() => {
+                  setShowDeleteConfirmationModal(false);
+                  setLineToDelete(null);
+                  setDeleteConfirmationInvoiceIds("");
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          }
+        />
+      ) : null}
 
       {showAddProductModal ? (
         <div
@@ -4702,64 +3677,61 @@ export const PurchaseOrderCreatePage = ({
             background: "rgba(0, 0, 0, 0.5)",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: "flex-end",
             zIndex: 1000,
           }}
         >
           <div
             style={{
-              width: "80vw",
-              maxWidth: "1600px",
-              maxHeight: "88vh",
+              width: "800px",
+              maxWidth: "100vw",
+              height: "100%",
               background: "var(--neutral-surface-primary)",
-              borderRadius: "24px",
-              padding: "24px",
               display: "flex",
               flexDirection: "column",
-              gap: "20px",
-              position: "relative",
-              boxShadow: "var(--elevation-sm)",
+              boxShadow: "-4px 0 24px rgba(0, 0, 0, 0.08)",
+              animation: "slideInRight 0.3s ease-out forwards",
             }}
           >
             <div
               style={{
-                position: "relative",
-                minHeight: "40px",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
+                justifyContent: "space-between",
+                padding: "20px 24px",
+                borderBottom: "1px solid var(--neutral-line-separator-1)",
+                background: "var(--neutral-surface-primary)",
               }}
             >
-              <IconButton
-                icon={CloseIcon}
-                size="large"
-                onClick={() => setShowAddProductModal(false)}
-                style={{ position: "absolute", top: "-8px", right: 0 }}
-                color="var(--neutral-on-surface-primary)"
-              />
               <h2
                 style={{
                   margin: 0,
-                  fontSize: "var(--text-headline)",
+                  fontSize: "var(--text-title-1)",
                   fontWeight: "var(--font-weight-bold)",
-                  textAlign: "center",
                 }}
               >
                 {editingLineId
                   ? "Edit Purchase Order Line"
                   : "Add Purchase Order Line"}
               </h2>
+              <IconButton
+                icon={CloseIcon}
+                size="small"
+                onClick={() => setShowAddProductModal(false)}
+                color="var(--neutral-on-surface-secondary)"
+              />
             </div>
 
             <div
-              id="modal-scroll-body"
+              id="drawer-scroll-body"
               style={{
                 display: "flex",
                 flexDirection: "column",
                 gap: "20px",
                 overflowY: "auto",
-                paddingRight: "4px",
+                padding: "24px",
                 minHeight: 0,
+                flex: 1,
               }}
             >
               <div
@@ -4787,7 +3759,7 @@ export const PurchaseOrderCreatePage = ({
                       color: "var(--neutral-on-surface-primary)",
                     }}
                   >
-                    Tipe Baris Purchase Order
+                    Purchase Order Line Type
                   </span>
                 </div>
 
@@ -4928,7 +3900,7 @@ export const PurchaseOrderCreatePage = ({
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: "1fr 1fr 1fr",
                     gap: "16px",
                   }}
                 >
@@ -4941,7 +3913,7 @@ export const PurchaseOrderCreatePage = ({
                       required
                       value={productModalForm.manualName}
                       maxLength={100}
-                      headerRight={`${String(productModalForm.manualName || "").length}/100`}
+                      showCounter
                       onChange={(e) => {
                         setProductModalForm({
                           ...productModalForm,
@@ -4953,7 +3925,7 @@ export const PurchaseOrderCreatePage = ({
                             manualName: "",
                           }));
                       }}
-                      placeholder="Masukkan nama"
+                      placeholder="Enter name"
                       error={!!productModalFieldErrors.manualName}
                       disabled={isReviseMode}
                     />
@@ -4977,7 +3949,7 @@ export const PurchaseOrderCreatePage = ({
                         manualCode: e.target.value,
                       })
                     }
-                    placeholder="Masukkan kode"
+                    placeholder="Enter code"
                     disabled={isReviseMode}
                   />
                   <div id="modal-field-manualQty">
@@ -4997,7 +3969,7 @@ export const PurchaseOrderCreatePage = ({
                             manualQty: "",
                           }));
                       }}
-                      placeholder="Masukkan jumlah"
+                      placeholder="Enter quantity"
                       error={!!productModalFieldErrors.manualQty}
                     />
                     {productModalFieldErrors.manualQty ? (
@@ -5011,27 +3983,9 @@ export const PurchaseOrderCreatePage = ({
                       </span>
                     ) : null}
                   </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <InputField
-                      label="Description"
-                      multiline
-                      value={productModalForm.manualDesc}
-                      maxLength={1000}
-                      headerRight={`${String(productModalForm.manualDesc || "").length}/1000`}
-                      onChange={(e) =>
-                        setProductModalForm({
-                          ...productModalForm,
-                          manualDesc: e.target.value,
-                        })
-                      }
-                      placeholder="Masukkan deskripsi"
-                      disabled={isReviseMode}
-                    />
-                  </div>
                   <div
                     id="modal-field-manualPrice"
                     style={{
-                      gridColumn: "1 / -1",
                       display: "flex",
                       flexDirection: "column",
                       gap: "8px",
@@ -5064,7 +4018,7 @@ export const PurchaseOrderCreatePage = ({
                             manualPrice: "",
                           }));
                       }}
-                      placeholder="Masukkan harga satuan"
+                      placeholder="Enter unit price"
                       prefix={currencyPrefixLabel}
                       error={!!productModalFieldErrors.manualPrice}
                       disabled={isReviseMode}
@@ -5079,6 +4033,23 @@ export const PurchaseOrderCreatePage = ({
                         {productModalFieldErrors.manualPrice}
                       </span>
                     ) : null}
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <InputField
+                      label="Description"
+                      multiline
+                      value={productModalForm.manualDesc}
+                      maxLength={1000}
+                      showCounter
+                      onChange={(e) =>
+                        setProductModalForm({
+                          ...productModalForm,
+                          manualDesc: e.target.value,
+                        })
+                      }
+                      placeholder="Enter description"
+                      disabled={isReviseMode}
+                    />
                   </div>
                 </div>
               ) : productLineType === "material" ? (
@@ -5124,7 +4095,13 @@ export const PurchaseOrderCreatePage = ({
                           manualCode: targetLine?.code || "",
                           manualDesc: targetLine?.desc || "",
                           manualQty: "",
-                          manualPrice: targetLine?.price ? String(targetLine.price) : "",
+                              manualPrice: (() => {
+                            if (!selectedVendorRecord) return "";
+                            const vp = selectedVendorRecord?.vendorPrices?.find(
+                              (vpr) => vpr.materialCode === targetLine?.code
+                            );
+                            return vp ? String(vp.latestPrice) : "";
+                          })(),
                         });
                         setProductModalImages(
                           targetLine?.image
@@ -5185,7 +4162,7 @@ export const PurchaseOrderCreatePage = ({
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
+                        gridTemplateColumns: "1fr 1fr 1fr",
                         gap: "16px",
                       }}
                     >
@@ -5197,6 +4174,7 @@ export const PurchaseOrderCreatePage = ({
                       <div style={{ gridColumn: "1 / -1" }}>
                         <InputField
                           label="Name"
+                          required
                           value={productModalForm.manualName}
                           maxLength={100}
                           showCounter
@@ -5225,7 +4203,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualQty: "",
                               }));
                           }}
-                          placeholder="Masukkan jumlah"
+                          placeholder="Enter quantity"
                           suffix={selectedMaterialLine?.uom || ""}
                           hasError={!!productModalFieldErrors.manualQty}
                         />
@@ -5240,26 +4218,8 @@ export const PurchaseOrderCreatePage = ({
                           </span>
                         ) : null}
                       </div>
-                      <div style={{ gridColumn: "1 / -1" }}>
-                        <InputField
-                          label="Description"
-                          multiline
-                          value={productModalForm.manualDesc}
-                          maxLength={1000}
-                          showCounter
-                          onChange={(e) =>
-                            setProductModalForm({
-                              ...productModalForm,
-                              manualDesc: e.target.value,
-                            })
-                          }
-                          placeholder="Masukkan deskripsi"
-                          disabled={isReviseMode}
-                        />
-                      </div>
                       <div id="modal-field-manualPrice"
                         style={{
-                          gridColumn: "1 / -1",
                           display: "flex",
                           flexDirection: "column",
                           gap: "8px",
@@ -5292,7 +4252,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualPrice: "",
                               }));
                           }}
-                          placeholder="Masukkan harga satuan"
+                          placeholder="Enter unit price"
                           prefix={currencyPrefixLabel}
                           hasError={!!productModalFieldErrors.manualPrice}
                           disabled={isReviseMode}
@@ -5307,6 +4267,32 @@ export const PurchaseOrderCreatePage = ({
                             {productModalFieldErrors.manualPrice}
                           </span>
                         ) : null}
+                        {selectedVendorRecord && productModalForm.selectedMaterialLineId ? (() => {
+                          const selMat = availableMaterialLines.find(l => l.id === productModalForm.selectedMaterialLineId);
+                          const vp = selectedVendorRecord.vendorPrices?.find(vpr => vpr.materialCode === selMat?.code);
+                          return (
+                            <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-secondary)" }}>
+                              {selectedVendorRecord.name}'s latest price for this material: {vp ? formatCurrency(vp.latestPrice, currency) : "-"}
+                            </span>
+                          );
+                        })() : null}
+                      </div>
+                      <div style={{ gridColumn: "1 / -1" }}>
+                        <InputField
+                          label="Description"
+                          multiline
+                          value={productModalForm.manualDesc}
+                          maxLength={1000}
+                          showCounter
+                          onChange={(e) =>
+                            setProductModalForm({
+                              ...productModalForm,
+                              manualDesc: e.target.value,
+                            })
+                          }
+                          placeholder="Enter description"
+                          disabled={isReviseMode}
+                        />
                       </div>
                     </div>
                   ) : null}
@@ -5324,21 +4310,21 @@ export const PurchaseOrderCreatePage = ({
                     style={{
                       display: "flex",
                       flexDirection: "column",
-                      gap: "8px",
+                      gap: "4px",
                     }}
                   >
                     <div
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "4px",
-                        fontSize: "var(--text-body)",
+                        gap: "2px",
+                        height: "20px",
                       }}
                     >
-                      <span style={{ color: "var(--status-red-primary)" }}>
+                      <span style={{ fontSize: "14px", fontWeight: "bold", lineHeight: "18px", color: "var(--status-red-primary)" }}>
                         *
                       </span>
-                      <span>Work Order</span>
+                      <span style={{ fontSize: "12px", lineHeight: "18px", color: "var(--neutral-on-surface-primary)" }}>Work Order</span>
                     </div>
                     {(() => {
                       const selectedWoIds = lines
@@ -5366,7 +4352,8 @@ export const PurchaseOrderCreatePage = ({
                                 ? buildLinkedWorkOrderDescription(
                                   targetLine.woRef,
                                   targetLine.outsourceSteps,
-                                  linkedRoutingStages // Pass current context stages or fallback
+                                  linkedRoutingStages,
+                                  targetLine.assignmentId
                                 )
                                 : targetLine?.desc || "",
                               manualQty: targetLine ? String(targetLine.qty) : "",
@@ -5391,12 +4378,19 @@ export const PurchaseOrderCreatePage = ({
                             value: getWorkOrderSourceId(line),
                             label: line.item,
                             woRef: line.woRef,
+                            assignmentId: line.assignmentId || "-",
                           }))}
                           renderValue={(option) => (
                             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                               <span>{option.label}</span>
                               <span style={{ color: "var(--neutral-on-surface-tertiary)" }}>·</span>
-                              <span style={{ color: "var(--neutral-on-surface-tertiary)", fontStyle: "italic" }}>{option.woRef}</span>
+                              <span style={{ color: "var(--neutral-on-surface-tertiary)" }}>{option.woRef}</span>
+                              {option.assignmentId && option.assignmentId !== "-" && (
+                                <>
+                                  <span style={{ color: "var(--neutral-on-surface-tertiary)" }}>·</span>
+                                  <span style={{ color: "var(--neutral-on-surface-tertiary)", fontStyle: "italic" }}>{option.assignmentId}</span>
+                                </>
+                              )}
                             </div>
                           )}
                           renderOption={(option) => (
@@ -5429,11 +4423,31 @@ export const PurchaseOrderCreatePage = ({
                                 style={{
                                   color: "var(--neutral-on-surface-tertiary)",
                                   flexShrink: 0,
-                                  fontStyle: "italic",
                                 }}
                               >
                                 {option.woRef}
                               </span>
+                              {option.assignmentId && option.assignmentId !== "-" && (
+                                <>
+                                  <span
+                                    style={{
+                                      color: "var(--neutral-on-surface-tertiary)",
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    ·
+                                  </span>
+                                  <span
+                                    style={{
+                                      color: "var(--neutral-on-surface-tertiary)",
+                                      flexShrink: 0,
+                                      fontStyle: "italic",
+                                    }}
+                                  >
+                                    {option.assignmentId}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           )}
                         />
@@ -5475,7 +4489,7 @@ export const PurchaseOrderCreatePage = ({
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
+                        gridTemplateColumns: "1fr 1fr 1fr",
                         gap: "16px",
                       }}
                     >
@@ -5485,6 +4499,7 @@ export const PurchaseOrderCreatePage = ({
                       <div style={{ gridColumn: "1 / -1" }}>
                         <InputField
                           label="Name"
+                          required
                           value={productModalForm.manualName}
                           maxLength={100}
                           showCounter
@@ -5514,7 +4529,7 @@ export const PurchaseOrderCreatePage = ({
                                 manualQty: "",
                               }));
                           }}
-                          placeholder="Masukkan jumlah"
+                          placeholder="Enter quantity"
                           hasError={!!productModalFieldErrors.manualQty}
                         />
                         {productModalFieldErrors.manualQty ? (
@@ -5525,6 +4540,55 @@ export const PurchaseOrderCreatePage = ({
                             }}
                           >
                             {productModalFieldErrors.manualQty}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div id="modal-field-manualPrice"
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "4px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "2px",
+                            height: "20px",
+                          }}
+                        >
+                          <span style={{ fontSize: "14px", fontWeight: "bold", lineHeight: "18px", color: "var(--status-red-primary)" }}>
+                            *
+                          </span>
+                          <span style={{ fontSize: "12px", lineHeight: "18px", color: "var(--neutral-on-surface-primary)" }}>Unit Price</span>
+                        </div>
+                        <InputGroup
+                          type="number"
+                          value={productModalForm.manualPrice}
+                          onChange={(e) => {
+                            setProductModalForm({
+                              ...productModalForm,
+                              manualPrice: e.target.value,
+                            });
+                            if (productModalFieldErrors.manualPrice)
+                              setProductModalFieldErrors((prev) => ({
+                                ...prev,
+                                manualPrice: "",
+                              }));
+                          }}
+                          placeholder="Enter unit price"
+                          prefix={currencyPrefixLabel}
+                          hasError={!!productModalFieldErrors.manualPrice}
+                        />
+                        {productModalFieldErrors.manualPrice ? (
+                          <span
+                            style={{
+                              fontSize: "var(--text-body)",
+                              color: "var(--status-red-primary)",
+                            }}
+                          >
+                            {productModalFieldErrors.manualPrice}
                           </span>
                         ) : null}
                       </div>
@@ -5541,58 +4605,8 @@ export const PurchaseOrderCreatePage = ({
                               manualDesc: e.target.value,
                             })
                           }
-                          placeholder="Masukkan deskripsi"
+                          placeholder="Enter description"
                         />
-                      </div>
-                      <div id="modal-field-manualPrice"
-                        style={{
-                          gridColumn: "1 / -1",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "8px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            fontSize: "var(--text-body)",
-                          }}
-                        >
-                          <span style={{ color: "var(--status-red-primary)" }}>
-                            *
-                          </span>
-                          <span>Unit Price</span>
-                        </div>
-                        <InputGroup
-                          type="number"
-                          value={productModalForm.manualPrice}
-                          onChange={(e) => {
-                            setProductModalForm({
-                              ...productModalForm,
-                              manualPrice: e.target.value,
-                            });
-                            if (productModalFieldErrors.manualPrice)
-                              setProductModalFieldErrors((prev) => ({
-                                ...prev,
-                                manualPrice: "",
-                              }));
-                          }}
-                          placeholder="Masukkan harga satuan"
-                          prefix={currencyPrefixLabel}
-                          hasError={!!productModalFieldErrors.manualPrice}
-                        />
-                        {productModalFieldErrors.manualPrice ? (
-                          <span
-                            style={{
-                              fontSize: "var(--text-body)",
-                              color: "var(--status-red-primary)",
-                            }}
-                          >
-                            {productModalFieldErrors.manualPrice}
-                          </span>
-                        ) : null}
                       </div>
                     </div>
                   ) : null}
@@ -5610,31 +4624,41 @@ export const PurchaseOrderCreatePage = ({
                 </span>
               ) : null}
             </div>
-            
-            <div style={{ display: "flex", justifyContent: "center", fontSize: "var(--text-subtitle-1)", fontWeight: "var(--font-weight-bold)" }}>
-              Subtotal: {formatCurrency((parseInt(productModalForm.manualQty, 10) || 0) * (parseInt(productModalForm.manualPrice, 10) || 0), currency)}
-            </div>
-
-            <div style={{ display: "flex", gap: "12px", flexShrink: 0 }}>
-              <Button
-                variant="outlined"
-                size="large"
-                style={{ flex: 1 }}
-                onClick={() => {
-                  setShowAddProductModal(false);
-                  setEditingLineId(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="filled"
-                size="large"
-                style={{ flex: 1 }}
-                onClick={handleSaveProductLine}
-              >
-                {editingLineId ? "Save Changes" : "Add PO Line"}
-              </Button>
+            <div
+              style={{
+                padding: "16px 24px",
+                borderTop: "1px solid var(--neutral-line-separator-1)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+                background: "var(--neutral-surface-primary)",
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ textAlign: "center", fontSize: "14px", fontWeight: "bold" }}>
+                Subtotal: {formatCurrency(Number(productModalForm.manualQty || 0) * Number(productModalForm.manualPrice || 0), currency)}
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+                <Button
+                  variant="outlined"
+                  size="medium"
+                  style={{ flex: 1 }}
+                  onClick={() => {
+                    setShowAddProductModal(false);
+                    setEditingLineId(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="filled"
+                  size="medium"
+                  style={{ flex: 1 }}
+                  onClick={handleSaveProductLine}
+                >
+                  {editingLineId ? "Save Changes" : "Add PO Line"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -5725,7 +4749,7 @@ export const PurchaseOrderCreatePage = ({
         description="Some items have a unit price of 0. Please review them before submitting, or continue if this is intentional."
         descriptionStyle={{ fontSize: "14px" }}
         footer={
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", marginTop: "24px" }}>
+          <div className="flex flex-col gap-sm w-full" style={{ marginTop: "24px" }}>
             <Button
               variant="filled"
               size="large"
@@ -5782,7 +4806,7 @@ export const PurchaseOrderCreatePage = ({
               style={{ width: "100%" }}
               onClick={() => setShowSubmitConfirmModal(false)}
             >
-              {isReviseMode ? "Batal" : "Lanjut Edit"}
+              {isReviseMode ? "Cancel" : "Keep Editing"}
             </Button>
           </>
         }
@@ -5825,7 +4849,7 @@ export const PurchaseOrderCreatePage = ({
         description="Please update the purchase order before submitting the revision"
         width="376px"
         footer={
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}>
+          <div className="flex flex-col gap-sm w-full">
             <Button
               variant="filled"
               size="medium"
@@ -5841,7 +4865,7 @@ export const PurchaseOrderCreatePage = ({
       <GeneralModal
         isOpen={showDiscardChangesModal}
         onClose={() => setShowDiscardChangesModal(false)}
-        title="Batalkan perubahan?"
+        title="Discard changes?"
         footer={
           <>
             <Button
@@ -5853,7 +4877,7 @@ export const PurchaseOrderCreatePage = ({
                 navigateBackWithoutPrompt();
               }}
             >
-              Ya, Batalkan
+              Yes, Discard
             </Button>
             <Button
               variant="outlined"
@@ -5861,7 +4885,7 @@ export const PurchaseOrderCreatePage = ({
               style={{ width: "100%" }}
               onClick={() => setShowDiscardChangesModal(false)}
             >
-              Lanjut Edit
+              Keep Editing
             </Button>
           </>
         }
@@ -5905,53 +4929,6 @@ export const PurchaseOrderCreatePage = ({
         onClose={() => setShowCanceledWOBlocker(false)}
         canceledWOs={canceledWOsFound}
         mode="edit"
-      />
-      <GeneralModal
-        isOpen={showOngoingInvoiceModal}
-        onClose={() => {
-          setShowOngoingInvoiceModal(false);
-          setLinePendingDeletion(null);
-        }}
-        title="Delete Item?"
-        description={
-          linePendingDeletion
-            ? `This item is linked to invoice ${linePendingDeletion.invoices}. Are you sure you want to delete it?`
-            : ""
-        }
-        width="400px"
-        footer={
-          <>
-            <Button
-              variant="danger-filled"
-              size="large"
-              style={{ width: "100%" }}
-              onClick={() => {
-                setLines((prev) =>
-                  prev.map((l) =>
-                    l.id === linePendingDeletion?.id
-                      ? { ...l, isDeleted: true, qty: 0 }
-                      : l
-                  )
-                );
-                setShowOngoingInvoiceModal(false);
-                setLinePendingDeletion(null);
-              }}
-            >
-              Delete Item
-            </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              style={{ width: "100%" }}
-              onClick={() => {
-                setShowOngoingInvoiceModal(false);
-                setLinePendingDeletion(null);
-              }}
-            >
-              Cancel
-            </Button>
-          </>
-        }
       />
     </div>
   );

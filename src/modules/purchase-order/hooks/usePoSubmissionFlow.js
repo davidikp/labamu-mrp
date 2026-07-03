@@ -39,9 +39,10 @@ export const usePoSubmissionFlow = ({
 
     // Check if PO date is in the future
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDate = new Date(createdDate || formData?.createdDate);
-    if (selectedDate > today) {
+    const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const dateToCheck = createdDate || formData?.createdDate;
+    
+    if (dateToCheck > todayString) {
       setShowFutureDateBlocker(true);
       return;
     }

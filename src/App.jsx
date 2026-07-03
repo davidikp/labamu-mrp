@@ -27,6 +27,13 @@ import { NotificationSettingsPage } from "./modules/administration/pages/Notific
 import { MaterialsListPage } from "./modules/materials/pages/MaterialsListPage.jsx";
 import { MaterialDetailPage } from "./modules/materials/pages/MaterialDetailPage.jsx";
 import { MaterialManagePage } from "./modules/materials/pages/MaterialManagePage.jsx";
+import { MaterialRequestListPage } from "./modules/material-request/pages/MaterialRequestListPage.jsx";
+import { MaterialRequestDetailPage } from "./modules/material-request/pages/MaterialRequestDetailPage.jsx";
+import { MaterialForecastPage } from "./modules/material-forecast/pages/MaterialForecastPage.jsx";
+import { MaterialForecastEmptyPage } from "./modules/material-forecast/pages/MaterialForecastEmptyPage.jsx";
+import { IncomingPOPage } from "./modules/material-forecast/pages/IncomingPOPage.jsx";
+import { DemandUrgencyDetailPage } from "./modules/material-forecast/pages/DemandUrgencyDetailPage.jsx";
+import { MaterialPlanningSettingsPage } from "./modules/material-forecast/pages/MaterialPlanningSettingsPage.jsx";
 import { ProcurementAPReportPage } from "./modules/analytics/pages/ProcurementAPReportPage.jsx";
 import { POReportPage } from "./modules/analytics/pages/POReportPage.jsx";
 import { VendorLiabilityReportPage } from "./modules/analytics/pages/VendorLiabilityReportPage.jsx";
@@ -40,6 +47,13 @@ import {
 } from "./utils/localization/localizationUtils.js";
 import { Sidebar } from "./components/layout/Sidebar.jsx";
 import { TopHeader } from "./components/layout/TopHeader.jsx";
+import { NotificationProvider } from "./context/NotificationContext.jsx";
+import { LocaleProvider } from "./ce-ui";
+import { NotificationSeeder } from "./components/notification/NotificationSeeder.jsx";
+import { SimulateEventPanel } from "./components/notification/SimulateEventPanel.jsx";
+import { DashboardPage } from "./modules/dashboard/pages/DashboardPage.jsx";
+import { EmailOutboxPage } from "./modules/notification/pages/EmailOutboxPage.jsx";
+import { CURRENT_USER } from "./data/notification/notificationConfig.js";
 
 // --- MOCK DATA ---
 
@@ -57,8 +71,9 @@ const TRANSLATIONS = {
       invoices: "Invoices",
       customers: "Customers",
       resources: "Resources",
-      procurement: "Procurement",
       material_request: "Material Request",
+      procurement: "Procurement",
+      material_forecast: "Material Planning",
       manufacturing: "Manufacturing",
       analytics: "Analytics",
       reports: "Reports",
@@ -71,6 +86,7 @@ const TRANSLATIONS = {
       user_management: "User Management",
       fx_management: "FX Management",
       notification_settings: "Notification Settings",
+      email_outbox: "Email Outbox",
       company_settings: "Company Settings",
       labamu_staff: "Labamu Staff",
       user_guide: "User Guide",
@@ -81,8 +97,6 @@ const TRANSLATIONS = {
       sales_funnel_report: "Sales Funnel Report",
       work_order_monitoring: "Work Order Monitoring",
       procurement_ap_report: "Procurement & AP Report",
-      search_menu: "Search menu...",
-      no_menu_found: "No menu found",
     },
     role: {
       owner: "Owner",
@@ -120,8 +134,9 @@ const TRANSLATIONS = {
       invoices: "Invoice",
       customers: "Pelanggan",
       resources: "Sumber Daya",
-      procurement: "Pengadaan",
       material_request: "Permintaan Material",
+      procurement: "Pengadaan",
+      material_forecast: "Perencanaan Material",
       manufacturing: "Manufaktur",
       analytics: "Analitik",
       reports: "Laporan",
@@ -134,6 +149,7 @@ const TRANSLATIONS = {
       user_management: "Manajemen Pengguna",
       fx_management: "Manajemen FX",
       notification_settings: "Pengaturan Notifikasi",
+      email_outbox: "Kotak Keluar Email",
       company_settings: "Pengaturan Perusahaan",
       labamu_staff: "Staf Labamu",
       user_guide: "Panduan Pengguna",
@@ -144,8 +160,6 @@ const TRANSLATIONS = {
       sales_funnel_report: "Laporan Sales Funnel",
       work_order_monitoring: "Monitoring Perintah Kerja",
       procurement_ap_report: "Laporan Pengadaan & Utang Usaha",
-      search_menu: "Cari menu...",
-      no_menu_found: "Menu tidak ditemukan",
     },
     role: {
       owner: "Pemilik",
@@ -173,15 +187,19 @@ const TRANSLATIONS = {
 };
 
 const MODULE_TO_ROUTE = {
+  dashboard: "dashboard",
+  email_outbox: "email-outbox",
   work_order: "work-order",
   purchase_order: "purchase-order",
   orders: "orders",
   materials: "materials",
+  material_request: "material-request",
   analytics: "analytics",
   administration: "administration",
   user_management: "user-management",
   notification_settings: "notification-settings",
   user_guide: "user-guide",
+  material_forecast: "material-planning",
   procurement_ap_report: "procurement-ap-report",
   po_report: "po-report",
   vendor_liability_report: "vendor-liability-report",
@@ -357,21 +375,23 @@ const LabamuStyles = () => (
   `}</style>
 );
 
-const ModuleRenderer = ({ 
+const ModuleRenderer = ({
   location,
-  onNavigate, 
-  t, 
-  isSidebarCollapsed, 
-  poApprovalSettings, 
+  onNavigate,
+  t,
+  isSidebarCollapsed,
+  poApprovalSettings,
   setPoApprovalSettings,
   orderApprovalSettings,
   setOrderApprovalSettings,
-  showPoSnackbar, 
-  notificationSettings, 
-  setNotificationSettings, 
+  showPoSnackbar,
+  notificationSettings,
+  setNotificationSettings,
   systemNotifications,
-  setSystemNotifications, 
-  handleModuleChange 
+  setSystemNotifications,
+  handleModuleChange,
+  materialPlanningSettings,
+  setMaterialPlanningSettings,
 }) => {
   const { module: moduleRoute, id, subview } = useParams();
   const activeModule = ROUTE_TO_MODULE[moduleRoute] || moduleRoute?.replace(/-/g, '_');
@@ -385,9 +405,12 @@ const ModuleRenderer = ({
     viewState.data = { id, poNumber: id, wo: id, material: { sku: id } };
   }
 
-  const isSpecialView = ["list", "create", "settings", "manage"].includes(viewState.view) || 
-                        activeModule === "analytics" || 
+  const isSpecialView = ["list", "create", "settings", "manage"].includes(viewState.view) ||
+                        activeModule === "dashboard" ||
+                        activeModule === "email_outbox" ||
+                        activeModule === "analytics" ||
                         activeModule === "administration" ||
+                        activeModule === "material_forecast" ||
                         activeModule === "procurement_ap_report" ||
                         activeModule === "po_report" ||
                         activeModule === "vendor_liability_report" ||
@@ -397,6 +420,14 @@ const ModuleRenderer = ({
     viewState.view = "detail";
   } else if (viewState.view === "manage" && activeModule === "materials") {
     viewState.view = "settings";
+  }
+
+  if (activeModule === "dashboard") {
+    return <DashboardPage />;
+  }
+
+  if (activeModule === "email_outbox") {
+    return <EmailOutboxPage />;
   }
 
   if (activeModule === "procurement_ap_report") {
@@ -717,6 +748,44 @@ const ModuleRenderer = ({
       );
     }
   }
+  if (activeModule === "material_forecast") {
+    if (viewState.view === "settings") {
+      return (
+        <MaterialPlanningSettingsPage
+          onNavigate={onNavigate}
+          isSidebarCollapsed={isSidebarCollapsed}
+          settings={materialPlanningSettings}
+          onSaveSettings={(s) => {
+            setMaterialPlanningSettings(s);
+            showPoSnackbar("Material planning settings saved", "success");
+            onNavigate("list");
+          }}
+        />
+      );
+    }
+    if (viewState.view === "counter_detail") {
+      if (viewState.data?.title === "Incoming PO") {
+        return <IncomingPOPage onNavigate={onNavigate} />;
+      }
+      if (["Overdue", "Urgent", "This Week"].includes(viewState.data?.title)) {
+        return <DemandUrgencyDetailPage onNavigate={onNavigate} statusType={viewState.data.title} showPoSnackbar={showPoSnackbar} />;
+      }
+      return (
+        <MaterialForecastEmptyPage
+          onNavigate={onNavigate}
+          title={viewState.data?.title}
+        />
+      );
+    }
+    return (
+      <MaterialForecastPage
+        onNavigate={onNavigate}
+        t={t}
+        showPoSnackbar={showPoSnackbar}
+        materialPlanningSettings={materialPlanningSettings}
+      />
+    );
+  }
   if (activeModule === "orders") {
     if (viewState.view === "list") {
       return (
@@ -767,6 +836,21 @@ const ModuleRenderer = ({
         onSaveNotificationSettings={(settings) =>
           setNotificationSettings(settings)
         }
+      />
+    );
+  }
+  if (activeModule === "material_request") {
+    if (viewState.view === "list") {
+      return <MaterialRequestListPage onNavigate={onNavigate} t={t} />;
+    }
+    return (
+      <MaterialRequestDetailPage
+        key={viewState.data?.id || id || "material-request-detail"}
+        onNavigate={onNavigate}
+        isSidebarCollapsed={isSidebarCollapsed}
+        initialData={viewState.data}
+        requestId={id}
+        showSnackbar={showPoSnackbar}
       />
     );
   }
@@ -838,6 +922,9 @@ export default function App() {
     isApprovalActive: false,
     requireComment: false,
     approvers: [],
+  });
+  const [materialPlanningSettings, setMaterialPlanningSettings] = useState({
+    urgencyDaysInAdvance: 5,
   });
   const [orderApprovalSettings, setOrderApprovalSettings] = useState({
     isApprovalActive: false,
@@ -1020,6 +1107,15 @@ export default function App() {
   const currentView = (pathParts[1] || "list").replace(/-/g, '_');
 
   return (
+    <NotificationProvider
+      language={language}
+      currentUser={CURRENT_USER}
+      approverSettings={{
+        purchase_order: poApprovalSettings?.approvers,
+        order: orderApprovalSettings?.approvers,
+      }}
+    >
+    <LocaleProvider locale={language === "id" ? "id" : "en"}>
     <div
       ref={appRootRef}
       style={{
@@ -1030,6 +1126,8 @@ export default function App() {
       }}
     >
       <LabamuStyles />
+      <NotificationSeeder />
+      <SimulateEventPanel />
       <div style={{ display: "flex", flex: 1, width: "100%" }}>
         <Sidebar
           isCollapsed={isSidebarCollapsed}
@@ -1127,9 +1225,9 @@ export default function App() {
             </div>
           )}
           <Routes>
-            <Route path="/" element={<Navigate to="/work-order" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/:module" element={
-              <ModuleRenderer 
+              <ModuleRenderer
                 location={location}
                 onNavigate={onNavigate}
                 t={t}
@@ -1144,10 +1242,12 @@ export default function App() {
                 systemNotifications={systemNotifications}
                 setSystemNotifications={setSystemNotifications}
                 handleModuleChange={handleModuleChange}
+                materialPlanningSettings={materialPlanningSettings}
+                setMaterialPlanningSettings={setMaterialPlanningSettings}
               />
             } />
             <Route path="/:module/:id" element={
-              <ModuleRenderer 
+              <ModuleRenderer
                 location={location}
                 onNavigate={onNavigate}
                 t={t}
@@ -1162,10 +1262,12 @@ export default function App() {
                 systemNotifications={systemNotifications}
                 setSystemNotifications={setSystemNotifications}
                 handleModuleChange={handleModuleChange}
+                materialPlanningSettings={materialPlanningSettings}
+                setMaterialPlanningSettings={setMaterialPlanningSettings}
               />
             } />
             <Route path="/:module/:id/:subview" element={
-              <ModuleRenderer 
+              <ModuleRenderer
                 location={location}
                 onNavigate={onNavigate}
                 t={t}
@@ -1180,6 +1282,8 @@ export default function App() {
                 systemNotifications={systemNotifications}
                 setSystemNotifications={setSystemNotifications}
                 handleModuleChange={handleModuleChange}
+                materialPlanningSettings={materialPlanningSettings}
+                setMaterialPlanningSettings={setMaterialPlanningSettings}
               />
             } />
             <Route path="*" element={
@@ -1192,6 +1296,8 @@ export default function App() {
         </div>
       </div>
     </div>
+    </LocaleProvider>
+    </NotificationProvider>
   );
 }
 

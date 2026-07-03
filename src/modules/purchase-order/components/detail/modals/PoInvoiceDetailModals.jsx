@@ -13,16 +13,8 @@ import {
   Button,
   StatusBadge,
 } from "../shared/PoDetailSharedComponents.jsx";
-import { ToggleSwitch } from "../../../../../components/common/ToggleSwitch.jsx";
 import { DocumentTypeBadge } from "../../DocumentTypeBadge.jsx";
-
-const getProgressColor = (pct) => {
-  if (pct >= 100) return "var(--status-green-primary)";
-  if (pct >= 75) return "var(--feature-brand-primary)";
-  if (pct >= 50) return "var(--status-yellow-primary)";
-  if (pct >= 25) return "var(--status-orange-primary)";
-  return "var(--status-red-primary)";
-};
+import { ToggleSwitch } from "../../../../../components/common/ToggleSwitch.jsx";
 
 const PoInvoiceDetailModals = ({
   // Payment History Modal Props
@@ -707,13 +699,14 @@ const PoInvoiceDetailModals = ({
                           getInvoiceMetrics(selectedInvoiceForDetail).total) *
                         100
                       }%`,
-                      background: getProgressColor(
-                        getInvoiceMetrics(selectedInvoiceForDetail).total > 0
-                          ? (getInvoiceMetrics(selectedInvoiceForDetail).paid /
-                              getInvoiceMetrics(selectedInvoiceForDetail).total) *
-                              100
-                          : 0
-                      ),
+                      background: (() => {
+                        const pct = (getInvoiceMetrics(selectedInvoiceForDetail).paid / (getInvoiceMetrics(selectedInvoiceForDetail).total || 1)) * 100;
+                        if (pct >= 100) return "var(--status-green-primary)";
+                        if (pct >= 75) return "var(--feature-brand-primary)";
+                        if (pct >= 50) return "var(--status-yellow-primary)";
+                        if (pct >= 25) return "var(--status-orange-primary)";
+                        return "var(--status-red-primary)";
+                      })(),
                       borderRadius: "100px",
                     }}
                   />
@@ -740,13 +733,14 @@ const PoInvoiceDetailModals = ({
                       style={{
                         fontSize: "14px",
                         fontWeight: "var(--font-weight-bold)",
-                        color: getProgressColor(
-                          getInvoiceMetrics(selectedInvoiceForDetail).total > 0
-                            ? (getInvoiceMetrics(selectedInvoiceForDetail).paid /
-                                getInvoiceMetrics(selectedInvoiceForDetail).total) *
-                                100
-                            : 0
-                        ),
+                        color: (() => {
+                          const pct = (getInvoiceMetrics(selectedInvoiceForDetail).paid / (getInvoiceMetrics(selectedInvoiceForDetail).total || 1)) * 100;
+                          if (pct >= 100) return "var(--status-green-primary)";
+                          if (pct >= 75) return "var(--feature-brand-primary)";
+                          if (pct >= 50) return "var(--status-yellow-primary)";
+                          if (pct >= 25) return "var(--status-orange-primary)";
+                          return "var(--status-red-primary)";
+                        })(),
                       }}
                     >
                       {formatCurrency(

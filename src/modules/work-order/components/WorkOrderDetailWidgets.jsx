@@ -1,18 +1,30 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AddIcon, CalendarIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloudUploadIcon, CloseIcon } from "../../../components/icons/Icons.jsx";
 import { Button } from "../../../components/common/Button.jsx";
+import { Checkbox } from "../../../components/common/Checkbox.jsx";
 import { StatusBadge } from "../../../components/common/StatusBadge.jsx";
+import { DropdownSelect } from "../../../components/common/DropdownSelect.jsx";
+import { FormField, InputField, UnifiedInputShell, PhoneInputField, inputFrameStyle, inputControlStyle, focusInputFrame, blurInputFrame } from "../../../components/index.js";
 import { TableSearchField } from "../../../components/table/TableSearchField.jsx";
+import { UploadDropzone } from "../../../components/index.js";
 import { COUNTRY_CODE_OPTIONS, DATE_PICKER_MONTHS, DATE_PICKER_POPOVER_WIDTH, DATE_PICKER_WEEKDAYS, FILE_DESCRIPTION_MAX_LENGTH } from "../../../constants/appConstants.js";
 import { buildCalendarDays, formatIsoDateString, parseIsoDateString } from "../../../utils/date/dateUtils.js";
 import { formatNumberWithCommas, parseNumberFromCommas } from "../../../utils/format/formatUtils.js";
 import { createImageUploadRecord, createSyntheticInputEvent, getDocumentPrimaryLabel, getFileExtension, getImageUploadName, getImageUploadPreviewUrl, normalizeProofDocuments } from "../../../utils/upload/uploadUtils.js";
 
+const getProgressColor = (pct) => {
+  if (pct >= 100) return "var(--status-green-primary)";
+  if (pct >= 75) return "var(--feature-brand-primary)";
+  if (pct >= 50) return "var(--status-yellow-primary)";
+  if (pct >= 25) return "var(--status-orange-primary)";
+  return "var(--status-red-primary)";
+};
+
 const ProgressRing = ({ percentage, color = "inherit", strokeColor }) => {
   const radius = 6;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
-  const resolvedStrokeColor = strokeColor || "var(--feature-brand-primary)";
+  const resolvedStroke = strokeColor || getProgressColor(percentage);
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -35,7 +47,7 @@ const ProgressRing = ({ percentage, color = "inherit", strokeColor }) => {
           cy="8"
           r={radius}
           fill="none"
-          stroke={resolvedStrokeColor}
+          stroke={resolvedStroke}
           strokeWidth="2"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
@@ -47,7 +59,7 @@ const ProgressRing = ({ percentage, color = "inherit", strokeColor }) => {
   );
 };
 
-const Tooltip = ({ content, children, style = {}, showOnlyIfTruncated = false }) => {
+const Tooltip = ({ content, children, style = {}, showOnlyIfTruncated = false, align = "center" }) => {
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef(null);
 
@@ -78,8 +90,9 @@ const Tooltip = ({ content, children, style = {}, showOnlyIfTruncated = false })
           style={{
             position: "absolute",
             bottom: "100%",
-            left: "50%",
-            transform: "translateX(-50%)",
+            left: align === "right" ? "auto" : "50%",
+            right: align === "right" ? "0" : "auto",
+            transform: align === "right" ? "none" : "translateX(-50%)",
             marginBottom: "8px",
             width: "max-content",
             padding: "8px 12px",
@@ -99,8 +112,9 @@ const Tooltip = ({ content, children, style = {}, showOnlyIfTruncated = false })
             style={{
               position: "absolute",
               top: "100%",
-              left: "50%",
-              transform: "translateX(-50%)",
+              left: align === "right" ? "auto" : "50%",
+              right: align === "right" ? "12px" : "auto",
+              transform: align === "right" ? "none" : "translateX(-50%)",
               borderWidth: "6px",
               borderStyle: "solid",
               borderColor:
@@ -115,7 +129,7 @@ const Tooltip = ({ content, children, style = {}, showOnlyIfTruncated = false })
 
 const LabelValue = ({ label, value, badge }) => {
   const displayValue =
-    typeof value === "object" && value !== null ? JSON.stringify(value) : value;
+    React.isValidElement(value) ? value : (typeof value === "object" && value !== null ? JSON.stringify(value) : value);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -146,348 +160,7 @@ const LabelValue = ({ label, value, badge }) => {
   );
 };
 
-const FormField = ({
-  label,
-  required = false,
-  children,
-  error,
-  helperText,
-}) => (
-  <div
-    style={{
-      display: "flex",
-      flexDirection: "column",
-      gap: "8px",
-      width: "100%",
-    }}
-  >
-    {label ? (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "2px",
-          fontSize: "var(--text-body)",
-          fontWeight: "var(--font-weight-regular)",
-        }}
-      >
-        {required ? (
-          <span style={{ color: "var(--status-red-primary)" }}>*</span>
-        ) : null}
-        <span style={{ color: "var(--neutral-on-surface-primary)" }}>
-          {label}
-        </span>
-      </div>
-    ) : null}
-    {children}
-    {error ? (
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "var(--status-red-primary)",
-        }}
-      >
-        {error}
-      </span>
-    ) : null}
-    {!error && helperText ? (
-      <span
-        style={{
-          fontSize: "var(--text-desc)",
-          color: "var(--neutral-on-surface-secondary)",
-        }}
-      >
-        {helperText}
-      </span>
-    ) : null}
-  </div>
-);
 
-const baseInputBorderColor = "#e9e9e9";
-
-const UnifiedInputShell = ({
-  children,
-  disabled = false,
-  hasError = false,
-  style = {},
-  onFocus,
-  onBlur,
-}) => (
-  <div
-    style={{
-      minHeight: "46px",
-      height: "auto",
-      width: "100%",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      border: `1px solid ${hasError
-          ? "var(--status-red-primary)"
-          : disabled
-            ? "var(--neutral-line-outline)"
-            : baseInputBorderColor
-        }`,
-      borderRadius: "10px",
-      background: disabled
-        ? "var(--neutral-surface-grey-lighter)"
-        : "var(--neutral-surface-primary)",
-      padding: "0 16px",
-      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-      boxSizing: "border-box",
-      overflow: "visible",
-      ...style,
-    }}
-    onFocus={onFocus}
-    onBlur={onBlur}
-  >
-    {children}
-  </div>
-);
-
-const PhoneInputField = ({
-  label,
-  required = false,
-  value = "",
-  onChange,
-  disabled,
-  error,
-  helperText,
-}) => {
-  const normalizePhoneValue = (input) => {
-    if (!input) return { countryCode: "+62", number: "" };
-    const matched = COUNTRY_CODE_OPTIONS.find(
-      (opt) => input.startsWith(`${opt.code} `) || input === opt.code
-    );
-    if (matched) {
-      const nextNumber = input
-        .replace(`${matched.code} `, "")
-        .replace(matched.code, "")
-        .trim();
-      return { countryCode: matched.code, number: nextNumber };
-    }
-    return { countryCode: "+62", number: input.trim() };
-  };
-
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0, width: 300, placement: "bottom" });
-  const parsedValue = normalizePhoneValue(value);
-  const selectedOption =
-    COUNTRY_CODE_OPTIONS.find((opt) => opt.code === parsedValue.countryCode) ||
-    COUNTRY_CODE_OPTIONS[0];
-  const filteredOptions = COUNTRY_CODE_OPTIONS.filter((opt) => {
-    const q = search.toLowerCase();
-    return (
-      opt.code.toLowerCase().includes(q) || opt.label.toLowerCase().includes(q)
-    );
-  });
-
-  const emitChange = (nextCountryCode, nextNumber) => {
-    const composed = nextNumber?.trim()
-      ? `${nextCountryCode} ${nextNumber.trim()}`
-      : nextCountryCode;
-    onChange?.(composed);
-  };
-
-  const updatePopoverPosition = (el) => {
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const estimatedHeight = 400;
-    const padding = 12;
-    const openAbove = 
-      window.innerHeight - rect.bottom < estimatedHeight + 16 &&
-      rect.top > estimatedHeight + 16;
-    
-    setPopoverPos({
-      top: openAbove ? rect.top - estimatedHeight - padding : rect.bottom + padding,
-      left: Math.min(rect.left, window.innerWidth - 316),
-      width: Math.min(300, window.innerWidth - 32),
-      placement: openAbove ? "top" : "bottom",
-    });
-  };
-
-  return (
-    <FormField
-      label={label}
-      required={required}
-      error={error}
-      helperText={helperText}
-    >
-      <UnifiedInputShell
-        disabled={disabled}
-        hasError={!!error}
-        style={{ position: "relative", zIndex: isOpen ? 200 : "auto" }}
-        onFocus={(e) => focusInputFrame(e.currentTarget)}
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget)) {
-            blurInputFrame(e.currentTarget, !!disabled, !!error);
-          }
-        }}
-      >
-        <div style={{ position: "relative", flexShrink: 0 }}>
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={(e) => {
-              if (disabled) return;
-              const nextOpen = !isOpen;
-              if (nextOpen) updatePopoverPosition(e.currentTarget);
-              setIsOpen(nextOpen);
-            }}
-            style={{
-              background: "transparent",
-              border: "none",
-              padding: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              cursor: disabled ? "not-allowed" : "pointer",
-              color: disabled
-                ? "var(--neutral-on-surface-tertiary)"
-                : "var(--neutral-on-surface-primary)",
-              fontSize: "var(--text-subtitle-1)",
-              fontFamily: "Lato, sans-serif",
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ fontSize: "18px", lineHeight: 1 }}>
-              {selectedOption.flag}
-            </span>
-            <span style={{ whiteSpace: "nowrap" }}>{selectedOption.code}</span>
-            <ChevronDownIcon
-              size={18}
-              color="var(--neutral-on-surface-secondary)"
-              style={{
-                transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "transform 0.2s ease",
-              }}
-            />
-          </button>
-
-          {isOpen && !disabled ? (
-            <>
-              <div
-                style={{ position: "fixed", inset: 0, zIndex: 9998 }}
-                onClick={() => {
-                  setIsOpen(false);
-                  setSearch("");
-                }}
-              />
-              <div
-                style={{
-                  position: "fixed",
-                  top: `${popoverPos.top}px`,
-                  left: `${popoverPos.left}px`,
-                  width: `${popoverPos.width}px`,
-                  maxHeight: "400px",
-                  display: "flex",
-                  flexDirection: "column",
-                  background: "var(--neutral-surface-primary)",
-                  border: `1px solid ${baseInputBorderColor}`,
-                  borderRadius: "16px",
-                  boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.12)",
-                  zIndex: 9999,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    padding: "16px 20px",
-                    borderBottom: `1px solid ${baseInputBorderColor}`,
-                  }}
-                >
-                  <TableSearchField
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search country or code..."
-                    width="100%"
-                    minWidth="0"
-                    fontSize="14px"
-                  />
-                </div>
-                <div style={{ maxHeight: "320px", overflowY: "auto" }}>
-                  {filteredOptions.map((opt, index) => (
-                    <div
-                      key={opt.code}
-                      onClick={() => {
-                        emitChange(opt.code, parsedValue.number);
-                        setIsOpen(false);
-                        setSearch("");
-                      }}
-                      onMouseEnter={(e) =>
-                      (e.currentTarget.style.background =
-                        "var(--neutral-surface-grey-lighter)")
-                      }
-                      onMouseLeave={(e) =>
-                      (e.currentTarget.style.background =
-                        "var(--neutral-surface-primary)")
-                      }
-                      style={{
-                        borderTop:
-                          index === 0
-                            ? "none"
-                            : `1px solid ${baseInputBorderColor}`,
-                        padding: "12px 20px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "14px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span style={{ fontSize: "20px", lineHeight: 1 }}>
-                        {opt.flag}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "14px",
-                          color: "var(--neutral-on-surface-primary)",
-                          minWidth: "44px",
-                        }}
-                      >
-                        {opt.code}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "14px",
-                          color: "var(--neutral-on-surface-secondary)",
-                        }}
-                      >
-                        {opt.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          ) : null}
-        </div>
-        <input
-          type="text"
-          placeholder="Input phone number"
-          value={parsedValue.number}
-          onChange={(e) => emitChange(selectedOption.code, e.target.value)}
-          disabled={disabled}
-          style={{
-            flex: 1,
-            height: "100%",
-            minWidth: 0,
-            border: "none",
-            outline: "none",
-            padding: 0,
-            background: "transparent",
-            fontSize: "var(--text-subtitle-1)",
-            color: disabled
-              ? "var(--neutral-on-surface-tertiary)"
-              : parsedValue.number
-                ? "var(--neutral-on-surface-primary)"
-                : "var(--neutral-on-surface-tertiary)",
-            fontFamily: "Lato, sans-serif",
-          }}
-        />
-      </UnifiedInputShell>
-    </FormField>
-  );
-};
 
 const DateInputControl = ({
   value = "",
@@ -592,7 +265,7 @@ const DateInputControl = ({
                 ? "var(--feature-brand-primary)"
                 : disabled
                   ? "var(--neutral-line-outline)"
-                  : baseInputBorderColor
+                  : "var(--neutral-line-separator-1)"
           }`,
           borderRadius,
           background: disabled
@@ -1110,115 +783,7 @@ const DateRangeInputControl = ({
 
 function isRangePart(s, e) { return s || e; }
 
-const InputField = ({
-  label,
-  required,
-  type = "text",
-  placeholder,
-  value,
-  onChange,
-  disabled,
-  icon: Icon,
-  max,
-  multiline = false,
-  error,
-  helperText,
-  ...rest
-}) => (
-  <FormField
-    label={label}
-    required={required}
-    error={error}
-    helperText={helperText}
-  >
-    <div style={{ position: "relative", width: "100%" }}>
-      {multiline ? (
-        <textarea
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-          {...rest}
-          style={{
-            minHeight: "88px",
-            padding: "12px 16px",
-            width: "100%",
-            resize: "vertical",
-            border: "1px solid transparent",
-            background: disabled
-              ? "var(--neutral-surface-grey-lighter)"
-              : "var(--neutral-surface-primary)",
-            ...inputFrameStyle(disabled, !!error),
-            ...inputControlStyle(disabled, !!value),
-            cursor: disabled ? "not-allowed" : "text",
-          }}
-          onFocus={(e) => focusInputFrame(e.currentTarget)}
-          onBlur={(e) => blurInputFrame(e.currentTarget, disabled, !!error)}
-        />
-      ) : type === "date" ? (
-        <DateInputControl
-          value={value}
-          onChange={onChange}
-          disabled={disabled}
-          hasError={!!error}
-          placeholder={placeholder || "yyyy-mm-dd"}
-        />
-      ) : (
-        <input
-          type={type === "number" ? "text" : type}
-          placeholder={placeholder}
-          value={type === "number" ? formatNumberWithCommas(value) : value}
-          onChange={(e) => {
-            if (type === "number") {
-              const raw = parseNumberFromCommas(e.target.value);
-              if (raw === "" || !isNaN(raw) || raw === "-") {
-                onChange?.({
-                  ...e,
-                  target: { ...e.target, value: raw },
-                });
-              }
-            } else {
-              onChange?.(e);
-            }
-          }}
-          disabled={disabled}
-          max={max}
-          {...rest}
-          style={{
-            height: "48px",
-            padding: Icon ? "0 40px 0 16px" : "0 16px",
-            border: "1px solid transparent",
-            background: disabled
-              ? "var(--neutral-surface-grey-lighter)"
-              : "var(--neutral-surface-primary)",
-            ...inputFrameStyle(disabled, !!error),
-            ...inputControlStyle(disabled, !!value),
-            cursor: disabled ? "not-allowed" : "text",
-          }}
-          onFocus={(e) => focusInputFrame(e.currentTarget)}
-          onBlur={(e) => blurInputFrame(e.currentTarget, disabled, !!error)}
-        />
-      )}
-      {Icon && type !== "date" ? (
-        <Icon
-          size={20}
-          color={
-            disabled
-              ? "var(--neutral-line-outline)"
-              : "var(--neutral-on-surface-tertiary)"
-          }
-          style={{
-            position: "absolute",
-            right: "16px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            pointerEvents: "none",
-          }}
-        />
-      ) : null}
-    </div>
-  </FormField>
-);
+
 
 const openDocumentLink = (doc, fallbackHandler) => {
   if (doc?.previewUrl && typeof window !== "undefined") {
@@ -1323,108 +888,6 @@ const DocumentTypeBadge = ({ fileName = "", type = "", size = "default" }) => {
   );
 };
 
-const UploadDropzone = ({
-  multiple = false,
-  accept = ".pdf,.jpg,.jpeg,.png,.webp",
-  maxFiles = 1,
-  maxText,
-  allowedText = "Allowed formats (PDF, JPG, JPEG, PNG, WebP)",
-  disabled = false,
-  error = "",
-  onFilesSelected,
-}) => {
-  const handleIncomingFiles = (fileList) => {
-    if (disabled) return;
-    const nextFiles = Array.from(fileList || []);
-    if (nextFiles.length === 0) return;
-    onFilesSelected?.(nextFiles);
-  };
-
-  return (
-    <label
-      onDragOver={(e) => {
-        if (disabled) return;
-        e.preventDefault();
-      }}
-      onDrop={(e) => {
-        if (disabled) return;
-        e.preventDefault();
-        handleIncomingFiles(e.dataTransfer?.files);
-      }}
-      style={{
-        width: "100%",
-        minHeight: "168px",
-        borderRadius: "24px",
-        border: `2px dashed ${error ? "var(--status-red-primary)" : "var(--feature-brand-primary)"
-          }`,
-        background: "var(--neutral-surface-primary)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "8px",
-        padding: "24px",
-        textAlign: "center",
-        boxSizing: "border-box",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.55 : 1,
-      }}
-    >
-      <CloudUploadIcon
-        size={40}
-        color={
-          error ? "var(--status-red-primary)" : "var(--feature-brand-primary)"
-        }
-      />
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "#A9A9A9",
-          lineHeight: "18px",
-          letterSpacing: "0.0825px",
-        }}
-      >
-        {maxText ||
-          (maxFiles === 1 ? "Max 1 file, 25MB each" : "Max 3 files, 25MB each")}
-      </span>
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "#A9A9A9",
-          lineHeight: "18px",
-          letterSpacing: "0.0825px",
-        }}
-      >
-        {allowedText}
-      </span>
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "var(--neutral-on-surface-primary)",
-          lineHeight: "18px",
-          letterSpacing: "0.0825px",
-        }}
-      >
-        Drag file or{" "}
-        <span style={{ color: "var(--feature-brand-primary)" }}>
-          browse file
-        </span>
-      </span>
-      <input
-        type="file"
-        accept={accept}
-        multiple={multiple}
-        disabled={disabled}
-        style={{ display: "none" }}
-        onChange={(e) => {
-          handleIncomingFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
-    </label>
-  );
-};
-
 const UploadDescriptionCard = ({
   file,
   onRemove,
@@ -1499,7 +962,7 @@ const UploadDescriptionCard = ({
               display: "flex",
               alignItems: "center",
               gap: "2px",
-              fontSize: "var(--text-title-2)",
+              fontSize: "var(--text-body)",
             }}
           >
             {descriptionRequired ? (
@@ -1511,7 +974,7 @@ const UploadDescriptionCard = ({
           </div>
           <span
             style={{
-              fontSize: "var(--text-title-2)",
+              fontSize: "var(--text-body)",
               color: "var(--neutral-on-surface-tertiary)",
             }}
           >
@@ -1804,33 +1267,41 @@ const ProofDocumentList = ({ documents = [], onDocumentClick }) => {
               textAlign: "left",
             }}
           >
-            <span
-              style={{
-                fontSize: "var(--text-title-3)",
-                fontWeight: "var(--font-weight-bold)",
-                color: "var(--feature-brand-primary)",
-                lineHeight: "20px",
-                letterSpacing: "0.09625px",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {getDocumentPrimaryLabel(doc)}
-            </span>
-            <span
-              style={{
-                fontSize: "var(--text-body)",
-                color: "var(--feature-brand-primary)",
-                lineHeight: "18px",
-                letterSpacing: "0.0825px",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {doc.name}
-            </span>
+            <Tooltip content={getDocumentPrimaryLabel(doc)} showOnlyIfTruncated align="right" style={{ display: "block", width: "100%", minWidth: 0 }}>
+              <span
+                style={{
+                  display: "block",
+                  width: "100%",
+                  fontSize: "var(--text-title-3)",
+                  fontWeight: "var(--font-weight-bold)",
+                  color: "var(--feature-brand-primary)",
+                  lineHeight: "20px",
+                  letterSpacing: "0.09625px",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {getDocumentPrimaryLabel(doc)}
+              </span>
+            </Tooltip>
+            <Tooltip content={doc.name} showOnlyIfTruncated align="right" style={{ display: "block", width: "100%", minWidth: 0 }}>
+              <span
+                style={{
+                  display: "block",
+                  width: "100%",
+                  fontSize: "var(--text-body)",
+                  color: "var(--feature-brand-primary)",
+                  lineHeight: "18px",
+                  letterSpacing: "0.0825px",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {doc.name}
+              </span>
+            </Tooltip>
           </button>
         </div>
       ))}
@@ -2006,50 +1477,7 @@ const Card = ({ children, style = {} }) => (
     {children}
   </div>
 );
-const inputFrameStyle = (disabled = false, hasError = false) => ({
-  border: `1px solid ${hasError
-      ? "var(--status-red-primary)"
-      : disabled
-        ? "var(--neutral-line-outline)"
-        : baseInputBorderColor
-    }`,
-  borderRadius: "10px",
-  background: disabled
-    ? "var(--neutral-surface-grey-lighter)"
-    : "var(--neutral-surface-primary)",
-  transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-  boxSizing: "border-box",
-});
 
-const inputControlStyle = (disabled = false, hasValue = false) => ({
-  width: "100%",
-  outline: "none",
-  fontSize: "var(--text-subtitle-1)",
-  color: disabled
-    ? "var(--neutral-on-surface-tertiary)"
-    : hasValue
-      ? "var(--neutral-on-surface-primary)"
-      : "var(--neutral-on-surface-tertiary)",
-  fontFamily: "Lato, sans-serif",
-  boxSizing: "border-box",
-});
-
-const focusInputFrame = (el) => {
-  if (!el) return;
-  el.style.borderColor = "var(--feature-brand-primary)";
-  el.style.boxShadow = "0 0 0 3px rgba(0, 104, 255, 0.08)";
-};
-
-const blurInputFrame = (el, disabled = false, hasError = false) => {
-  if (!el) return;
-  if (!el) return;
-  el.style.borderColor = hasError
-    ? "var(--status-red-primary)"
-    : disabled
-      ? "var(--neutral-line-outline)"
-      : baseInputBorderColor;
-  el.style.boxShadow = "none";
-};
 
 const fieldStyle = (disabled = false, hasValue = false, hasError = false) => ({
   height: "46px",
@@ -2095,4 +1523,4 @@ const selectFieldStyle = (
   ...inputFrameStyle(disabled, hasError),
   ...inputControlStyle(disabled, hasValue),
 });
-export { ProgressRing, Tooltip, LabelValue, FormField, UnifiedInputShell, PhoneInputField, DateInputControl, DateRangeInputControl, InputField, DocumentTypeBadge, UploadDropzone, UploadDescriptionCard, ImageUploadField, ProofDocumentList, InputGroup, SectionCard, Card, inputFrameStyle, inputControlStyle, focusInputFrame, blurInputFrame, fieldStyle, textareaFieldStyle, selectFieldStyle, openDocumentLink };
+export { ProgressRing, LabelValue, FormField, UnifiedInputShell, PhoneInputField, DateInputControl, DateRangeInputControl, InputField, DocumentTypeBadge, UploadDropzone, UploadDescriptionCard, ImageUploadField, ProofDocumentList, InputGroup, SectionCard, Card, inputFrameStyle, inputControlStyle, focusInputFrame, blurInputFrame, fieldStyle, textareaFieldStyle, selectFieldStyle, openDocumentLink };

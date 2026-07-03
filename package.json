@@ -6,15 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync:ce-ui": "node scripts/sync-ce-ui.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "lucide": "^1.3.0",
-    "lucide-react": "^0.344.0",
+    "lucide-react": "^1.21.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^7.14.2"
+    "react-router-dom": "^7.14.2",
+    "react-simple-wysiwyg": "^3.4.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.4",

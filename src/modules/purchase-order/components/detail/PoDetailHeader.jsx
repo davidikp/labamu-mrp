@@ -10,8 +10,8 @@ import {
   Button,
   StatusBadge,
   LabelValue,
-  tabButtonStyle,
 } from "./shared/PoDetailSharedComponents.jsx";
+import { ChipTabBar } from "../../../../components/molecules/index.js";
 
 
 const PoDetailHeader = ({
@@ -28,11 +28,10 @@ const PoDetailHeader = ({
   isExportingPdf,
   initialData,
   createdDate,
-  createdAtDate,
+  actualCreatedDate,
   expectedDeliveryDate,
   currencyLabel,
-  invoices = [],
-  overallPaymentStatus,
+  paymentStatus,
   revisionMessage,
   canceledMessage,
   showHeaderEdit,
@@ -47,8 +46,6 @@ const PoDetailHeader = ({
   handleRevisePo,
   openDecisionModal,
 }) => {
-  overallPaymentStatus = overallPaymentStatus || { text: "Unpaid", variant: "grey-light" };
-
   return (
     <>
       <div
@@ -314,91 +311,45 @@ const PoDetailHeader = ({
             padding: "16px 24px",
             display: "flex",
             flexDirection: "column",
-            gap: "16px",
+            gap: "20px",
           }}
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "24px",
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "24px" }}>
             <LabelValue label="PO Date" value={createdDate} />
-            <LabelValue
-              label="Expected Delivery Date"
-              value={expectedDeliveryDate ?? null}
-            />
+            <LabelValue label="Expected Delivery Date" value={expectedDeliveryDate ?? null} />
             <LabelValue label="Currency" value={currencyLabel} />
             <LabelValue
               label="Payment Status"
-              badge={{ variant: overallPaymentStatus.variant, text: overallPaymentStatus.text }}
+              badge={paymentStatus ? {
+                text: paymentStatus,
+                variant: paymentStatus === "Paid" ? "green-light"
+                  : paymentStatus === "Overdue" ? "red-light"
+                  : paymentStatus === "Partially Paid" ? "blue-light"
+                  : "grey-light",
+              } : null}
+              value={paymentStatus ? undefined : "-"}
             />
           </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "24px",
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "24px" }}>
             <LabelValue label="Created By" value="Joko" />
-            <LabelValue label="Created Date" value={createdAtDate || createdDate} />
+            <LabelValue label="Created Date" value={actualCreatedDate ?? createdDate} />
           </div>
         </div>
       </div>
 
       {!isHistoricalVersion ? (
-        <div
-          style={{
-            display: "flex",
-            gap: "12px",
-            alignItems: "center",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setActiveTab("details")}
-            style={tabButtonStyle(activeTab === "details")}
-          >
-            PO Detail
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("invoices")}
-            style={tabButtonStyle(activeTab === "invoices")}
-          >
-            Invoices & Payments
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("receipt")}
-            style={tabButtonStyle(activeTab === "receipt")}
-          >
-            Receipt
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("3-ways-match")}
-            style={tabButtonStyle(activeTab === "3-ways-match")}
-          >
-            3-Ways Match
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("documents")}
-            style={tabButtonStyle(activeTab === "documents")}
-          >
-            Documents
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("logs")}
-            style={tabButtonStyle(activeTab === "logs")}
-          >
-            Logs
-          </button>
-        </div>
+        <ChipTabBar
+          tabs={[
+            { id: "details", label: "PO Detail" },
+            { id: "invoices", label: "Invoices & Payments" },
+            { id: "receipt", label: "Receipt" },
+            { id: "3-ways-match", label: "3-Ways Match" },
+            { id: "documents", label: "Documents" },
+            { id: "logs", label: "Logs" },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
       ) : (
         <div
           style={{

@@ -1,4 +1,5 @@
-export const baseInputBorderColor = "#e9e9e9";
+import { baseInputBorderColor } from "../../../components/atoms/inputStyles.js";
+export { baseInputBorderColor, focusInputFrame, blurInputFrame } from "../../../components/atoms/inputStyles.js";
 
 export const inputFrameStyle = (disabled = false, hasError = false) => ({
   border: `1px solid ${
@@ -28,23 +29,6 @@ export const inputControlStyle = (disabled = false, hasValue = false) => ({
   fontFamily: "Lato, sans-serif",
   boxSizing: "border-box",
 });
-
-export const focusInputFrame = (el) => {
-  if (!el) return;
-  el.style.borderColor = "var(--feature-brand-primary)";
-  el.style.boxShadow = "0 0 0 3px rgba(0, 104, 255, 0.08)";
-};
-
-export const blurInputFrame = (el, disabled = false, hasError = false) => {
-  if (!el) return;
-  if (!el) return;
-  el.style.borderColor = hasError
-    ? "var(--status-red-primary)"
-    : disabled
-      ? "var(--neutral-line-outline)"
-      : baseInputBorderColor;
-  el.style.boxShadow = "none";
-};
 
 export const fieldStyle = (disabled = false, hasValue = false, hasError = false) => ({
   height: "46px",

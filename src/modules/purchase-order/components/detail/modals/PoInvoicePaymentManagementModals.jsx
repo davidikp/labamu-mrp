@@ -72,8 +72,8 @@ const PoInvoicePaymentManagementModals = ({
   setShowZeroAmountConfirmModal,
   exceededItems,
   saveInvoice,
+  checkPoValueAndSave,
   proceedAfterQtyExceed,
-  proceedAfterZeroAmount,
   deleteInvoiceReason,
   setDeleteInvoiceReason,
   deleteInvoiceReasonError,
@@ -313,7 +313,6 @@ const PoInvoicePaymentManagementModals = ({
                 required
                 placeholder="Enter invoice number..."
                 value={addInvoiceFormData.number}
-                maxLength={40}
                 onChange={(e) =>
                   setAddInvoiceFormData({
                     ...addInvoiceFormData,
@@ -321,7 +320,9 @@ const PoInvoicePaymentManagementModals = ({
                   })
                 }
                 error={formErrors.number}
+                maxLength={40}
                 headerRight={`${(addInvoiceFormData.number || "").length}/40`}
+                headerRightColor="var(--neutral-on-surface-tertiary)"
               />
 
               <InputField
@@ -399,7 +400,7 @@ const PoInvoicePaymentManagementModals = ({
               <InputField
                 label="Invoice Amount"
                 required
-                placeholder="Enter invoice amount..."
+                placeholder="0"
                 prefix={currency}
                 value={formatNumberWithCommas(addInvoiceFormData.amount)}
                 onChange={(e) => {
@@ -419,6 +420,10 @@ const PoInvoicePaymentManagementModals = ({
                   const itemError = formErrors.itemLines
                     ? formErrors.itemLines[idx]
                     : null;
+                  const selectedPoName =
+                    (mockLines || []).find(
+                      (it) => String(it.id ?? it.item) === String(itemObj.id)
+                    )?.item || "";
                   return (
                     <div
                       key={idx}
@@ -450,7 +455,7 @@ const PoInvoicePaymentManagementModals = ({
                           <span style={{ color: "var(--status-red-primary)" }}>
                             *
                           </span>{" "}
-                          {`Item Line ${idx + 1}`}
+                          Item Line {idx + 1}
                         </span>
                         {addInvoiceFormData.itemLines.length > 1 && (
                           <IconButton
@@ -501,7 +506,7 @@ const PoInvoicePaymentManagementModals = ({
                             onChange={(val) => {
                               const next = [...addInvoiceFormData.itemLines];
                               const selectedPoItem = (mockLines || []).find(
-                                (it) => (it.id || it.item) === val
+                                (it) => String(it.id ?? it.item) === String(val)
                               );
                               const newOcrRef =
                                 next[idx].sameAsPo && selectedPoItem
@@ -522,7 +527,7 @@ const PoInvoicePaymentManagementModals = ({
                         <InputField
                           label="Item Quantity"
                           required
-                          placeholder="Enter item quantity..."
+                          placeholder="0"
                           value={
                             itemObj.qty === ""
                               ? ""
@@ -566,18 +571,10 @@ const PoInvoicePaymentManagementModals = ({
                               checked={!!itemObj.sameAsPo}
                               onChange={(val) => {
                                 const next = [...addInvoiceFormData.itemLines];
-                                let newOcrRef = itemObj.ocrRef;
-                                if (val) {
-                                  const selectedPoItem = (mockLines || []).find(
-                                    (it) => (it.id || it.item) === itemObj.id
-                                  );
-                                  if (selectedPoItem)
-                                    newOcrRef = selectedPoItem.item;
-                                }
                                 next[idx] = {
                                   ...next[idx],
                                   sameAsPo: val,
-                                  ocrRef: newOcrRef,
+                                  ocrRef: val ? selectedPoName : next[idx].ocrRef,
                                 };
                                 setAddInvoiceFormData({
                                   ...addInvoiceFormData,
@@ -613,7 +610,7 @@ const PoInvoicePaymentManagementModals = ({
                   );
                 })}
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="small"
                   leftIcon={Plus}
                   disabled={
@@ -724,7 +721,7 @@ const PoInvoicePaymentManagementModals = ({
               }}
             >
               <Button
-                variant="outline"
+                variant="secondary"
                 size="large"
                 onClick={() => {
                   setShowAddInvoiceDrawer(false);
@@ -1108,10 +1105,15 @@ const PoInvoicePaymentManagementModals = ({
       {/* Delete Invoice Confirmation Modal */}
       <GeneralModal
         isOpen={showDeleteInvoiceConfirm}
-        onClose={() => setShowDeleteInvoiceConfirm(false)}
+        onClose={() => {
+          setShowDeleteInvoiceConfirm(false);
+          setDeleteInvoiceReason("");
+          setDeleteInvoiceReasonError("");
+        }}
         title="Delete Invoice?"
-        width="440px"
+        width="400px"
         centeredHeader
+        description="This invoice and all its payment history will be permanently removed."
         footer={
           <div
             style={{
@@ -1121,11 +1123,49 @@ const PoInvoicePaymentManagementModals = ({
               width: "100%",
             }}
           >
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", textAlign: "left" }}>
+              <label style={{ fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)", display: "flex", gap: "2px" }}>
+                <span style={{ color: "var(--status-red-primary)" }}>*</span>Reason
+              </label>
+              <textarea
+                value={deleteInvoiceReason}
+                onChange={(e) => {
+                  setDeleteInvoiceReason(e.target.value);
+                  if (deleteInvoiceReasonError) setDeleteInvoiceReasonError("");
+                }}
+                placeholder="Enter reason for deletion..."
+                rows={3}
+                maxLength={500}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "12px",
+                  borderRadius: "12px",
+                  border: `1px solid ${deleteInvoiceReasonError ? "var(--status-red-primary)" : "var(--neutral-line-separator-1)"}`,
+                  fontSize: "var(--text-title-3)",
+                  color: "var(--neutral-on-surface-primary)",
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                  outline: "none",
+                }}
+              />
+              {deleteInvoiceReasonError && (
+                <span style={{ fontSize: "var(--text-body)", color: "var(--status-red-primary)" }}>
+                  {deleteInvoiceReasonError}
+                </span>
+              )}
+            </div>
             <Button
               variant="danger-filled"
               size="large"
               style={{ width: "100%" }}
-              onClick={handleDeleteInvoice}
+              onClick={() => {
+                if (!deleteInvoiceReason.trim()) {
+                  setDeleteInvoiceReasonError("Field cannot be empty");
+                  return;
+                }
+                handleDeleteInvoice();
+              }}
             >
               Yes, Delete
             </Button>
@@ -1133,79 +1173,32 @@ const PoInvoicePaymentManagementModals = ({
               variant="outlined"
               size="large"
               style={{ width: "100%" }}
-              onClick={() => setShowDeleteInvoiceConfirm(false)}
+              onClick={() => {
+                setShowDeleteInvoiceConfirm(false);
+                setDeleteInvoiceReason("");
+                setDeleteInvoiceReasonError("");
+              }}
             >
               Cancel
             </Button>
           </div>
         }
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px", textAlign: "left" }}>
-          <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)", lineHeight: "1.5", textAlign: "center" }}>
-            This invoice and all its payment history will be permanently removed.
-          </span>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <span style={{ color: "var(--status-red-primary)", fontSize: "var(--text-body)" }}>*</span>
-                <span style={{ fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Reason</span>
-              </div>
-              <span style={{ fontSize: "var(--text-desc)", color: "var(--neutral-on-surface-tertiary)" }}>
-                {(deleteInvoiceReason || "").length}/400
-              </span>
-            </div>
-            <textarea
-              value={deleteInvoiceReason || ""}
-              maxLength={400}
-              onChange={(e) => {
-                setDeleteInvoiceReason(e.target.value);
-                if (deleteInvoiceReasonError) setDeleteInvoiceReasonError("");
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--feature-brand-primary)";
-                e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0, 104, 255, 0.08)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = deleteInvoiceReasonError
-                  ? "var(--status-red-primary)"
-                  : "var(--neutral-line-separator-2)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-              placeholder="Enter reason for deleting..."
-              style={{
-                minHeight: "120px",
-                border: deleteInvoiceReasonError
-                  ? "1px solid var(--status-red-primary)"
-                  : "1px solid var(--neutral-line-separator-2)",
-                borderRadius: "12px",
-                padding: "12px 16px",
-                background: "var(--neutral-surface-primary)",
-                fontSize: "var(--text-subtitle-1)",
-                color: "var(--neutral-on-surface-primary)",
-                width: "100%",
-                outline: "none",
-                fontFamily: "Lato, sans-serif",
-                resize: "vertical",
-                boxSizing: "border-box",
-                transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-              }}
-            />
-            {deleteInvoiceReasonError && (
-              <span style={{ fontSize: "var(--text-body)", color: "var(--status-red-primary)" }}>
-                {deleteInvoiceReasonError}
-              </span>
-            )}
-          </div>
-        </div>
-      </GeneralModal>
+      />
 
       {/* Void Payment Confirmation Modal */}
       <GeneralModal
         isOpen={showVoidConfirmModal}
-        onClose={() => setShowVoidConfirmModal(false)}
+        onClose={() => {
+          setShowVoidConfirmModal(false);
+          setVoidPaymentReason("");
+          setVoidPaymentReasonError("");
+        }}
         title="Void Payment?"
-        width="440px"
+        width="400px"
         centeredHeader
+        description={`This payment will be voided, and the settlement progress will decrease by ${
+          paymentToVoid ? formatCurrency(paymentToVoid.amount, currency) : ""
+        }. This action cannot be undone.`}
         footer={
           <div
             style={{
@@ -1215,11 +1208,49 @@ const PoInvoicePaymentManagementModals = ({
               width: "100%",
             }}
           >
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", textAlign: "left" }}>
+              <label style={{ fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)", display: "flex", gap: "2px" }}>
+                <span style={{ color: "var(--status-red-primary)" }}>*</span>Reason
+              </label>
+              <textarea
+                value={voidPaymentReason}
+                onChange={(e) => {
+                  setVoidPaymentReason(e.target.value);
+                  if (voidPaymentReasonError) setVoidPaymentReasonError("");
+                }}
+                placeholder="Enter reason for voiding payment..."
+                rows={3}
+                maxLength={500}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "12px",
+                  borderRadius: "12px",
+                  border: `1px solid ${voidPaymentReasonError ? "var(--status-red-primary)" : "var(--neutral-line-separator-1)"}`,
+                  fontSize: "var(--text-title-3)",
+                  color: "var(--neutral-on-surface-primary)",
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                  outline: "none",
+                }}
+              />
+              {voidPaymentReasonError && (
+                <span style={{ fontSize: "var(--text-body)", color: "var(--status-red-primary)" }}>
+                  {voidPaymentReasonError}
+                </span>
+              )}
+            </div>
             <Button
               variant="danger-filled"
               size="large"
               style={{ width: "100%" }}
-              onClick={handleVoidPayment}
+              onClick={() => {
+                if (!voidPaymentReason.trim()) {
+                  setVoidPaymentReasonError("Field cannot be empty");
+                  return;
+                }
+                handleVoidPayment();
+              }}
             >
               Yes, Confirm
             </Button>
@@ -1227,73 +1258,17 @@ const PoInvoicePaymentManagementModals = ({
               variant="outlined"
               size="large"
               style={{ width: "100%" }}
-              onClick={() => setShowVoidConfirmModal(false)}
+              onClick={() => {
+                setShowVoidConfirmModal(false);
+                setVoidPaymentReason("");
+                setVoidPaymentReasonError("");
+              }}
             >
               Cancel
             </Button>
           </div>
         }
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px", textAlign: "left" }}>
-          <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)", lineHeight: "1.5", textAlign: "center" }}>
-            {`This payment will be voided, and the settlement progress will decrease by ${
-              paymentToVoid ? formatCurrency(paymentToVoid.amount, currency) : ""
-            }. This action cannot be undone.`}
-          </span>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <span style={{ color: "var(--status-red-primary)", fontSize: "var(--text-body)" }}>*</span>
-                <span style={{ fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>Reason</span>
-              </div>
-              <span style={{ fontSize: "var(--text-desc)", color: "var(--neutral-on-surface-tertiary)" }}>
-                {(voidPaymentReason || "").length}/400
-              </span>
-            </div>
-            <textarea
-              value={voidPaymentReason || ""}
-              maxLength={400}
-              onChange={(e) => {
-                setVoidPaymentReason(e.target.value);
-                if (voidPaymentReasonError) setVoidPaymentReasonError("");
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--feature-brand-primary)";
-                e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0, 104, 255, 0.08)";
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = voidPaymentReasonError
-                  ? "var(--status-red-primary)"
-                  : "var(--neutral-line-separator-2)";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-              placeholder="Enter reason for voiding..."
-              style={{
-                minHeight: "120px",
-                border: voidPaymentReasonError
-                  ? "1px solid var(--status-red-primary)"
-                  : "1px solid var(--neutral-line-separator-2)",
-                borderRadius: "12px",
-                padding: "12px 16px",
-                background: "var(--neutral-surface-primary)",
-                fontSize: "var(--text-subtitle-1)",
-                color: "var(--neutral-on-surface-primary)",
-                width: "100%",
-                outline: "none",
-                fontFamily: "Lato, sans-serif",
-                resize: "vertical",
-                boxSizing: "border-box",
-                transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-              }}
-            />
-            {voidPaymentReasonError && (
-              <span style={{ fontSize: "var(--text-body)", color: "var(--status-red-primary)" }}>
-                {voidPaymentReasonError}
-              </span>
-            )}
-          </div>
-        </div>
-      </GeneralModal>
+      />
 
       {/* Exceed PO Value Confirmation Modal */}
       <GeneralModal
@@ -1336,6 +1311,63 @@ const PoInvoicePaymentManagementModals = ({
         }
       />
 
+      {/* Item Quantity Exceeds Remaining PO Quantity Confirmation Modal */}
+      <GeneralModal
+        isOpen={showItemQtyExceedConfirmModal}
+        onClose={() => setShowItemQtyExceedConfirmModal(false)}
+        title="Item Quantity Exceeds PO Quantity"
+        width="400px"
+        centeredHeader
+        zIndex={15000}
+        description={
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", textAlign: "center" }}>
+            <span>
+              The following items exceed their remaining PO quantity. Continuing will result in quantities exceeding the purchase order.
+            </span>
+            <ul style={{ textAlign: "left", margin: "0", paddingLeft: "24px", fontSize: "14px", listStyleType: "disc" }}>
+              {(exceededItems || []).map((item, idx) => (
+                <li key={idx} style={{ marginBottom: "8px" }}>
+                  <strong>{item.name}</strong><br />
+                  <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-secondary)" }}>
+                    (Entered: {item.entered}, Remaining: {item.remaining})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        }
+        footer={
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+              width: "100%",
+            }}
+          >
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => {
+                setShowItemQtyExceedConfirmModal(false);
+                proceedAfterQtyExceed();
+              }}
+            >
+              Yes, Confirm
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => setShowItemQtyExceedConfirmModal(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        }
+      />
+
       {/* Zero Invoice Amount Confirmation Modal */}
       <GeneralModal
         isOpen={showZeroAmountConfirmModal}
@@ -1361,7 +1393,7 @@ const PoInvoicePaymentManagementModals = ({
               style={{ width: "100%" }}
               onClick={() => {
                 setShowZeroAmountConfirmModal(false);
-                proceedAfterZeroAmount();
+                checkPoValueAndSave();
               }}
             >
               Continue to Save
@@ -1373,66 +1405,6 @@ const PoInvoicePaymentManagementModals = ({
               onClick={() => setShowZeroAmountConfirmModal(false)}
             >
               Go Back to Edit
-            </Button>
-          </div>
-        }
-      />
-
-      {/* Item Qty Exceed PO Qty Confirmation Modal */}
-      <GeneralModal
-        isOpen={showItemQtyExceedConfirmModal}
-        onClose={() => setShowItemQtyExceedConfirmModal(false)}
-        title="Item Quantity Exceeds PO Quantity"
-        width="400px"
-        centeredHeader
-        zIndex={15000}
-        description={
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px", textAlign: "left", width: "100%" }}>
-            <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)", textAlign: "center", lineHeight: "1.5" }}>
-              The following items exceed their remaining PO quantity.<br/>
-              Continuing will result in quantities exceeding the purchase order.
-            </span>
-            <ul style={{ margin: 0, paddingLeft: "24px", color: "var(--neutral-on-surface-secondary)", fontSize: "14px", listStyleType: "disc" }}>
-              {(exceededItems || []).map((it, idx) => (
-                <li key={idx} style={{ paddingBottom: idx === exceededItems.length - 1 ? 0 : "8px" }}>
-                  <strong style={{ color: "var(--neutral-on-surface-primary)", fontWeight: "600" }}>{it.name}</strong><br/>
-                  (Entered: {it.entered}, Remaining: {it.remaining})
-                </li>
-              ))}
-            </ul>
-          </div>
-        }
-        footer={
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "12px",
-              width: "100%",
-            }}
-          >
-            <Button
-              variant="filled"
-              size="large"
-              style={{ width: "100%" }}
-              onClick={() => {
-                setShowItemQtyExceedConfirmModal(false);
-                if (typeof proceedAfterQtyExceed === "function") {
-                  proceedAfterQtyExceed();
-                } else {
-                  saveInvoice();
-                }
-              }}
-            >
-              Yes, Confirm
-            </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              style={{ width: "100%" }}
-              onClick={() => setShowItemQtyExceedConfirmModal(false)}
-            >
-              Cancel
             </Button>
           </div>
         }

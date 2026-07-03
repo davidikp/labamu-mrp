@@ -7,15 +7,9 @@ import {
 } from "../../../components/icons/Icons.jsx";
 import { Button } from "../../../components/common/Button.jsx";
 import { DropdownSelect } from "../../../components/common/DropdownSelect.jsx";
-import { IconButton } from "../../../components/common/IconButton.jsx";
 import { ToggleSwitch } from "../../../components/common/ToggleSwitch.jsx";
 import { GeneralModal } from "../../../components/modal/GeneralModal.jsx";
-import { Tooltip } from "../components/detail/shared/PoDetailSharedComponents.jsx";
-import {
-  fieldStyle,
-  focusInputFrame,
-  blurInputFrame,
-} from "../styles/purchaseOrderInputStyles.js";
+import { PurchaseOrderSearchShell } from "../components/PurchaseOrderSearchShell.jsx";
 import {
   poReferenceTableCellStyle,
   poReferenceTableFrameStyle,
@@ -47,7 +41,6 @@ export const PurchaseOrderSettingsPage = ({
     top: 0,
     left: 0,
     width: 320,
-    placement: "bottom",
   });
   const [approverError, setApproverError] = useState("");
   const [showToast, setShowToast] = useState(false);
@@ -117,13 +110,10 @@ export const PurchaseOrderSettingsPage = ({
   const updateApproverDropdownPosition = (el) => {
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const estimatedHeight = 260;
-    const shouldOpenAbove = window.innerHeight - rect.bottom < estimatedHeight + 16 && rect.top > estimatedHeight + 16;
     setApproverDropdownPos({
-      top: shouldOpenAbove ? rect.top - 8 : rect.bottom + 8,
+      top: rect.bottom + 8,
       left: rect.left,
       width: rect.width,
-      placement: shouldOpenAbove ? "top" : "bottom",
     });
   };
 
@@ -260,7 +250,7 @@ export const PurchaseOrderSettingsPage = ({
               justifyContent: "space-between",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <div
                 style={{
                   width: "4px",
@@ -291,7 +281,7 @@ export const PurchaseOrderSettingsPage = ({
               display: "flex",
               flexDirection: "column",
               gap: "24px",
-              padding: "20px 20px 24px 20px",
+              padding: "20px 24px 24px 24px",
             }}
           >
             <div
@@ -417,7 +407,7 @@ export const PurchaseOrderSettingsPage = ({
                     </div>
                     <span
                       style={{
-                        fontSize: "var(--text-title-3)",
+                        fontSize: "var(--text-body)",
                         color: approverError
                           ? "var(--status-red-primary)"
                           : "var(--neutral-on-surface-secondary)",
@@ -482,20 +472,31 @@ export const PurchaseOrderSettingsPage = ({
                                     justifyContent: "center",
                                   })}
                                 >
-                                  <Tooltip content="Delete">
-                                    <IconButton
-                                      icon={DeleteIcon}
-                                      size="small"
-                                      title="Delete"
+                                  <button
+                                    onClick={() =>
+                                      setApprovers((prev) =>
+                                        prev.filter((a) => a.id !== user.id)
+                                      )
+                                    }
+                                    style={{
+                                      width: "32px",
+                                      height: "32px",
+                                      borderRadius: "8px",
+                                      background:
+                                        "var(--neutral-surface-primary)",
+                                      border:
+                                        "1px solid var(--neutral-line-separator-1)",
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                  >
+                                    <DeleteIcon
+                                      size={16}
                                       color="var(--status-red-primary)"
-                                      hoverBackground="#FAE6E8"
-                                      onClick={() =>
-                                        setApprovers((prev) =>
-                                          prev.filter((a) => a.id !== user.id)
-                                        )
-                                      }
                                     />
-                                  </Tooltip>
+                                  </button>
                                 </div>
                               </div>
                             ))
@@ -511,11 +512,22 @@ export const PurchaseOrderSettingsPage = ({
                       }}
                     >
                       <div style={{ width: "calc((100% - 80px) * 1.2 / 3.6)" }}>
-                        <div style={{ position: "relative" }}>
+                        <PurchaseOrderSearchShell
+                          style={{ position: "relative", paddingLeft: "40px" }}
+                        >
+                          <SearchIcon
+                            size={18}
+                            color="var(--neutral-on-surface-tertiary)"
+                            style={{
+                              position: "absolute",
+                              left: "14px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                            }}
+                          />
                           <input
                             value={approverSearch}
                             onFocus={(e) => {
-                              focusInputFrame(e.currentTarget);
                               updateApproverDropdownPosition(e.currentTarget);
                               setIsApproverDropdownOpen(true);
                             }}
@@ -524,29 +536,21 @@ export const PurchaseOrderSettingsPage = ({
                               updateApproverDropdownPosition(e.currentTarget);
                               setIsApproverDropdownOpen(true);
                             }}
-                            onBlur={(e) => {
-                              blurInputFrame(e.currentTarget);
-                            }}
-                            placeholder="Cari nama atau role"
+                            placeholder="Search by name or role..."
                             style={{
-                              ...fieldStyle(false, !!approverSearch, false),
-                              padding: "0 16px 0 44px",
+                              flex: 1,
+                              height: "100%",
+                              width: "100%",
+                              border: "none",
+                              outline: "none",
+                              padding: 0,
+                              fontSize: "var(--text-subtitle-1)",
+                              color: "var(--neutral-on-surface-primary)",
+                              background: "transparent",
+                              boxSizing: "border-box",
                             }}
                           />
-                          <div
-                            style={{
-                              position: "absolute",
-                              left: "16px",
-                              top: "50%",
-                              transform: "translateY(-50%)",
-                              pointerEvents: "none",
-                              display: "flex",
-                              alignItems: "center",
-                            }}
-                          >
-                            <SearchIcon size={20} color="var(--neutral-on-surface-tertiary)" />
-                          </div>
-                        </div>
+                        </PurchaseOrderSearchShell>
                       </div>
 
                       {isApproverDropdownOpen ? (
@@ -569,98 +573,77 @@ export const PurchaseOrderSettingsPage = ({
                               border:
                                 "1px solid var(--neutral-line-separator-1)",
                               borderRadius: "12px",
-                              boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.08)",
+                              boxShadow: "var(--elevation-sm)",
                               overflow: "hidden",
                               zIndex: 9999,
                               maxHeight: "260px",
-                              display: "flex",
-                              flexDirection: "column",
-                              transform: approverDropdownPos.placement === "top" ? "translateY(-100%)" : "none",
+                              overflowY: "auto",
                             }}
                           >
-                            <div
-                              style={{
-                                padding: "4px 8px 8px",
-                                overflowY: "auto",
-                                flex: 1,
-                              }}
-                            >
-                              {filteredUsers.length > 0 ? (
-                                filteredUsers.map((user) => (
+                            {filteredUsers.length > 0 ? (
+                              filteredUsers.map((user) => (
+                                <div
+                                  key={user.id}
+                                  onClick={() => {
+                                    setApprovers((prev) => [...prev, user]);
+                                    setApproverSearch("");
+                                    setIsApproverDropdownOpen(false);
+                                  }}
+                                  onMouseEnter={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "var(--neutral-surface-grey-lighter)")
+                                  }
+                                  onMouseLeave={(e) =>
+                                    (e.currentTarget.style.background =
+                                      "var(--neutral-surface-primary)")
+                                  }
+                                  style={{
+                                    padding: "16px 18px",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                  }}
+                                >
                                   <div
-                                    key={user.id}
-                                    onClick={() => {
-                                      setApprovers((prev) => [...prev, user]);
-                                      setApproverSearch("");
-                                      setIsApproverDropdownOpen(false);
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      (e.currentTarget.style.background =
-                                        "var(--neutral-surface-grey-lighter)")
-                                    }
-                                    onMouseLeave={(e) =>
-                                      (e.currentTarget.style.background =
-                                        "transparent")
-                                    }
                                     style={{
-                                      width: "100%",
-                                      minHeight: "40px",
-                                      padding: "8px 12px",
-                                      border: "none",
-                                      background: "transparent",
-                                      borderRadius: "8px",
                                       display: "flex",
-                                      alignItems: "center",
-                                      gap: "12px",
-                                      cursor: "pointer",
-                                      transition: "background 0.2s ease",
+                                      flexDirection: "column",
+                                      gap: "4px",
                                     }}
                                   >
-                                    <div
+                                    <span
                                       style={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: "4px",
+                                        fontSize: "var(--text-title-3)",
+                                        fontWeight: "var(--font-weight-bold)",
+                                        color:
+                                          "var(--neutral-on-surface-primary)",
                                       }}
                                     >
-                                      <span
-                                        style={{
-                                          fontSize: "var(--text-title-3)",
-                                          fontWeight: "var(--font-weight-regular)",
-                                          color:
-                                            "var(--neutral-on-surface-primary)",
-                                        }}
-                                      >
-                                        {user.name}
-                                      </span>
-                                      <span
-                                        style={{
-                                          fontSize: "var(--text-body)",
-                                          color:
-                                            "var(--neutral-on-surface-secondary)",
-                                        }}
-                                      >
-                                        {user.role}
-                                      </span>
-                                    </div>
+                                      {user.name}
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: "var(--text-body)",
+                                        color:
+                                          "var(--neutral-on-surface-secondary)",
+                                      }}
+                                    >
+                                      {user.role}
+                                    </span>
                                   </div>
-                                ))
-                              ) : (
-                                <div style={{ padding: "16px" }}>
-                                  <span
-                                    style={{
-                                      display: "block",
-                                      textAlign: "center",
-                                      fontSize: "var(--text-title-3)",
-                                      lineHeight: "20px",
-                                      color: "var(--neutral-on-surface-secondary)",
-                                    }}
-                                  >
-                                    No user found.
-                                  </span>
                                 </div>
-                              )}
-                            </div>
+                              ))
+                            ) : (
+                              <div
+                                style={{
+                                  padding: "12px 14px",
+                                  fontSize: "var(--text-title-3)",
+                                  color: "var(--neutral-on-surface-tertiary)",
+                                }}
+                              >
+                                No user found.
+                              </div>
+                            )}
                           </div>
                         </>
                       ) : null}
@@ -717,7 +700,7 @@ export const PurchaseOrderSettingsPage = ({
       <GeneralModal
         isOpen={showDiscardChangesModal}
         onClose={() => setShowDiscardChangesModal(false)}
-        title="Batalkan perubahan?"
+        title="Discard changes?"
         footer={
           <>
             <Button
@@ -729,7 +712,7 @@ export const PurchaseOrderSettingsPage = ({
                 onNavigate("list");
               }}
             >
-              Ya, Batalkan
+              Yes, Discard
             </Button>
             <Button
               variant="outlined"
@@ -737,7 +720,7 @@ export const PurchaseOrderSettingsPage = ({
               style={{ width: "100%" }}
               onClick={() => setShowDiscardChangesModal(false)}
             >
-              Lanjut Edit
+              Keep Editing
             </Button>
           </>
         }

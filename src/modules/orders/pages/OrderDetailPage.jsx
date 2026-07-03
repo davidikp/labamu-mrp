@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useNotifications } from "../../../context/NotificationContext.jsx";
 import { createPortal } from "react-dom";
 import { 
   ChevronLeftIcon, EditIcon, Box, ChevronDownIcon, ChevronUpIcon, 
@@ -10,12 +11,13 @@ import {
 import { Button } from "../../../components/common/Button.jsx";
 import { StatusBadge } from "../../../components/common/StatusBadge.jsx";
 import { TableSearchField } from "../../../components/table/TableSearchField.jsx";
-import { FilterPill } from "../../../components/common/FilterPill.jsx";
+import { FilterMenu } from "../../../components/molecules/FilterMenu.jsx";
 import { Checkbox } from "../../../components/common/Checkbox.jsx";
 import { IconButton } from "../../../components/common/IconButton.jsx";
 import { DropdownSelect } from "../../../components/common/DropdownSelect.jsx";
 import { GeneralModal } from "../../../components/modal/GeneralModal.jsx";
 import { TablePaginationFooter } from "../../../components/table/TablePaginationFooter.jsx";
+import { UploadDropzone } from "../../../components/molecules/UploadDropzone.jsx";
 import { DocumentTypeBadge } from "../../../modules/purchase-order/components/DocumentTypeBadge.jsx";
 import { 
   FILE_DESCRIPTION_MAX_LENGTH, 
@@ -29,6 +31,7 @@ import { MOCK_WO_TABLE_DATA } from "../../work-order/mock/workOrderMocks.js";
 import { MOCK_ORDER_TABLE_DATA, MOCK_ORDER_MATERIALS_DATA, MOCK_ORDER_PRODUCTS_DATA } from "../mock/orderMocks.js";
 import { MOCK_PO_TABLE_DATA } from "../../../modules/purchase-order/mock/purchaseOrderMocks.js";
 import { TraceabilityTab } from "../components/TraceabilityTab.jsx";
+import { ChipTabBar } from "../../../components/molecules/ChipTabBar.jsx";
 import { DateInputControl } from "../../../modules/purchase-order/components/detail/shared/PoDetailSharedComponents.jsx";
 
 
@@ -145,125 +148,7 @@ const Tooltip = ({ content, children, style = {}, checkTruncation = false }) => 
   );
 };
 
-const UploadDropzone = ({
-  accept,
-  multiple = false,
-  maxFiles = 1,
-  disabled = false,
-  error = "",
-  maxText,
-  allowedText,
-  onFilesSelected,
-}) => {
-  const handleIncomingFiles = (fileList) => {
-    if (disabled) return;
-    const nextFiles = Array.from(fileList || []);
-    if (nextFiles.length === 0) return;
-    onFilesSelected?.(nextFiles);
-  };
 
-  return (
-    <label
-      onDragOver={(e) => {
-        if (disabled) return;
-        e.preventDefault();
-      }}
-      onDrop={(e) => {
-        if (disabled) return;
-        e.preventDefault();
-        handleIncomingFiles(e.dataTransfer?.files);
-      }}
-      style={{
-        width: "100%",
-        minHeight: "168px",
-        borderRadius: "24px",
-        border: `2px dashed ${disabled
-            ? "var(--neutral-line-separator-1)"
-            : error
-              ? "var(--status-red-primary)"
-              : "var(--feature-brand-primary)"
-          }`,
-        background: disabled
-          ? "var(--neutral-surface-grey-lighter)"
-          : "var(--neutral-surface-primary)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "8px",
-        padding: "24px",
-        textAlign: "center",
-        boxSizing: "border-box",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: 1,
-      }}
-    >
-      <CloudUploadIcon
-        size={40}
-        color={
-          disabled
-            ? "var(--neutral-on-surface-tertiary)"
-            : error
-              ? "var(--status-red-primary)"
-              : "var(--feature-brand-primary)"
-        }
-      />
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "#A9A9A9",
-          lineHeight: "18px",
-          letterSpacing: "0.0825px",
-        }}
-      >
-        {maxText ||
-          (maxFiles === 1 ? "Max 1 file, 25MB each" : "Max 3 files, 25MB each")}
-      </span>
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: "#A9A9A9",
-          lineHeight: "18px",
-          letterSpacing: "0.0825px",
-        }}
-      >
-        {allowedText}
-      </span>
-      <span
-        style={{
-          fontSize: "var(--text-body)",
-          color: disabled
-            ? "var(--neutral-on-surface-tertiary)"
-            : "var(--neutral-on-surface-primary)",
-          lineHeight: "18px",
-          letterSpacing: "0.0825px",
-        }}
-      >
-        Drag file or{" "}
-        <span
-          style={{
-            color: disabled
-              ? "var(--neutral-on-surface-tertiary)"
-              : "var(--feature-brand-primary)",
-          }}
-        >
-          browse file
-        </span>
-      </span>
-      <input
-        type="file"
-        accept={accept}
-        multiple={multiple}
-        disabled={disabled}
-        style={{ display: "none" }}
-        onChange={(e) => {
-          handleIncomingFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
-    </label>
-  );
-};
 
 const UploadDescriptionCard = ({
   file,
@@ -387,25 +272,6 @@ const LabelValue = ({ label, value, badge, gridColumn, isClickable, onClick }) =
   );
 };
 
-const tabButtonStyle = (isActive) => ({
-  height: "48px",
-  padding: "0 28px",
-  borderRadius: "100px",
-  border: isActive
-    ? "1px solid var(--feature-brand-primary)"
-    : "1px solid var(--neutral-line-separator-1)",
-  background: isActive ? "#EAF1FF" : "var(--neutral-surface-primary)",
-  color: isActive ? "var(--feature-brand-primary)" : "#7F7F7F",
-  fontSize: "var(--text-title-2)",
-  fontWeight: isActive
-    ? "var(--font-weight-bold)"
-    : "var(--font-weight-regular)",
-  cursor: "pointer",
-  transition: "all 0.18s ease",
-  boxShadow: "none",
-});
-
-
 
 
 
@@ -414,8 +280,6 @@ const WorkOrderTab = ({ orderNo, orderStatus, onNavigate }) => {
   const [statusFilter, setStatusFilter] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filterTriggerRect, setFilterTriggerRect] = useState(null);
 
   const [hoveredSku, setHoveredSku] = useState(null);
   const [hoveredWo, setHoveredWo] = useState(null);
@@ -448,18 +312,6 @@ const WorkOrderTab = ({ orderNo, orderStatus, onNavigate }) => {
   const visibleData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const statusOptions = [...new Set(rawData.map(wo => wo.status))];
 
-  const handleFilterToggle = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setFilterTriggerRect(rect);
-    setIsFilterOpen(!isFilterOpen);
-  };
-
-  const toggleStatus = (status) => {
-    setStatusFilter(prev => 
-      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
-    );
-  };
-
   const gridTemplate = "2.5fr 1.5fr 0.8fr 1.1fr 1.1fr 1.1fr";
   const rowHeight = 64; 
   const maxBodyHeight = rowHeight * 5; 
@@ -468,45 +320,14 @@ const WorkOrderTab = ({ orderNo, orderStatus, onNavigate }) => {
     <div style={{ width: "100%", background: "var(--neutral-surface-primary)", display: "flex", flexDirection: "column" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", gap: "16px" }}>
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          <div onClick={handleFilterToggle}>
-            <FilterPill label="Status" count={statusFilter.length} active={statusFilter.length > 0} isOpen={isFilterOpen} />
-          </div>
-          {isFilterOpen && (
-            <>
-              {createPortal(<div style={{ position: "fixed", inset: 0, zIndex: 14000 }} onClick={() => setIsFilterOpen(false)} />, document.body)}
-              {createPortal(
-                <div style={{
-                  position: "fixed",
-                  top: `${filterTriggerRect.bottom + 8}px`,
-                  left: `${filterTriggerRect.left}px`,
-                  width: "240px",
-                  background: "var(--neutral-surface-primary)",
-                  border: "1px solid var(--neutral-line-separator-1)",
-                  borderRadius: "16px",
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-                  padding: "16px",
-                  zIndex: 14001,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "16px"
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "var(--text-title-2)", fontWeight: "var(--font-weight-bold)" }}>Status</span>
-                    <button onClick={() => { setStatusFilter([]); setIsFilterOpen(false); }} style={{ background: "none", border: "none", color: "var(--status-red-primary)", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Remove Filter</button>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {statusOptions.map(opt => (
-                      <label key={opt} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13px" }}>
-                        <Checkbox checked={statusFilter.includes(opt)} onChange={() => toggleStatus(opt)} />
-                        {opt}
-                      </label>
-                    ))}
-                  </div>
-                </div>,
-                document.body
-              )}
-            </>
-          )}
+          <FilterMenu
+            label="Status"
+            multiple
+            searchable={false}
+            options={statusOptions.map((o) => ({ value: o, label: o }))}
+            values={statusFilter}
+            onChangeMultiple={setStatusFilter}
+          />
         </div>
         <TableSearchField value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search WO Number, Product, SKU" width="320px" />
       </div>
@@ -592,8 +413,6 @@ const InvoicesTab = ({ onNavigate }) => {
   const [statusFilter, setStatusFilter] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filterTriggerRect, setFilterTriggerRect] = useState(null);
 
   const [hoveredInv, setHoveredInv] = useState(null);
 
@@ -630,18 +449,6 @@ const InvoicesTab = ({ onNavigate }) => {
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
   const visibleData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const statusOptions = ["Paid", "Issued", "Void", "Canceled", "Need Revision"];
-
-  const handleFilterToggle = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setFilterTriggerRect(rect);
-    setIsFilterOpen(!isFilterOpen);
-  };
-
-  const toggleStatus = (status) => {
-    setStatusFilter(prev => 
-      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
-    );
-  };
 
   const gridTemplate = "2fr 1.5fr 1.2fr 1.2fr 1.5fr 1.2fr";
   const rowHeight = 64;
@@ -695,45 +502,14 @@ const InvoicesTab = ({ onNavigate }) => {
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", gap: "16px" }}>
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <div onClick={handleFilterToggle}>
-              <FilterPill label="Status" count={statusFilter.length} active={statusFilter.length > 0} isOpen={isFilterOpen} />
-            </div>
-            {isFilterOpen && (
-              <>
-                {createPortal(<div style={{ position: "fixed", inset: 0, zIndex: 14000 }} onClick={() => setIsFilterOpen(false)} />, document.body)}
-                {createPortal(
-                  <div style={{
-                    position: "fixed",
-                    top: `${filterTriggerRect.bottom + 8}px`,
-                    left: `${filterTriggerRect.left}px`,
-                    width: "240px",
-                    background: "var(--neutral-surface-primary)",
-                    border: "1px solid var(--neutral-line-separator-1)",
-                    borderRadius: "16px",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-                    padding: "16px",
-                    zIndex: 14001,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "16px"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "var(--text-title-2)", fontWeight: "var(--font-weight-bold)" }}>Status</span>
-                      <button onClick={() => { setStatusFilter([]); setIsFilterOpen(false); }} style={{ background: "none", border: "none", color: "var(--status-red-primary)", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Remove Filter</button>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                      {statusOptions.map(opt => (
-                        <label key={opt} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13px" }}>
-                          <Checkbox checked={statusFilter.includes(opt)} onChange={() => toggleStatus(opt)} />
-                          {opt}
-                        </label>
-                      ))}
-                    </div>
-                  </div>,
-                  document.body
-                )}
-              </>
-            )}
+            <FilterMenu
+              label="Status"
+              multiple
+              searchable={false}
+              options={statusOptions.map((o) => ({ value: o, label: o }))}
+              values={statusFilter}
+              onChangeMultiple={setStatusFilter}
+            />
           </div>
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <TableSearchField value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Invoice Number" width="320px" />
@@ -801,8 +577,6 @@ const AttachmentsTab = ({ onNavigate, showSnackbar }) => {
   const [view, setView] = useState("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState([]);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filterTriggerRect, setFilterTriggerRect] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [menuTriggerRect, setMenuTriggerRect] = useState(null);
   const MAX_ATTACHMENTS = 10;
@@ -855,12 +629,6 @@ const AttachmentsTab = ({ onNavigate, showSnackbar }) => {
         <DocumentTypeBadge fileName={doc.name} type={doc.type} size={compact ? "small" : "preview"} />
       </div>
     );
-  };
-
-  const handleFilterToggle = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setFilterTriggerRect(rect);
-    setIsFilterOpen(!isFilterOpen);
   };
 
   const resetUploadState = () => {
@@ -2230,8 +1998,6 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
   const [statusFilter, setStatusFilter] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [filterTriggerRect, setFilterTriggerRect] = useState(null);
   const [showBreakdownDrawer, setShowBreakdownDrawer] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState(null);
   const [drawerTab, setDrawerTab] = useState("Calculation");
@@ -2288,18 +2054,6 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
   const visibleData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const statusOptions = ["Shortage", "Covered"];
-
-  const handleFilterToggle = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setFilterTriggerRect(rect);
-    setIsFilterOpen(!isFilterOpen);
-  };
-
-  const toggleStatus = (status) => {
-    setStatusFilter(prev => 
-      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
-    );
-  };
 
   const handleRowClick = (material) => {
     setSelectedMaterial(material);
@@ -2358,45 +2112,14 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", gap: "16px" }}>
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <div onClick={handleFilterToggle}>
-              <FilterPill label="Status" count={statusFilter.length} active={statusFilter.length > 0} isOpen={isFilterOpen} />
-            </div>
-            {isFilterOpen && (
-              <>
-                {createPortal(<div style={{ position: "fixed", inset: 0, zIndex: 14000 }} onClick={() => setIsFilterOpen(false)} />, document.body)}
-                {createPortal(
-                  <div style={{
-                    position: "fixed",
-                    top: `${filterTriggerRect.bottom + 8}px`,
-                    left: `${filterTriggerRect.left}px`,
-                    width: "240px",
-                    background: "var(--neutral-surface-primary)",
-                    border: "1px solid var(--neutral-line-separator-1)",
-                    borderRadius: "16px",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-                    padding: "16px",
-                    zIndex: 14001,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "16px"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "var(--text-title-2)", fontWeight: "var(--font-weight-bold)" }}>Status</span>
-                      <button onClick={() => { setStatusFilter([]); setIsFilterOpen(false); }} style={{ background: "none", border: "none", color: "var(--status-red-primary)", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Remove Filter</button>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                      {statusOptions.map(opt => (
-                        <label key={opt} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13px" }}>
-                          <Checkbox checked={statusFilter.includes(opt)} onChange={() => toggleStatus(opt)} />
-                          {opt}
-                        </label>
-                      ))}
-                    </div>
-                  </div>,
-                  document.body
-                )}
-              </>
-            )}
+            <FilterMenu
+              label="Status"
+              multiple
+              searchable={false}
+              options={statusOptions.map((o) => ({ value: o, label: o }))}
+              values={statusFilter}
+              onChangeMultiple={setStatusFilter}
+            />
           </div>
           <div style={{ display: "flex", gap: "12px", alignItems: "center", position: "relative" }}>
             <TableSearchField value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Material Name, SKU" width="320px" />
@@ -2579,21 +2302,16 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
                 </StatusBadge>
               </div>
 
-              <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "8px" }}>
-                {["Calculation", "Work Orders"].map(tab => (
-                  <button 
-                    key={tab}
-                    onClick={() => setDrawerTab(tab)}
-                    style={{
-                      ...tabButtonStyle(drawerTab === tab),
-                      height: "36px",
-                      padding: "0 16px",
-                      fontSize: "14px"
-                    }}
-                  >
-                    {tab}
-                  </button>
-                ))}
+              <div style={{ marginBottom: "8px" }}>
+                <ChipTabBar
+                  tabs={[
+                    { id: "Calculation", label: "Calculation" },
+                    { id: "Work Orders", label: "Work Orders" },
+                  ]}
+                  activeTab={drawerTab}
+                  onChange={setDrawerTab}
+                  size="sm"
+                />
               </div>
 
               <div>
@@ -2788,6 +2506,7 @@ const MaterialsTab = ({ orderNo, onNavigate, showSnackbar, initialData }) => {
 };
 
 export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSidebarCollapsed, orderApprovalSettings }) => {
+  const { notify: notifyOrder, currentUser: orderNotifUser } = useNotifications();
   const [activeTab, setActiveTab] = useState(initialData?.activeTab || "products");
 
   const [orderData, setOrderData] = useState(initialData || {});
@@ -2833,6 +2552,38 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSideb
   const handleUpdateStatus = (nextStatus, additionalFields = {}) => {
     const targetOrderIndex = MOCK_ORDER_TABLE_DATA.findIndex(o => o.orderNo === orderData.orderNo);
     const sBadge = getStatusBadgeVariant(nextStatus);
+    const prevStatus = orderData?.status;
+
+    // Notifications: map Order status transitions to approval events.
+    const orderNo = orderData?.orderNo;
+    if (orderNo) {
+      if (nextStatus === "Waiting for Approval") {
+        notifyOrder("order", "submitted", {
+          entityId: orderNo,
+          submitterName: orderNotifUser.name,
+          submitterUser: orderNotifUser,
+        });
+      } else if (nextStatus === "Confirmed" && prevStatus === "Waiting for Approval") {
+        notifyOrder("order", "all_approved", {
+          entityId: orderNo,
+          submitterUser: orderNotifUser,
+        });
+      } else if (nextStatus === "Canceled" && prevStatus === "Waiting for Approval") {
+        notifyOrder("order", "rejected", {
+          entityId: orderNo,
+          approverName: orderNotifUser.name,
+          reason: additionalFields?.canceledMessage || "",
+          submitterUser: orderNotifUser,
+        });
+      } else if (nextStatus === "Need Revision") {
+        notifyOrder("order", "need_revision", {
+          entityId: orderNo,
+          approverName: orderNotifUser.name,
+          note: additionalFields?.revisionMessage || "",
+          submitterUser: orderNotifUser,
+        });
+      }
+    }
 
     if (targetOrderIndex !== -1) {
       MOCK_ORDER_TABLE_DATA[targetOrderIndex] = {
@@ -3181,22 +2932,11 @@ export const OrderDetailPage = ({ onNavigate, initialData, showSnackbar, isSideb
       </div>
 
       {/* Tab Chips */}
-      <div style={{ 
-        display: "flex", 
-        gap: "12px", 
-        alignItems: "center" 
-      }}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setActiveTab(tab.key)}
-            style={tabButtonStyle(activeTab === tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <ChipTabBar
+        tabs={tabs.map(t => ({ id: t.key, label: t.label }))}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+      />
 
       {/* Tab Content */}
       <div style={{ 

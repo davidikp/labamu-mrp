@@ -28,7 +28,8 @@ import { DropdownSelect } from "../../../components/common/DropdownSelect.jsx";
 import { TablePaginationFooter } from "../../../components/table/TablePaginationFooter.jsx";
 import { TableSearchField } from "../../../components/table/TableSearchField.jsx";
 import { GeneralModal } from "../../../components/modal/GeneralModal.jsx";
-import { FilterPill } from "../../../components/common/FilterPill.jsx";
+import { FilterMenu } from "../../../components/molecules/FilterMenu.jsx";
+import { FormField, InputField } from "../../../components/index.js";
 import { MOCK_STOCK_BATCHES } from "../mock/batchesMocks.js";
 import { MOCK_VENDORS } from "../../../data/vendors.js";
 import { 
@@ -42,26 +43,7 @@ import {
   DATE_PICKER_WEEKDAYS
 } from "../../../constants/appConstants.js";
 
-const FormField = ({ label, required = false, children, error, helperText, headerRight }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
-    {label && (
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "2px", fontSize: "var(--text-body)", fontWeight: "var(--font-weight-regular)" }}>
-          {required && <span style={{ color: "var(--status-red-primary)" }}>*</span>}
-          <span style={{ color: "var(--neutral-on-surface-primary)" }}>{label}</span>
-        </div>
-        {headerRight && (
-          <span style={{ fontSize: "var(--text-desc)", color: "var(--neutral-on-surface-tertiary)" }}>
-            {headerRight}
-          </span>
-        )}
-      </div>
-    )}
-    {children}
-    {error && <span style={{ fontSize: "var(--text-desc)", color: "var(--status-red-primary)" }}>{error}</span>}
-    {!error && helperText && <span style={{ fontSize: "var(--text-desc)", color: "var(--neutral-on-surface-secondary)" }}>{helperText}</span>}
-  </div>
-);
+
 
 const Tooltip = ({ content, children }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -146,50 +128,7 @@ const Tooltip = ({ content, children }) => {
   );
 };
 
-const InputField = ({ label, required, type = "text", placeholder, value, onChange, prefix, suffix, error, helperText, icon: Icon, headerRight, ...rest }) => {
-  const [isFocused, setIsFocused] = useState(false);
-  
-  return (
-    <FormField label={label} required={required} error={error} helperText={helperText} headerRight={headerRight}>
-      <div style={{ 
-        display: "flex", 
-        alignItems: "center", 
-        height: "48px", 
-        border: `1px solid ${error ? "var(--status-red-primary)" : isFocused ? "var(--feature-brand-primary)" : "#e9e9e9"}`, 
-        borderRadius: "10px",
-        background: rest.disabled ? "var(--neutral-surface-grey-lighter)" : "var(--neutral-surface-primary)",
-        padding: "0 16px",
-        gap: "8px",
-        transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-        boxShadow: isFocused ? "0 0 0 3px rgba(0, 104, 255, 0.08)" : "none",
-        cursor: rest.disabled ? "not-allowed" : "default"
-      }}>
-        {prefix && <span style={{ color: "var(--neutral-on-surface-secondary)", fontSize: "var(--text-subtitle-1)" }}>{prefix}</span>}
-        <input 
-          type={type}
-          value={value}
-          onChange={onChange}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          placeholder={placeholder}
-          style={{ 
-            flex: 1, 
-            border: "none", 
-            outline: "none", 
-            fontSize: "var(--text-subtitle-1)", 
-            background: "transparent",
-            color: rest.disabled ? "var(--neutral-on-surface-tertiary)" : "var(--neutral-on-surface-primary)",
-            width: "100%",
-            cursor: rest.disabled ? "not-allowed" : "text",
-          }}
-          {...rest}
-        />
-        {suffix && <span style={{ color: "var(--neutral-on-surface-secondary)", fontSize: "var(--text-subtitle-1)" }}>{suffix}</span>}
-        {Icon && <Icon size={20} color="var(--neutral-on-surface-tertiary)" />}
-      </div>
-    </FormField>
-  );
-};
+
 
 const DocumentTypeBadge = ({ fileName = "" }) => {
   const extension = (fileName.split(".").pop() || "PDF").toUpperCase();
@@ -672,9 +611,6 @@ export const StockBatchesTab = ({
     vendor: [],
     expiration: []
   });
-  const [openFilterKey, setOpenFilterKey] = useState(null);
-  const [popoverTriggerRect, setPopoverTriggerRect] = useState(null);
-  
   // localBatches and localTransactions are now passed as props
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState(null); // 'add' | 'edit' | null
@@ -948,28 +884,13 @@ export const StockBatchesTab = ({
     setFormData({ ...formData, attachments: updated });
   };
 
-  const handleFilterClick = (key, e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setPopoverTriggerRect(rect);
-    setOpenFilterKey(prev => prev === key ? null : key);
-  };
-
-  const toggleFilterValue = (key, value) => {
-    setActiveFilters(prev => ({
-      ...prev,
-      [key]: prev[key].includes(value)
-        ? prev[key].filter(v => v !== value)
-        : [...prev[key], value]
-    }));
-  };
-
   const getFilterOptions = (key) => {
     const allBatches = MOCK_STOCK_BATCHES.filter(b => b.materialId === materialId);
     switch (key) {
       case "location":
         return [...new Set(allBatches.map(b => b.storageLocation).filter(Boolean))];
       case "status":
-        return [...new Set(allBatches.map(b => b.status).filter(Boolean))];
+        return ["Requested", "Received", "Partially Received", "Delayed", "Disposed"];
       case "vendor":
         return [...new Set(allBatches.map(b => b.vendor).filter(Boolean))];
       case "expiration":
@@ -1002,12 +923,23 @@ export const StockBatchesTab = ({
       result = result.filter(b => activeFilters.location.includes(b.storageLocation));
     }
     if (activeFilters.status.length > 0) {
-      result = result.filter(b => activeFilters.status.includes(b.status));
+      result = result.filter(b => {
+        const isPartiallyReceived =
+          b.status === "Received" && b.poRef && b.currentQty > 0 && b.currentQty < b.initialQty;
+        const effectiveStatus = isPartiallyReceived ? "Partially Received" : b.status;
+        return activeFilters.status.includes(effectiveStatus);
+      });
     }
     if (activeFilters.vendor.length > 0) {
       result = result.filter(b => activeFilters.vendor.includes(b.vendor));
     }
     // Note: expiration status filter would require date logic, leaving as placeholder for now or mapping specific labels
+
+    result.sort((a, b) => {
+      const da = a.purchaseDate ? new Date(a.purchaseDate) : new Date(0);
+      const db = b.purchaseDate ? new Date(b.purchaseDate) : new Date(0);
+      return db - da;
+    });
 
     return result;
   }, [materialId, searchQuery, showEmptyBatches, activeFilters, localBatches]);
@@ -1068,7 +1000,7 @@ export const StockBatchesTab = ({
     { label: "Vendor", key: "vendor", width: "160px" },
     { label: "PO Ref", key: "poRef", width: "140px" },
     { label: "Attachments", key: "attachments", width: "240px" },
-    { label: "Status", key: "status", width: "100px" },
+    { label: "Status", key: "status", width: "144px" },
     { label: "Actions", key: "actions", width: "100px", sticky: true }
   ];
 
@@ -1096,73 +1028,30 @@ export const StockBatchesTab = ({
           flexWrap: "wrap"
         }}>
           <div style={{ display: "flex", gap: "12px", alignItems: "center", flex: 1, position: "relative" }}>
-            <div onClick={(e) => handleFilterClick("status", e)}>
-              <FilterPill label="Batch Status" count={activeFilters.status.length} active={activeFilters.status.length > 0} isOpen={openFilterKey === "status"} />
-            </div>
-            <div onClick={(e) => handleFilterClick("vendor", e)}>
-              <FilterPill label="Vendor" count={activeFilters.vendor.length} active={activeFilters.vendor.length > 0} isOpen={openFilterKey === "vendor"} />
-            </div>
-            <div onClick={(e) => handleFilterClick("expiration", e)}>
-              <FilterPill label="Expiration Status" count={activeFilters.expiration.length} active={activeFilters.expiration.length > 0} isOpen={openFilterKey === "expiration"} />
-            </div>
-
-            {openFilterKey && (
-              <>
-                {createPortal(
-                  <div style={{ position: "fixed", inset: 0, zIndex: 14000 }} onClick={() => setOpenFilterKey(null)} />,
-                  document.body
-                )}
-                {createPortal(
-                  <div style={{
-                    position: "fixed",
-                    top: popoverTriggerRect ? `${popoverTriggerRect.bottom + 8}px` : "200px",
-                    left: popoverTriggerRect ? `${popoverTriggerRect.left}px` : "24px",
-                    width: "280px",
-                    background: "var(--neutral-surface-primary)",
-                    border: "1px solid var(--neutral-line-separator-1)",
-                    borderRadius: "16px",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-                    padding: "16px",
-                    zIndex: 14001,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "16px"
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "var(--text-title-2)", fontWeight: "var(--font-weight-bold)" }}>
-                        {openFilterKey === "status" ? "Batch Status" : 
-                         openFilterKey === "vendor" ? "Vendor" : "Expiration Status"}
-                      </span>
-                      <button 
-                        onClick={() => {
-                          setActiveFilters(prev => ({ ...prev, [openFilterKey]: [] }));
-                          setOpenFilterKey(null);
-                        }}
-                        style={{ background: "none", border: "none", color: "var(--status-red-primary)", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}
-                      >
-                        Remove Filter
-                      </button>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                      {getFilterOptions(openFilterKey).length > 0 ? getFilterOptions(openFilterKey).map(opt => (
-                        <label key={opt} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "13px" }}>
-                          <Checkbox 
-                            checked={activeFilters[openFilterKey].includes(opt)} 
-                            onChange={() => toggleFilterValue(openFilterKey, opt)} 
-                          />
-                          {opt}
-                        </label>
-                      )) : (
-                        <div style={{ padding: "12px", textAlign: "center", fontSize: "var(--text-body)", color: "var(--neutral-on-surface-tertiary)" }}>
-                          No options available
-                        </div>
-                      )}
-                    </div>
-                  </div>,
-                  document.body
-                )}
-              </>
-            )}
+            <FilterMenu
+              label="Batch Status"
+              multiple
+              searchable={false}
+              options={getFilterOptions("status").map((o) => ({ value: o, label: o }))}
+              values={activeFilters.status}
+              onChangeMultiple={(values) => setActiveFilters((prev) => ({ ...prev, status: values }))}
+            />
+            <FilterMenu
+              label="Vendor"
+              multiple
+              searchable={false}
+              options={getFilterOptions("vendor").map((o) => ({ value: o, label: o }))}
+              values={activeFilters.vendor}
+              onChangeMultiple={(values) => setActiveFilters((prev) => ({ ...prev, vendor: values }))}
+            />
+            <FilterMenu
+              label="Expiration Status"
+              multiple
+              searchable={false}
+              options={getFilterOptions("expiration").map((o) => ({ value: o, label: o }))}
+              values={activeFilters.expiration}
+              onChangeMultiple={(values) => setActiveFilters((prev) => ({ ...prev, expiration: values }))}
+            />
           </div>
           
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
@@ -1233,7 +1122,7 @@ export const StockBatchesTab = ({
                 
                 return (
                   <div key={col.key} style={{ 
-                    width: isStickyLeft ? "184px" : isStickyRightActions ? "140px" : isStickyRightStatus ? "96px" : col.width, 
+                    width: isStickyLeft ? "184px" : isStickyRightActions ? "140px" : isStickyRightStatus ? "144px" : col.width,
                     padding: isStickyLeft ? "16px 12px 16px 24px" : isStickyRightActions ? "16px 24px 16px 12px" : "16px 12px",
                     fontSize: "var(--text-title-3)",
                     fontWeight: "var(--font-weight-bold)",
@@ -1366,8 +1255,8 @@ export const StockBatchesTab = ({
                   </div>
                   
                   {/* Status (Sticky Right) */}
-                  <div style={{ 
-                    width: "96px", 
+                  <div style={{
+                    width: "144px",
                     padding: "0 12px",
                     position: "sticky",
                     right: "140px",
@@ -1383,15 +1272,26 @@ export const StockBatchesTab = ({
                     boxShadow: scrollShadows.right ? "-4px 0 8px -4px rgba(0,0,0,0.12)" : "none",
                     transition: "box-shadow 0.2s ease"
                   }}>
-                    <StatusBadge variant={
-                      row.status === "Received" ? "green-light" : 
-                      row.status === "Delayed" ? "red" : 
-                      row.status === "Requested" ? "blue-light" : 
-                      row.status === "Disposed" ? "grey-light" :
-                      "grey"
-                    }>
-                      {row.status}
-                    </StatusBadge>
+                    {(() => {
+                      const isPartiallyReceived =
+                        row.status === "Received" &&
+                        row.poRef &&
+                        row.currentQty > 0 &&
+                        row.currentQty < row.initialQty;
+                      const displayStatus = isPartiallyReceived ? "Partially Received" : row.status;
+                      const variant =
+                        isPartiallyReceived ? "blue-light" :
+                        row.status === "Received" ? "green-light" :
+                        row.status === "Delayed" ? "red-light" :
+                        row.status === "Requested" ? "grey-light" :
+                        row.status === "Disposed" ? "grey-light" :
+                        "grey-light";
+                      return (
+                        <StatusBadge variant={variant}>
+                          {displayStatus}
+                        </StatusBadge>
+                      );
+                    })()}
                   </div>
 
                   {/* Actions (Sticky Right) */}

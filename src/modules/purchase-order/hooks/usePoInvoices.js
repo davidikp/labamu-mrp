@@ -1,5 +1,9 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { formatIsoDateString } from "../../../utils/date/dateUtils";
+import { MOCK_PO_TABLE_DATA } from "../mock/purchaseOrderMocks";
+
+// Module-level cache: persists invoice/payment state across navigation
+const invoiceCache = new Map();
 
 export const usePoInvoices = ({
   initialInvoices = [],
@@ -11,24 +15,43 @@ export const usePoInvoices = ({
   poNumber = "",
   vendorName = "",
   showToast,
-  addDocumentFromAction,
+  onAddDocument,
 } = {}) => {
-  // --- Core Data State ---
-  const [invoices, setInvoices] = useState(initialInvoices);
-  const [payments, setPayments] = useState(initialPayments);
-  const [invoicePaymentLogs, setInvoicePaymentLogs] = useState(initialLogs);
+  // --- Core Data State (hydrate from cache if available) ---
+  const cached = poNumber ? invoiceCache.get(poNumber) : null;
+  const [invoices, setInvoices] = useState(cached?.invoices ?? initialInvoices);
+  const [payments, setPayments] = useState(cached?.payments ?? initialPayments);
+  const [invoicePaymentLogs, setInvoicePaymentLogs] = useState(cached?.logs ?? initialLogs);
+  const isFirstMount = useRef(true);
 
-  // Sync with initial props
+  // Sync with initial props only on first mount (skip if we have cached data)
   useEffect(() => {
-    setInvoices(initialInvoices);
-    setPayments(initialPayments);
-    setInvoicePaymentLogs(initialLogs);
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    const hasCached = poNumber && invoiceCache.has(poNumber);
+    if (!hasCached) {
+      setInvoices(initialInvoices);
+      setPayments(initialPayments);
+      setInvoicePaymentLogs(initialLogs);
+    }
   }, [initialInvoices, initialPayments, initialLogs]);
+
+  // Write to cache and sync back to MOCK_PO_TABLE_DATA whenever state changes
+  useEffect(() => {
+    if (poNumber) {
+      invoiceCache.set(poNumber, { invoices, payments, logs: invoicePaymentLogs });
+      const idx = MOCK_PO_TABLE_DATA.findIndex(p => p.poNumber === poNumber);
+      if (idx !== -1) {
+        MOCK_PO_TABLE_DATA[idx].invoices = invoices;
+        MOCK_PO_TABLE_DATA[idx].payments = payments;
+      }
+    }
+  }, [poNumber, invoices, payments, invoicePaymentLogs]);
 
   // --- UI State ---
   const [invoiceSearch, setInvoiceSearch] = useState("");
-  const [invoiceDateFilterType, setInvoiceDateFilterType] = useState("all");
-  const [invoiceCustomDateRange, setInvoiceCustomDateRange] = useState({ start: "", end: "" });
   const [invoiceRowsPerPage, setInvoiceRowsPerPage] = useState(25);
   const [invoiceCurrentPage, setInvoiceCurrentPage] = useState(1);
   const [activeInvoiceTab, setActiveInvoiceTab] = useState("Details");
@@ -51,6 +74,10 @@ export const usePoInvoices = ({
   const [exceededItems, setExceededItems] = useState([]);
   const [paymentToVoid, setPaymentToVoid] = useState(null);
   const [lastInvoiceId, setLastInvoiceId] = useState(null);
+  const [deleteInvoiceReason, setDeleteInvoiceReason] = useState("");
+  const [deleteInvoiceReasonError, setDeleteInvoiceReasonError] = useState("");
+  const [voidPaymentReason, setVoidPaymentReason] = useState("");
+  const [voidPaymentReasonError, setVoidPaymentReasonError] = useState("");
 
   // Form States
   const [addInvoiceFormData, setAddInvoiceFormData] = useState({
@@ -78,10 +105,6 @@ export const usePoInvoices = ({
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);
   const [autoPrefillInvoice, setAutoPrefillInvoice] = useState(false);
   const [autoPrefillPayment, setAutoPrefillPayment] = useState(false);
-  const [deleteInvoiceReason, setDeleteInvoiceReason] = useState("");
-  const [deleteInvoiceReasonError, setDeleteInvoiceReasonError] = useState("");
-  const [voidPaymentReason, setVoidPaymentReason] = useState("");
-  const [voidPaymentReasonError, setVoidPaymentReasonError] = useState("");
 
   // --- Helpers ---
   const getInvoiceMetrics = useCallback((invoice) => {
@@ -109,10 +132,10 @@ export const usePoInvoices = ({
     const diffTime = today - due;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 30) return { text: "Late 1-30 days", variant: "blue-light" };
-    if (diffDays <= 60) return { text: "Late 31-60 days", variant: "yellow-light" };
-    if (diffDays <= 90) return { text: "Late 61-90 days", variant: "orange-light" };
-    return { text: "Late 90+ days", variant: "red-light" };
+    if (diffDays <= 30) return { text: "Late 1-30", variant: "blue-light" };
+    if (diffDays <= 60) return { text: "Late 31-60", variant: "yellow-light" };
+    if (diffDays <= 90) return { text: "Late 61-90", variant: "orange-light" };
+    return { text: "Late 90+", variant: "red-light" };
   }, []);
 
   const getInvoiceStatus = useCallback((invoice, metrics) => {
@@ -354,17 +377,22 @@ export const usePoInvoices = ({
           accountName: addInvoiceFormData.accountName,
         },
       };
-
-      if (addInvoiceFormData.attachments && addInvoiceFormData.attachments.length > 0 && addDocumentFromAction) {
-        addDocumentFromAction(
-          addInvoiceFormData.attachments[0].file,
-          `${newInvoice.number} document`,
-          "invoice"
-        );
-      }
-
       setInvoices((prev) => [newInvoice, ...prev]);
-      addInvoicePaymentLog("Invoice Added", `New invoice ${addInvoiceFormData.number} for ${currency} ${parseFloat(addInvoiceFormData.amount).toLocaleString()} was added.`);
+      if (onAddDocument && addInvoiceFormData.attachments?.length > 0) {
+        addInvoiceFormData.attachments.forEach((att) => {
+          onAddDocument({
+            id: `doc-inv-${Date.now()}-${Math.random()}`,
+            name: att.name || att.file?.name || "invoice-attachment",
+            description: `${addInvoiceFormData.number} document`,
+            meta: `Uploaded by Natasha Smith on ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+            documentType: "invoice",
+            type: "pdf",
+            size: att.file?.size ? `${Math.round(att.file.size / 1024)} KB` : "-",
+            modifiedDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          });
+        });
+      }
+      addInvoicePaymentLog("Invoice Added", `New invoice #${addInvoiceFormData.number} for ${currency} ${parseFloat(addInvoiceFormData.amount).toLocaleString()} was added.`);
       if (showToast) {
         showToast("Invoice successfully added");
       }
@@ -374,6 +402,30 @@ export const usePoInvoices = ({
     setIsEditingInvoice(false);
     setFormErrors({});
   }, [addInvoiceFormData, isEditingInvoice, calculatedDueDate, currency, addInvoicePaymentLog, showToast, setSelectedInvoiceForDetail]);
+
+  const checkPoValueAndSave = useCallback(() => {
+    const otherInvoicesTotal = invoices.reduce(
+      (sum, inv) => (isEditingInvoice && inv.id === addInvoiceFormData.id ? sum : sum + (inv.amount || 0)),
+      0
+    );
+    const newAmount = parseFloat(addInvoiceFormData.amount) || 0;
+    const potentialTotalInvoiced = otherInvoicesTotal + newAmount;
+
+    if (potentialTotalInvoiced > poTotal) {
+      setShowExceedConfirmModal(true);
+      return;
+    }
+    saveInvoice();
+  }, [invoices, isEditingInvoice, addInvoiceFormData, poTotal, saveInvoice]);
+
+  const proceedAfterQtyExceed = useCallback(() => {
+    const invoiceAmount = parseFloat(addInvoiceFormData.amount) || 0;
+    if (invoiceAmount === 0) {
+      setShowZeroAmountConfirmModal(true);
+      return;
+    }
+    checkPoValueAndSave();
+  }, [addInvoiceFormData.amount, checkPoValueAndSave]);
 
   const handleAddInvoice = useCallback(() => {
     let hasError = false;
@@ -397,14 +449,14 @@ export const usePoInvoices = ({
       nextErrors.amount = "Field cannot be empty";
       hasError = true;
     } else if (isEditingInvoice) {
-      const currentInv = invoices.find(i => i.id === addInvoiceFormData.id);
-      if (currentInv) {
-        const invMetrics = getInvoiceMetrics(currentInv);
-        const newAmount = parseFloat(addInvoiceFormData.amount) || 0;
-        if (newAmount < invMetrics.paid) {
-          nextErrors.amount = `Invoice amount cannot be lower than the paid amount (${currency} ${invMetrics.paid.toLocaleString()}).`;
-          hasError = true;
-        }
+      const newAmount = parseFloat(addInvoiceFormData.amount) || 0;
+      const alreadyPaid = payments
+        .filter((p) => !p.isVoid && p.invoiceId === addInvoiceFormData.id)
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+      if (alreadyPaid > 0 && newAmount < alreadyPaid) {
+        const formattedPaid = `${currency} ${alreadyPaid.toLocaleString()}`;
+        nextErrors.amount = `Invoice amount cannot be lower than the paid amount (${formattedPaid}).`;
+        hasError = true;
       }
     }
     
@@ -439,7 +491,7 @@ export const usePoInvoices = ({
       setFormErrors({ ...nextErrors, itemLines: itemLineErrors });
       return;
     }
-
+    
     if (foundExceededItems.length > 0) {
       setExceededItems(foundExceededItems);
       setShowItemQtyExceedConfirmModal(true);
@@ -447,45 +499,15 @@ export const usePoInvoices = ({
     }
 
     proceedAfterQtyExceed();
-  }, [addInvoiceFormData, isEditingInvoice, invoices, poTotal, saveInvoice, getRemainingPoQty, currency, getInvoiceMetrics]);
-
-  const proceedAfterZeroAmount = useCallback(() => {
-    // Check if potential total invoiced exceeds PO value
-    const otherInvoicesTotal = invoices.reduce(
-      (sum, inv) => (isEditingInvoice && inv.id === addInvoiceFormData.id ? sum : sum + (inv.amount || 0)),
-      0
-    );
-    const newAmount = parseFloat(addInvoiceFormData.amount) || 0;
-    const potentialTotalInvoiced = otherInvoicesTotal + newAmount;
-
-    if (potentialTotalInvoiced > poTotal) {
-      setShowExceedConfirmModal(true);
-      return;
-    }
-
-    saveInvoice();
-  }, [invoices, isEditingInvoice, addInvoiceFormData.id, addInvoiceFormData.amount, poTotal, saveInvoice]);
-
-  const proceedAfterQtyExceed = useCallback(() => {
-    const invoiceAmount = parseFloat(addInvoiceFormData.amount) || 0;
-    if (invoiceAmount === 0) {
-      setShowZeroAmountConfirmModal(true);
-      return;
-    }
-    proceedAfterZeroAmount();
-  }, [addInvoiceFormData.amount, proceedAfterZeroAmount]);
+  }, [addInvoiceFormData, isEditingInvoice, invoices, payments, currency, proceedAfterQtyExceed, getRemainingPoQty]);
 
   const handleDeleteInvoice = useCallback(() => {
     if (!selectedInvoiceForDetail) return;
-    if (!deleteInvoiceReason.trim()) {
-      setDeleteInvoiceReasonError("Field cannot be empty");
-      return;
-    }
     const invNumber = selectedInvoiceForDetail.number;
     const wasLastInvoice = lastInvoiceId === selectedInvoiceForDetail.id;
     setInvoices((prev) => prev.filter((i) => i.id !== selectedInvoiceForDetail.id));
     setPayments((prev) => prev.filter((p) => p.invoiceId !== selectedInvoiceForDetail.id));
-    addInvoicePaymentLog("Invoice Deleted", `Invoice ${invNumber} and its associated payments were removed. Reason: ${deleteInvoiceReason}`);
+    addInvoicePaymentLog("Invoice Deleted", `Invoice ${invNumber} and its associated payments were removed.`);
     if (wasLastInvoice) {
       setLastInvoiceId(null);
       addInvoicePaymentLog(
@@ -498,10 +520,9 @@ export const usePoInvoices = ({
       showToast("Invoice successfully deleted");
     }
     setShowDeleteInvoiceConfirm(false);
-    setShowInvoiceDetailDrawer(false);
     setDeleteInvoiceReason("");
-    setDeleteInvoiceReasonError("");
-  }, [selectedInvoiceForDetail, deleteInvoiceReason, addInvoicePaymentLog, showToast, lastInvoiceId]);
+    setShowInvoiceDetailDrawer(false);
+  }, [selectedInvoiceForDetail, addInvoicePaymentLog, showToast, lastInvoiceId]);
 
   const handleAddPayment = useCallback(() => {
     let hasError = false;
@@ -530,20 +551,26 @@ export const usePoInvoices = ({
       notes: paymentFormData.notes,
       attachments: paymentFormData.attachments,
       proof: paymentFormData.attachments?.[0]?.name,
-      createdAt: new Date().toISOString(),
       addedBy: "Natasha Smith",
+      createdAt: new Date().toISOString(),
       isVoid: false,
     };
 
-    if (paymentFormData.attachments && paymentFormData.attachments.length > 0 && addDocumentFromAction) {
-      addDocumentFromAction(
-        paymentFormData.attachments[0].file,
-        `${newPayment.id} document`,
-        "invoice_payment"
-      );
-    }
-
     setPayments((prev) => [newPayment, ...prev]);
+    if (onAddDocument && paymentFormData.attachments?.length > 0) {
+      paymentFormData.attachments.forEach((att) => {
+        onAddDocument({
+          id: `doc-pay-${Date.now()}-${Math.random()}`,
+          name: att.name || att.file?.name || "payment-proof",
+          description: `${newPayment.id} document`,
+          meta: `Uploaded by Natasha Smith on ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+          documentType: "invoice_payment",
+          type: "pdf",
+          size: att.file?.size ? `${Math.round(att.file.size / 1024)} KB` : "-",
+          modifiedDate: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        });
+      });
+    }
     addInvoicePaymentLog("Payment Added", `Payment of ${currency} ${parseFloat(paymentFormData.amount).toLocaleString()} added to Invoice ${selectedInvoiceForPayment?.number}.`);
     if (showToast) {
       showToast("Payment successfully added");
@@ -557,21 +584,16 @@ export const usePoInvoices = ({
 
   const handleVoidPayment = useCallback(() => {
     if (!paymentToVoid) return;
-    if (!voidPaymentReason.trim()) {
-      setVoidPaymentReasonError("Field cannot be empty");
-      return;
-    }
     const associatedInv = invoices.find(i => i.id === paymentToVoid.invoiceId);
     setPayments(prev => prev.map(p => p.id === paymentToVoid.id ? { ...p, isVoid: true, voidedAt: new Date().toISOString() } : p));
-    addInvoicePaymentLog("Payment Voided", `Payment of ${currency} ${paymentToVoid.amount.toLocaleString()} for Invoice ${associatedInv?.number || "Unknown"} was voided. Reason: ${voidPaymentReason}`);
+    addInvoicePaymentLog("Payment Voided", `Payment of ${currency} ${paymentToVoid.amount.toLocaleString()} for Invoice ${associatedInv?.number || "Unknown"} was voided.`);
     if (showToast) {
       showToast("Payment successfully voided");
     }
     setShowVoidConfirmModal(false);
-    setPaymentToVoid(null);
     setVoidPaymentReason("");
-    setVoidPaymentReasonError("");
-  }, [paymentToVoid, voidPaymentReason, invoices, currency, addInvoicePaymentLog, showToast]);
+    setPaymentToVoid(null);
+  }, [paymentToVoid, invoices, currency, addInvoicePaymentLog, showToast]);
 
   return {
     // Data State
@@ -585,10 +607,6 @@ export const usePoInvoices = ({
     // UI State
     invoiceSearch,
     setInvoiceSearch,
-    invoiceDateFilterType,
-    setInvoiceDateFilterType,
-    invoiceCustomDateRange,
-    setInvoiceCustomDateRange,
     invoiceRowsPerPage,
     setInvoiceRowsPerPage,
     invoiceCurrentPage,
@@ -637,14 +655,6 @@ export const usePoInvoices = ({
     setAutoPrefillInvoice,
     autoPrefillPayment,
     setAutoPrefillPayment,
-    deleteInvoiceReason,
-    setDeleteInvoiceReason,
-    deleteInvoiceReasonError,
-    setDeleteInvoiceReasonError,
-    voidPaymentReason,
-    setVoidPaymentReason,
-    voidPaymentReasonError,
-    setVoidPaymentReasonError,
 
     // Helpers
     getInvoiceMetrics,
@@ -677,8 +687,16 @@ export const usePoInvoices = ({
     setShowZeroAmountConfirmModal,
     exceededItems,
     saveInvoice,
+    checkPoValueAndSave,
     proceedAfterQtyExceed,
-    proceedAfterZeroAmount,
+    deleteInvoiceReason,
+    setDeleteInvoiceReason,
+    deleteInvoiceReasonError,
+    setDeleteInvoiceReasonError,
+    voidPaymentReason,
+    setVoidPaymentReason,
+    voidPaymentReasonError,
+    setVoidPaymentReasonError,
 
     // Handlers
     simulateInvoiceOcr,

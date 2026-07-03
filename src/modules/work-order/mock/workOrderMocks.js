@@ -10,6 +10,7 @@ export const MOCK_WO_LINES = [
     price: 250000,
     image: null,
     outsourceSteps: [1, 2],
+    assignmentId: "WOA-0001",
   },
   {
     id: "wo2",
@@ -22,6 +23,7 @@ export const MOCK_WO_LINES = [
     price: 175000,
     image: null,
     outsourceSteps: [2],
+    assignmentId: "WOA-0002",
   },
   {
     id: "wo3",
@@ -34,6 +36,7 @@ export const MOCK_WO_LINES = [
     price: 320000,
     image: null,
     outsourceSteps: [3],
+    assignmentId: "WOA-0003",
   },
   {
     id: "wo4",
@@ -45,6 +48,21 @@ export const MOCK_WO_LINES = [
     qty: 60,
     price: 145000,
     image: null,
+    outsourceSteps: [4],
+    assignmentId: "WOA-0004",
+  },
+  {
+    id: "wo5",
+    vendorId: "v1",
+    item: "Cabinet Premium Panel (Paint)",
+    code: "CAB-PR-9921",
+    desc: "Panel painting generated from work order",
+    woRef: "WO-2026-03-025-00008",
+    qty: 100,
+    price: 150000,
+    image: null,
+    outsourceSteps: [3, 4],
+    assignmentId: "WOA-0005",
   },
 ];
 
@@ -325,8 +343,8 @@ export const MOCK_WO_TABLE_DATA = [
     status: "Not Started",
     statusKey: "not_started",
     sBadge: "grey",
-    orderStart: "2026-05-01",
-    orderEnd: "2026-05-31",
+    orderStart: "2026-06-02",
+    orderEnd: "2026-08-30",
     image: null,
   },
   {
@@ -365,13 +383,16 @@ export const MOCK_WO_TABLE_DATA = [
     vendors: [
       {
         id: 1,
+        assignmentId: "WOA-0000",
         name: "Internal",
         output: "30",
         date: "2026-04-15",
         status: "Not Started",
+        assignedSteps: [2],
       },
       {
         id: 2,
+        assignmentId: "WOA-0001",
         name: "CV Kayu Makmur",
         output: "20",
         receivedOutput: 20,
@@ -381,10 +402,13 @@ export const MOCK_WO_TABLE_DATA = [
         attachment: "proof_of_delivery_01.pdf",
         poNumber: "PO-202603-0005",
         isPoApproved: true,
+        assignedSteps: [2, 3],
         receipts: [
           {
+            receiptId: "RCT-202603-104",
             amount: 20,
             date: "2026-03-25",
+            time: "10:00",
             attachment: "proof_of_delivery_01.pdf",
             note: "Delivered in full and received in good condition.",
           },
@@ -392,26 +416,22 @@ export const MOCK_WO_TABLE_DATA = [
       },
       {
         id: 3,
+        assignmentId: "WOA-0002",
         name: "PT Mitra Sejahtera",
         output: "8",
-        receivedOutput: 4,
-        date: "2026-03-28",
-        status: "Partially Received",
+        receivedOutput: 0,
+        date: "2026-03-24",
+        status: "Waiting",
         receivedDate: "",
-        attachment: "proof_of_delivery_02.pdf",
+        attachment: "",
         poNumber: "PO-202603-0002",
         isPoApproved: true,
-        receipts: [
-          {
-            amount: 4,
-            date: "2026-03-26",
-            attachment: "proof_of_delivery_02.pdf",
-            note: "Partial delivery received. Remaining quantity still pending.",
-          },
-        ],
+        assignedSteps: [3],
+        receipts: [],
       },
       {
         id: 4,
+        assignmentId: "WOA-0004",
         name: "Bintang Sejahtera",
         output: "2",
         receivedOutput: 0,
@@ -420,11 +440,13 @@ export const MOCK_WO_TABLE_DATA = [
         receivedDate: "",
         attachment: "",
         poNumber: "PO-202603-0008",
-        isPoApproved: false,
+        isPoApproved: true,
+        assignedSteps: [3],
         receipts: [],
       },
       {
         id: 5,
+        assignmentId: "WOA-0005",
         name: "PT Cahaya Abadi",
         output: "10",
         receivedOutput: 0,
@@ -434,6 +456,7 @@ export const MOCK_WO_TABLE_DATA = [
         attachment: "",
         poNumber: "PO-202603-0004",
         isPoApproved: true,
+        assignedSteps: [3],
         receipts: [],
       },
     ],
@@ -494,8 +517,10 @@ export const MOCK_WO_TABLE_DATA = [
         receivedDate: "2025-12-25",
         receipts: [
           {
+            receiptId: "RCT-202512-105",
             amount: 5,
             date: "2025-12-25",
+            time: "16:00",
             attachment: "Internal routing completion",
             note: "Work Order-recorded from internal routing completion.",
           },
@@ -514,8 +539,10 @@ export const MOCK_WO_TABLE_DATA = [
         isPoApproved: true,
         receipts: [
           {
+            receiptId: "RCT-202512-109",
             amount: 10,
             date: "2025-12-24",
+            time: "09:15",
             attachment: "proof_of_delivery_03.pdf",
             note: "Delivered in full and received in good condition.",
           },

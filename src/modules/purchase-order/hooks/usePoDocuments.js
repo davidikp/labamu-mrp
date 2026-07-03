@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { MOCK_PO_DOCUMENTS } from "../mock/purchaseOrderMocks";
 import {
   validateUploadFile,
@@ -47,14 +47,6 @@ export const usePoDocuments = ({
   const [documentSearch, setDocumentSearch] = useState("");
   const [documentTypeFilters, setDocumentTypeFilters] = useState([]);
   const [documentView, setDocumentView] = useState("list");
-  const [showDocumentFilterMenu, setShowDocumentFilterMenu] = useState(false);
-  const [documentFilterMenuPosition, setDocumentFilterMenuPosition] = useState({
-    top: 0,
-    left: 0,
-    placement: "bottom",
-  });
-  const documentFilterTriggerRef = useRef(null);
-
   // --- Modal & Menu State ---
   const [openDocumentMenuId, setOpenDocumentMenuId] = useState(null);
   const [documentMenuPosition, setDocumentMenuPosition] = useState({
@@ -92,12 +84,16 @@ export const usePoDocuments = ({
   // --- Helpers ---
   const getCurrentLogTimestamp = useCallback(() => {
     const now = new Date();
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    const month = months[now.getMonth()];
+    const day = now.getDate();
     const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    return `${year}-${month}-${day} at ${hours}:${minutes}`;
+    const hours = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    return `${month} ${day}, ${year} at ${hours}:${minutes}`;
   }, []);
 
   const resetDocumentUploadState = useCallback(() => {
@@ -132,7 +128,7 @@ export const usePoDocuments = ({
   const handleUploadDocument = useCallback(() => {
     if (currentStatus === "Canceled") {
       setDocumentUploadError(
-        "Documents cannot be uploaded when status is Canceled"
+        "Documents cannot be uploaded for canceled purchase orders"
       );
       return;
     }
@@ -316,31 +312,11 @@ export const usePoDocuments = ({
     }
   }, [documents]);
 
-  const updateDocumentFilterMenuPosition = useCallback(() => {
-    if (documentFilterTriggerRef.current) {
-      const rect = documentFilterTriggerRef.current.getBoundingClientRect();
-      const menuHeight = 320; // estimated height
-      let top = rect.bottom + 8;
-      let placement = "bottom";
-
-      if (rect.bottom + menuHeight > window.innerHeight) {
-        top = rect.top - 8;
-        placement = "top";
-      }
-
-      setDocumentFilterMenuPosition({
-        top,
-        left: rect.left,
-        placement,
-      });
-    }
-  }, []);
-
   const openDocumentActionMenu = useCallback((event, docId) => {
     const rect = event.currentTarget.getBoundingClientRect();
     setDocumentMenuPosition({
-      top: rect.bottom + window.scrollY,
-      left: rect.right - 200 + window.scrollX,
+      top: rect.bottom + 6,
+      left: rect.right - 200,
       placement: "bottom",
     });
     setOpenDocumentMenuId(docId);
@@ -372,17 +348,8 @@ export const usePoDocuments = ({
     return {
       name: documentUploadFileName,
       size: formatUploadFileSize(documentUploadFileSize),
-      description: documentUploadDescription,
     };
-  }, [documentUploadFileObject, documentUploadFileName, documentUploadFileSize, documentUploadDescription]);
-
-  const toggleDocumentTypeFilter = useCallback((filterKey) => {
-    setDocumentTypeFilters((prev) =>
-      prev.includes(filterKey)
-        ? prev.filter((key) => key !== filterKey)
-        : [...prev, filterKey]
-    );
-  }, []);
+  }, [documentUploadFileObject, documentUploadFileName, documentUploadFileSize]);
 
   return {
     // Data
@@ -393,7 +360,6 @@ export const usePoDocuments = ({
     filteredDocuments,
     documentTypeFilterOptions,
     getDocumentTypeLabel,
-    toggleDocumentTypeFilter,
 
     // Search & Filter
     documentSearch,
@@ -402,11 +368,6 @@ export const usePoDocuments = ({
     setDocumentTypeFilters,
     documentView,
     setDocumentView,
-    showDocumentFilterMenu,
-    setShowDocumentFilterMenu,
-    documentFilterMenuPosition,
-    documentFilterTriggerRef,
-    updateDocumentFilterMenuPosition,
 
     // Menu & Selection
     openDocumentMenuId,
