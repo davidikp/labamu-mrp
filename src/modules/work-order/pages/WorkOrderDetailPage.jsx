@@ -1275,16 +1275,42 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
   // Cost-item rows are view-only by default; adding/editing a row goes
   // through a modal (costItemModal), while delete acts directly on the row.
   const [costItemModal, setCostItemModal] = useState(null);
-  const openAddCostItemModal = (key, defaultAmount = 0) =>
-    setCostItemModal({ key, idx: null, label: "", amount: defaultAmount });
+  const [costItemModalTouched, setCostItemModalTouched] = useState(false);
+  const openAddCostItemModal = (key) => {
+    setCostItemModal({ key, idx: null, label: "", amount: 0 });
+    setCostItemModalTouched(false);
+  };
   const openEditCostItemModal = (key, idx) => {
     const line = actualCogs[key].lines[idx];
     setCostItemModal({ key, idx, label: line.label, amount: line.amount });
+    setCostItemModalTouched(false);
   };
   const closeCostItemModal = () => setCostItemModal(null);
+  const costItemModalErrors = costItemModal
+    ? {
+        label: costItemModalTouched && !costItemModal.label?.trim(),
+        amount:
+          costItemModalTouched &&
+          (costItemModal.amount === "" || costItemModal.amount === null || Number.isNaN(Number(costItemModal.amount))),
+      }
+    : { label: false, amount: false };
+  const logCostItemChange = (actionTitle, key, label, amount) => {
+    const costTypeTitle = ACTUAL_COGS_FIELDS.find((f) => f.key === key)?.title || key;
+    const perUnit = TOTAL_QTY > 0 ? Math.round((Number(amount) || 0) / TOTAL_QTY) : 0;
+    addActivityLog(
+      `${costTypeTitle} ${actionTitle}`,
+      `${label} with Total Cost per Unit: ${formatIDR(perUnit)} and Total Cost This WO: ${formatIDR(amount)}`
+    );
+  };
   const saveCostItemModal = () => {
     if (!costItemModal) return;
     const { key, idx, label, amount } = costItemModal;
+    const hasLabel = !!label?.trim();
+    const hasAmount = amount !== "" && amount !== null && !Number.isNaN(Number(amount));
+    if (!hasLabel || !hasAmount) {
+      setCostItemModalTouched(true);
+      return;
+    }
     const nextLine = { label, amount: Number(amount) || 0 };
     setActualCogs((prev) => {
       const field = prev[key];
@@ -1295,13 +1321,17 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
           : lines.map((l, i) => (i === idx ? { ...l, ...nextLine } : l));
       return { ...prev, [key]: { ...field, mode: "breakdown", lines: nextLines } };
     });
+    logCostItemChange(idx == null ? "Item Added" : "Item Edited", key, nextLine.label, nextLine.amount);
     closeCostItemModal();
   };
-  const removeActualCostRow = (key, idx) =>
+  const removeActualCostRow = (key, idx) => {
+    const line = actualCogs[key]?.lines?.[idx];
     setActualCogs((prev) => ({
       ...prev,
       [key]: { ...prev[key], lines: prev[key].lines.filter((_, i) => i !== idx) },
     }));
+    if (line) logCostItemChange("Item Deleted", key, line.label, line.amount);
+  };
 
   const handlePlannedDateChange = (step, value) => {
     setRoutingStages((prev) =>
@@ -3243,7 +3273,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
               }}
             >
               <h2 className="ds-modal-title" style={{ margin: 0 }}>
-                Request Material
+                Material Requests
               </h2>
               <IconButton
                 icon={CloseIcon}
@@ -3468,7 +3498,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                         icon={DeleteIcon}
                         disabled={requestDraft.length === 1}
                         onClick={() => removeDraftRow(row.rowId)}
-                        color="var(--status-red-primary)"
+                        color={requestDraft.length === 1 ? undefined : "var(--status-red-primary)"}
                       />
                     </div>
                   </div>
@@ -3705,7 +3735,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         width="720px"
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {shortageMaterials.length > 0 ? (
+          {shortageMaterials.length > 0 && woStatus !== "completed" ? (
             <div
               style={{
                 display: "flex",
@@ -4141,13 +4171,15 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                     View Request History
                   </Button>
                 ) : null}
-                <Button
-                  variant="outlined"
-                  leftIcon={AddIcon}
-                  onClick={() => openRequestModal(false)}
-                >
-                  Request Material
-                </Button>
+                {woStatus !== "completed" ? (
+                  <Button
+                    variant="outlined"
+                    leftIcon={AddIcon}
+                    onClick={() => openRequestModal(false)}
+                  >
+                    Request Material
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -5541,7 +5573,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <ActualVsForecastBadge actual={total} forecast={forecastTotal} />
                         <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)" }}>
-                          {formatIDR(perUnit)} / pcs
+                          {formatIDR(perUnit)} / unit
                         </span>
                       </div>
                     </div>
@@ -5610,7 +5642,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                           variant="outlined"
                           size="small"
                           leftIcon={AddIcon}
-                          onClick={() => openAddCostItemModal(key, forecastTotal)}
+                          onClick={() => openAddCostItemModal(key)}
                           style={{ alignSelf: "flex-start" }}
                         >
                           Add Cost Item
@@ -5706,7 +5738,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                 <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                   <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-secondary)" }}>Forecasted COGS (BOM)</span>
                   <span style={{ fontSize: "16px", fontWeight: "bold", color: "var(--neutral-on-surface-primary)" }}>
-                    {formatIDR(forecastedPerUnit)} / pcs{" "}
+                    {formatIDR(forecastedPerUnit)} / unit{" "}
                     <span style={{ fontSize: "12px", fontWeight: "normal", color: "var(--neutral-on-surface-secondary)" }}>
                       ({formatIDR(totalForecastedCogs)} for {TOTAL_QTY} pcs)
                     </span>
@@ -5715,7 +5747,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                 <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                   <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-secondary)" }}>Actual COGS (current)</span>
                   <span style={{ fontSize: "16px", fontWeight: "bold", color: "var(--neutral-on-surface-primary)" }}>
-                    {formatIDR(actualPerUnit)} / pcs{" "}
+                    {formatIDR(actualPerUnit)} / unit{" "}
                     <span style={{ fontSize: "12px", fontWeight: "normal", color: "var(--neutral-on-surface-secondary)" }}>
                       ({formatIDR(totalActualCogs)} for {TOTAL_QTY} pcs)
                     </span>
@@ -5749,7 +5781,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <ActualVsForecastBadge actual={materialCost} forecast={computeMaterialCost(linkedBom?.materials || [])} />
                       <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)" }}>
-                        {formatIDR(TOTAL_QTY > 0 ? materialCost / TOTAL_QTY : 0)} / pcs
+                        {formatIDR(TOTAL_QTY > 0 ? materialCost / TOTAL_QTY : 0)} / unit
                       </span>
                     </div>
                   </div>
@@ -5869,7 +5901,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                           {formatIDR(outsourcingTotal)}
                         </span>
                         <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)" }}>
-                          {formatIDR(TOTAL_QTY > 0 ? outsourcingTotal / TOTAL_QTY : 0)} / pcs
+                          {formatIDR(TOTAL_QTY > 0 ? outsourcingTotal / TOTAL_QTY : 0)} / unit
                         </span>
                       </div>
                     </div>
@@ -5949,7 +5981,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                   <span>{formatIDR(totalActualCogs)}</span>
                 </div>
                 <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)", textAlign: "right" }}>
-                  {formatIDR(actualPerUnit)} / pcs
+                  {formatIDR(actualPerUnit)} / unit
                 </span>
               </div>
             </DetailCard>
@@ -8814,7 +8846,6 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                 variant="filled"
                 size="large"
                 style={{ width: "100%" }}
-                disabled={!costItemModal.label.trim()}
                 onClick={saveCostItemModal}
               >
                 {costItemModal.idx == null ? "Add Item" : "Save Changes"}
@@ -8828,13 +8859,17 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
           <div style={{ display: "flex", flexDirection: "column", gap: "20px", padding: "16px 0" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <label style={{ fontSize: "var(--text-body)", fontWeight: "var(--font-weight-medium)", color: "var(--neutral-on-surface-primary)" }}>
-                Cost Item Name
+                <span style={{ color: "var(--status-red-primary)" }}>*</span> Cost Item Name
               </label>
               <InputField
                 placeholder="e.g. Overtime labour"
                 value={costItemModal.label}
                 onChange={(e) => setCostItemModal((prev) => ({ ...prev, label: e.target.value }))}
+                errorState={costItemModalErrors.label}
               />
+              {costItemModalErrors.label ? (
+                <span style={{ fontSize: "var(--text-body)", color: "var(--status-red-primary)" }}>Field cannot be empty</span>
+              ) : null}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--text-body)", fontWeight: "var(--font-weight-medium)", color: "var(--neutral-on-surface-primary)" }}>
@@ -8847,7 +8882,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--text-body)", fontWeight: "var(--font-weight-medium)", color: "var(--neutral-on-surface-primary)" }}>
-                Total Cost per Unit
+                <span style={{ color: "var(--status-red-primary)" }}>*</span> Total Cost per Unit
                 <Tooltip content="The actual cost allocated to produce one finished unit in this Work Order">
                   <Info size={14} color="var(--neutral-on-surface-secondary)" />
                 </Tooltip>
@@ -8859,12 +8894,16 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                 onChange={(e) =>
                   setCostItemModal((prev) => ({ ...prev, amount: (Number(e.target.value) || 0) * TOTAL_QTY }))
                 }
+                errorState={costItemModalErrors.amount}
               />
+              {costItemModalErrors.amount ? (
+                <span style={{ fontSize: "var(--text-body)", color: "var(--status-red-primary)" }}>Field cannot be empty</span>
+              ) : null}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "var(--text-body)", fontWeight: "var(--font-weight-medium)", color: "var(--neutral-on-surface-primary)" }}>
-                Total Cost This WO
-                <Tooltip content="The total actual cost allocated for this cost item across the entire Work Order">
+                <span style={{ color: "var(--status-red-primary)" }}>*</span> Total Cost This WO
+                <Tooltip content="The total actual cost for this cost item in this Work Order">
                   <Info size={14} color="var(--neutral-on-surface-secondary)" />
                 </Tooltip>
               </label>
@@ -8873,7 +8912,11 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                 prefix="IDR"
                 value={costItemModal.amount}
                 onChange={(e) => setCostItemModal((prev) => ({ ...prev, amount: e.target.value }))}
+                errorState={costItemModalErrors.amount}
               />
+              {costItemModalErrors.amount ? (
+                <span style={{ fontSize: "var(--text-body)", color: "var(--status-red-primary)" }}>Field cannot be empty</span>
+              ) : null}
             </div>
           </div>
         </GeneralModal>
