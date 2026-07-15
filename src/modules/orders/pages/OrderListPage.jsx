@@ -75,7 +75,8 @@ export const OrderListPage = ({ onNavigate, t }) => {
       filterStatuses.length === 0 || filterStatuses.includes(row.status);
     const matchesSearch =
       !searchQuery ||
-      row.orderNo.toLowerCase().includes(searchQuery.toLowerCase());
+      row.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      row.quoteNo.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesCustomer = !filterCustomer || filterCustomer === "all" || row.customerName === filterCustomer;
     const matchesOrderType = !filterOrderType || filterOrderType === "all" || row.orderType === filterOrderType;
@@ -220,7 +221,7 @@ export const OrderListPage = ({ onNavigate, t }) => {
           <TableSearchField
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by order number"
+            placeholder="Search by Order No or Quote No"
             width="360px"
           />
         </div>

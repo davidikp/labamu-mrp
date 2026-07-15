@@ -1,4 +1,5 @@
 const INDONESIAN_EXACT_TEXT = {
+  "Search by Order No or Quote No": "Cari Order No atau Quote No",
   MANUFACTURING: "MANUFAKTUR",
   Dashboard: "Dasbor",
   Product: "Produk",
