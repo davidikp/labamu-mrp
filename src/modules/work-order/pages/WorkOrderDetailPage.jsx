@@ -1760,7 +1760,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
               if (routingName || operationName) return `Step ${step}: ${routingName || operationName}`;
               return `Step ${step}`;
             });
-            const stackedLabels = stageLabels.map((label) => `- ${label}`).join("\n");
+            const stackedLabels = stageLabels.map((label) => `• ${label}`).join("\n");
             generatedDescription = `${generatedDescription} It covers these routing stages:\n${stackedLabels}`;
           }
 
@@ -1915,7 +1915,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       const operationName = formatRoutingStageOperationName(step);
       return operationName.startsWith('routing step') ? `Step ${step}` : `Step ${step}: ${operationName}`;
     });
-    return `. It covers these routing stages:\n${stageLabels.map(l => `- ${l}`).join("\n")}`;
+    return `. It covers these routing stages:\n${stageLabels.map(l => `• ${l}`).join("\n")}`;
   };
 
   const buildDummyPoDetailData = (poNumber, vendor) => {
@@ -2621,7 +2621,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             if (routingName || operationName) return `Step ${step}: ${routingName || operationName}`;
             return `Step ${step}`;
           });
-          const stackedLabels = stageLabels.map((label) => `- ${label}`).join("\n");
+          const stackedLabels = stageLabels.map((label) => `• ${label}`).join("\n");
           generatedDescription = `${generatedDescription} It covers these routing stages:\n${stackedLabels}`;
         }
 
