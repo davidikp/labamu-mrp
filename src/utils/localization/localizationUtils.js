@@ -1,6 +1,4 @@
 const INDONESIAN_EXACT_TEXT = {
-  "Search by Order No or Quote No": "Cari Order No atau Quote No",
-  "Enter qty": "Masukkan jumlah",
   MANUFACTURING: "MANUFAKTUR",
   Dashboard: "Dasbor",
   Product: "Produk",
@@ -351,6 +349,7 @@ const INDONESIAN_EXACT_TEXT = {
   "Search country or code...": "Cari negara atau kode...",
   "Input phone number": "Masukkan nomor telepon",
   "Search by name or role...": "Cari nama atau role",
+  "Search by Order No or Quote No": "Cari Order No atau Quote No",
   "Approvers must provide a comment when approving or rejecting":
     "Pemberi persetujuan harus memberikan komentar saat menyetujui atau menolak Purchase Order.",
   "Select users who can approve Purchase Orders":
@@ -832,6 +831,7 @@ const INDONESIAN_EXACT_TEXT = {
   "Average Cost": "Rata-rata Biaya",
   "Search or select...": "Cari atau pilih...",
   "Enter quantity": "Masukkan jumlah",
+  "Enter qty": "Masukkan jumlah",
   "Select a routing first": "Pilih routing terlebih dahulu.",
   "Enter hours": "Masukkan jam",
   "No results": "Tidak ada hasil",
@@ -851,7 +851,7 @@ const INDONESIAN_EXACT_TEXT = {
   "Request not found.": "Permintaan tidak ditemukan.",
   "Back to Material Request": "Kembali ke Permintaan Material",
   "Status successfully changed to Preparing": "Status berhasil diubah menjadi Sedang Disiapkan",
-  "Material successfully re-prepared": "Material berhasil disiapkan ulang",
+  "Material successfully re-prepared": "Bahan baku berhasil disiapkan ulang",
   "Material batch successfully updated": "Batch material berhasil diperbarui",
   "Request successfully confirmed": "Permintaan berhasil dikonfirmasi",
   "Request successfully cancelled": "Permintaan berhasil dibatalkan",
@@ -965,7 +965,7 @@ const INDONESIAN_EXACT_TEXT = {
   "Total Cost This WO": "Total Biaya Perintah Kerja Ini",
   "Cost of human labour to produce one unit": "Biaya tenaga kerja untuk memproduksi satu unit produk.",
   "Cost of packaging this product for delivery": "Biaya pengemasan produk untuk proses pengiriman.",
-  "Cost of moving goods from supplier to customer": "Biaya pengiriman barang dari pemasok ke pelanggan.",
+  "Cost of moving goods": "Biaya pengiriman barang",
   "Indirect factory costs not tied to a task": "Biaya operasional pabrik yang tidak terkait dengan proses produksi tertentu.",
   "Additional production cost not covered above": "Biaya produksi tambahan yang tidak termasuk dalam kategori di atas.",
   "e.g. Overtime labour": "Mis. Lembur Tenaga Kerja",
@@ -1003,7 +1003,7 @@ const INDONESIAN_EXACT_TEXT = {
   "Packaging change": "Perubahan Kemasan",
   "Testing a new material or process not yet in the standard BOM": "Menguji material atau proses baru yang belum tercantum pada BOM standar.",
   "Product design was updated and needs a new material": "Desain produk diperbarui sehingga memerlukan material baru.",
-  "Original BOM material is unavailable, using a substitute": "Material pada BOM tidak tersedia sehingga menggunakan bahan pengganti.",
+  "Original BOM material is unavailable, using a substitute": "Bahan baku pada BOM tidak tersedia sehingga menggunakan bahan pengganti.",
   "An additional finishing step was added (e.g. coating, sanding, polishing)": "Ditambahkan proses finishing, seperti coating, sanding, atau polishing.",
   "Item needed to support the production process (e.g. adhesive, abrasive)": "Bahan habis pakai yang diperlukan untuk mendukung proses produksi, seperti perekat atau bahan abrasif.",
   "Packaging material changed by buyer or logistics team": "Material kemasan diubah oleh pembeli atau tim logistik.",
@@ -1018,7 +1018,7 @@ const INDONESIAN_EXACT_TEXT = {
   "Keeping extra in case of shortage or delay": "Menyiapkan tambahan material sebagai cadangan jika terjadi kekurangan atau keterlambatan.",
   "Extra needed in case some pieces need to be redone": "Tambahan material diperlukan jika sebagian produk perlu dikerjakan ulang.",
   "Customer changed the requirement and needs more material": "Pelanggan mengubah kebutuhan sehingga diperlukan tambahan material.",
-  "Material used during machine calibration before production starts": "Material digunakan saat proses kalibrasi mesin sebelum produksi dimulai.",
+  "Material used during machine calibration before production starts": "Bahan baku digunakan saat proses kalibrasi mesin sebelum produksi dimulai.",
 
   // --- WO Actual COGS — Add/Edit Cost Item modal ---
   "Cost Item Name": "Nama Item Biaya",
@@ -1091,8 +1091,8 @@ const INDONESIAN_DYNAMIC_TEXT = [
     replacer: (_, name, date) => `Diunggah oleh ${name} pada ${date}`,
   },
   {
-    pattern: /^Remaining to receive: (\d+) pcs$/i,
-    replacer: (_, qty) => `Sisa untuk diterima: ${qty} pcs`,
+    pattern: /^Remaining to receive: (\d+) unit$/i,
+    replacer: (_, qty) => `Sisa untuk diterima: ${qty} unit`,
   },
   {
     pattern: /^Step (\d+) to (\d+)$/i,
@@ -1107,8 +1107,8 @@ const INDONESIAN_DYNAMIC_TEXT = [
     replacer: (_, vendor) => `+ Tambah "${vendor}" sebagai vendor baru`,
   },
   {
-    pattern: /^([^:]+): Received (\d+) pcs$/i,
-    replacer: (_, label, received) => `${label}: Diterima ${received} pcs`,
+    pattern: /^([^:]+): Received (\d+) unit$/i,
+    replacer: (_, label, received) => `${label}: Diterima ${received} unit`,
   },
   {
     pattern: /^from (\d+) rows$/i,
@@ -1197,20 +1197,20 @@ const INDONESIAN_DYNAMIC_TEXT = [
     replacer: (_, op) => `Operasi: ${op}`,
   },
   {
-    pattern: /^Available: (\d+) pcs$/i,
-    replacer: (_, n) => `Tersedia: ${n} pcs`,
+    pattern: /^Available: (\d+) unit$/i,
+    replacer: (_, n) => `Tersedia: ${n} unit`,
   },
   {
-    pattern: /^Exceeds available quantity \((\d+) pcs\)\.$/i,
-    replacer: (_, n) => `Melebihi jumlah yang tersedia (${n} pcs).`,
+    pattern: /^Exceeds available quantity \((\d+) unit\)\.$/i,
+    replacer: (_, n) => `Melebihi jumlah yang tersedia (${n} unit).`,
   },
   {
     pattern: /^([▲▼]) (\d+(?:\.\d+)?)% (over|under) forecast$/,
     replacer: (_, arrow, pct, dir) => `${arrow} ${pct}% ${dir === "over" ? "di atas" : "di bawah"} estimasi`,
   },
   {
-    pattern: /^\((.+) for (\d+) pcs\)$/i,
-    replacer: (_, amount, qty) => `(${amount} untuk ${qty} pcs)`,
+    pattern: /^\((.+) for (\d+) unit\)$/i,
+    replacer: (_, amount, qty) => `(${amount} untuk ${qty} unit)`,
   },
   {
     // WO Actual COGS — cost item added/edited/deleted activity log description

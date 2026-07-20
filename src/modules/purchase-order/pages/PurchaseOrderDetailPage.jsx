@@ -874,6 +874,7 @@ export const PurchaseOrderDetailPage = ({
       approvalEnabled,
       currentStatus,
       company: MOCK_COMPANY,
+      versionNum: latestVersionNum,
     });
 
     setIsExportingPdf(true);

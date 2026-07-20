@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { AddIcon, ChevronDownIcon } from "../../../components/icons/Icons.jsx";
+import { AddIcon, ChevronDownIcon, SearchNotFoundIllustration } from "../../../components/icons/Icons.jsx";
+import { EmptyState } from "../../../ce-ui";
 import { Button } from "../../../components/common/Button.jsx";
 import { FilterMenu } from "../../../components/molecules/FilterMenu.jsx";
 import { StatusBadge } from "../../../components/common/StatusBadge.jsx";
@@ -23,8 +24,7 @@ export const BomListPage = ({ onNavigate, t }) => {
   const [sortDirection, setSortDirection] = useState("asc");
 
   const tableColumns = [
-    { label: "BOM Name", key: "name", flex: "2", sortable: true },
-    { label: "Version", flex: "0.8" },
+    { label: "BOM Name", key: "name", flex: "2.4", sortable: true },
     { label: "Created at", key: "createdAt", flex: "1", sortable: true },
     { label: "Updated at", key: "updatedAt", flex: "1", sortable: true },
     { label: "Status", flex: "1" },
@@ -140,7 +140,7 @@ export const BomListPage = ({ onNavigate, t }) => {
           <TableSearchField
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search BOM Name..."
+            placeholder="Search by BOM Name"
             width="360px"
           />
         </div>
@@ -216,29 +216,21 @@ export const BomListPage = ({ onNavigate, t }) => {
                   <div style={cellStyle({ flex: tableColumns[0].flex, color: "var(--feature-brand-primary)", fontWeight: "var(--font-weight-medium)" })}>
                     {row.name}
                   </div>
-                  <div style={cellStyle({ flex: tableColumns[1].flex })}>{row.version}</div>
-                  <div style={cellStyle({ flex: tableColumns[2].flex })}>{row.createdAt}</div>
-                  <div style={cellStyle({ flex: tableColumns[3].flex })}>{row.updatedAt}</div>
-                  <div style={cellStyle({ flex: tableColumns[4].flex })}>
+                  <div style={cellStyle({ flex: tableColumns[1].flex })}>{row.createdAt}</div>
+                  <div style={cellStyle({ flex: tableColumns[2].flex })}>{row.updatedAt}</div>
+                  <div style={cellStyle({ flex: tableColumns[3].flex })}>
                     <StatusBadge variant={bomStatusBadgeVariant(row.status)}>{row.status}</StatusBadge>
                   </div>
                 </div>
               ))}
 
               {filteredRows.length === 0 ? (
-                <div
-                  style={{
-                    flex: 1,
-                    padding: "32px",
-                    textAlign: "center",
-                    color: "var(--neutral-on-surface-tertiary)",
-                    fontSize: "var(--text-title-3)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  No bill of materials found.
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <EmptyState
+                    illustration={<SearchNotFoundIllustration />}
+                    title="No bill of materials found"
+                    description="Try adjusting your filters or search keywords."
+                  />
                 </div>
               ) : null}
             </div>

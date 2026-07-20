@@ -542,7 +542,7 @@ export const MOCK_PO_TABLE_DATA = [
         type: "wo",
         item: "Outsourced - Luxury Cabinet Cancelled",
         code: "CAB-LUX-CAN",
-        desc: "Generated from WO-202603-099 with assignment WOA-0099. It covers these routing stages:\n• Step 1: Prep - Cutting\n• Step 2: Main - Assembly",
+        desc: "Generated from WO-202603-099 with assignment WOA-0099. It covers these routing stages:\n• Step 1: Cutting Stage - Cutting\n• Step 2: Assembly Stage - Assembly",
         woRef: "WO-202603-099",
         assignmentId: "WOA-0099",
         outsourceSteps: [1, 2],

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AddIcon, ChevronDownIcon, Info, Settings } from "../../../components/icons/Icons.jsx";
+import { AddIcon, ChevronDownIcon, Info, Settings, SearchNotFoundIllustration } from "../../../components/icons/Icons.jsx";
+import { EmptyState } from "../../../ce-ui";
 import { Button } from "../../../components/common/Button.jsx";
 import { FilterMenu } from "../../../components/molecules/FilterMenu.jsx";
 import { ListStatusCounterCard } from "../../../components/common/ListStatusCounterCard.jsx";
@@ -93,7 +94,7 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
   );
 
   const tableColumns = [
-    { label: "PO Number", key: "poNumber", flex: "1.4", sortable: true },
+    { label: "PO No", key: "poNumber", flex: "1.4", sortable: true },
     { label: "Vendor Name", key: "vendorName", flex: "1.6", sortable: true },
     { label: "Total Amount", key: "amount", flex: "1.3", sortable: false },
     { label: "PO Date", key: "poDate", flex: "1", sortable: true },
@@ -341,7 +342,7 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
           <TableSearchField
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search PO number, vendor"
+            placeholder="Search by PO No or Vendor Name"
             width="360px"
           />
         </div>
@@ -532,19 +533,12 @@ export const PurchaseOrderListPage = ({ onNavigate, t }) => {
               ))}
 
               {filteredRows.length === 0 ? (
-                <div
-                  style={{
-                    flex: 1,
-                    padding: "32px",
-                    textAlign: "center",
-                    color: "var(--neutral-on-surface-tertiary)",
-                    fontSize: "var(--text-title-3)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  No purchase orders found.
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <EmptyState
+                    illustration={<SearchNotFoundIllustration />}
+                    title="No purchase orders found"
+                    description="Try adjusting your filters or search keywords."
+                  />
                 </div>
               ) : null}
             </div>

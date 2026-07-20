@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { ChevronDownIcon, Settings, SearchIcon } from "../../../components/icons/Icons.jsx";
+import { ChevronDownIcon, Settings, SearchNotFoundIllustration } from "../../../components/icons/Icons.jsx";
+import { EmptyState } from "../../../ce-ui";
 import { Button } from "../../../components/common/Button.jsx";
 import { FilterMenu } from "../../../components/molecules/FilterMenu.jsx";
 import { ListStatusCounterCard } from "../../../components/common/ListStatusCounterCard.jsx";
@@ -76,7 +77,7 @@ export const OrderListPage = ({ onNavigate, t }) => {
     const matchesSearch =
       !searchQuery ||
       row.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      row.quoteNo.toLowerCase().includes(searchQuery.toLowerCase());
+      (row.quoteNo || "").toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesCustomer = !filterCustomer || filterCustomer === "all" || row.customerName === filterCustomer;
     const matchesOrderType = !filterOrderType || filterOrderType === "all" || row.orderType === filterOrderType;
@@ -319,8 +320,12 @@ export const OrderListPage = ({ onNavigate, t }) => {
               ))}
 
               {filteredRows.length === 0 && (
-                <div style={{ padding: "64px", textAlign: "center", color: "var(--neutral-on-surface-tertiary)" }}>
-                  No orders found.
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <EmptyState
+                    illustration={<SearchNotFoundIllustration />}
+                    title="No orders found"
+                    description="Try adjusting your filters or search keywords."
+                  />
                 </div>
               )}
             </div>
