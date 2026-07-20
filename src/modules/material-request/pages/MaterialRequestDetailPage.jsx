@@ -657,29 +657,11 @@ export const MaterialRequestDetailPage = ({ onNavigate, initialData, requestId, 
                   <span style={{ fontWeight: "var(--font-weight-bold)", color: "var(--neutral-on-surface-primary)" }}>
                     {LOG_ACTIVITY_NAME[log.statusKey] || log.title}
                   </span>
-                  {log.statusKey === "cancelled" && (request.cancelReason || (request.cancelProofs || []).length > 0) && (
+                  {log.statusKey === "cancelled" && request.cancelReason && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      {request.cancelReason && (
-                        <span style={{ fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-secondary)", lineHeight: 1.6 }}>
-                          {request.cancelReason}
-                        </span>
-                      )}
-                      {(request.cancelProofs || []).map((proof, i) => (
-                        <a
-                          key={i}
-                          href={proof.url || "#"}
-                          onClick={(e) => !proof.url && e.preventDefault()}
-                          style={{
-                            fontSize: "var(--text-title-3)",
-                            color: "var(--feature-brand-primary)",
-                            textDecoration: "underline",
-                            cursor: "pointer",
-                            width: "fit-content",
-                          }}
-                        >
-                          {proof.description || proof.name}
-                        </a>
-                      ))}
+                      <span style={{ fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-secondary)", lineHeight: 1.6 }}>
+                        {request.cancelReason}
+                      </span>
                     </div>
                   )}
                   {log.statusKey === "completed" && (request.receiptProofs || []).length > 0 && (
@@ -824,10 +806,41 @@ export const MaterialRequestDetailPage = ({ onNavigate, initialData, requestId, 
             <StatusBadge variant={statusMeta.badge}>{statusMeta.label}</StatusBadge>
           </div>
           <div style={{ height: "1px", background: "var(--neutral-line-separator-1)" }} />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${(request.cancelProofs || []).length > 0 ? 4 : 3}, 1fr)`,
+              gap: "24px",
+            }}
+          >
             <InfoField label="Work Order" value={request.workOrderNo} />
             <InfoField label="Requested By" value={request.requestedBy} />
             <InfoField label="Requested Date" value={request.requestedDate} />
+            {(request.cancelProofs || []).length > 0 && (
+              <InfoField
+                label="Cancellation Proof"
+                value={
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    {request.cancelProofs.map((proof, i) => (
+                      <a
+                        key={i}
+                        href={proof.url || "#"}
+                        onClick={(e) => !proof.url && e.preventDefault()}
+                        style={{
+                          fontSize: "var(--text-title-2)",
+                          color: "var(--feature-brand-primary)",
+                          textDecoration: "underline",
+                          cursor: "pointer",
+                          width: "fit-content",
+                        }}
+                      >
+                        {proof.description || proof.name}
+                      </a>
+                    ))}
+                  </div>
+                }
+              />
+            )}
           </div>
         </div>
 
