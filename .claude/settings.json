@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/davidikp/Documents log -5 --oneline -- MRP/demo-mrp/src/modules/purchase-order)",
+      "Bash(git -C /Users/davidikp/Documents status --short -- MRP/demo-mrp/src/modules/purchase-order)",
+      "Bash(git -C /Users/davidikp/Documents diff -- MRP/demo-mrp/src/modules/purchase-order/pages/PurchaseOrderCreatePage.jsx)",
+      "Bash(git -C /Users/davidikp/Documents diff -- MRP/demo-mrp/src/modules/purchase-order/pages/PurchaseOrderDetailPage.jsx)",
+      "Bash(git -C /Users/davidikp/Documents diff -- MRP/demo-mrp/src/modules/purchase-order/components/detail/PoReceiptsTab.jsx)",
+      "Bash(git -C /Users/davidikp/Documents status --short -- MRP/demo-mrp/src/components/common)",
+      "Bash(git -C /Users/davidikp/Documents status --short)",
+      "Bash(git -C /Users/davidikp/Documents log --oneline -i --all)",
+      "Bash(git -C /Users/davidikp/Documents log -10 --oneline -- MRP/demo-mrp/src/modules/purchase-order/pages/PurchaseOrderCreatePage.jsx)",
+      "Bash(git -C /Users/davidikp/Documents diff --stat -- MRP/demo-mrp/src/modules/purchase-order/pages/PurchaseOrderCreatePage.jsx)",
+      "Bash(git -C /Users/davidikp/Documents log -3 --oneline -- MRP/demo-mrp/src/modules/work-order/pages/WorkOrderDetailPage.jsx)",
+      "Bash(git -C /Users/davidikp/Documents status --short -- MRP/demo-mrp/src/modules/work-order/pages/WorkOrderDetailPage.jsx)",
+      "Bash(grep -n 'import { Button } from \"../../../components/common/Button.jsx\"' /Users/davidikp/Documents/MRP/mpr-handover/src/modules/purchase-order/pages/PurchaseOrderCreatePage.jsx)",
+      "Bash(node -e ' *)",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(node pw_script.mjs)",
+      "Bash(npm root *)",
+      "Bash(find / -maxdepth 6 -iname \"playwright\" -type d)",
+      "Bash(NODE_PATH=/Users/davidikp/.npm/_npx/e41f203b7505f1fb/node_modules node pw_script.mjs)",
+      "Bash(cp pw_script.mjs /Users/davidikp/.npm/_npx/e41f203b7505f1fb/pw_script.mjs)",
+      "Bash(lsof -ti:5175 -sTCP:LISTEN)",
+      "Bash(xargs -r kill)",
+      "Bash(rm -f /Users/davidikp/Documents/MRP/mpr-handover/pw_script.mjs /Users/davidikp/.npm/_npx/e41f203b7505f1fb/pw_script.mjs /Users/davidikp/.npm/_npx/e41f203b7505f1fb/pw_script2.mjs /Users/davidikp/.npm/_npx/e41f203b7505f1fb/pw_crop.mjs)",
+      "Bash(rm -f /Users/davidikp/.npm/_npx/e41f203b7505f1fb/pw_crop2.mjs /Users/davidikp/.npm/_npx/e41f203b7505f1fb/pw_measure.mjs /Users/davidikp/.npm/_npx/e41f203b7505f1fb/pw_check2step.mjs)",
+      "Bash(git -C /Users/davidikp/Documents log -5 --oneline -- MRP/demo-mrp/src/modules/work-order/pages/WorkOrderDetailPage.jsx)",
+      "Bash(git -C /Users/davidikp/Documents diff -- MRP/demo-mrp/src/modules/work-order/pages/WorkOrderDetailPage.jsx)"
+    ]
+  }
+}

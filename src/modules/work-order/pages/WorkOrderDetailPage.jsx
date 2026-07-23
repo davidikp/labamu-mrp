@@ -1272,6 +1272,9 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     initialData?.routingUpdates || []
   );
   const [isRoutingUpdatesExpanded, setIsRoutingUpdatesExpanded] = useState(false);
+  const [isOutsourceStagesExpanded, setIsOutsourceStagesExpanded] = useState(false);
+  const outsourceStagesListRef = useRef(null);
+  const [showOutsourceStagesFade, setShowOutsourceStagesFade] = useState(false);
 
   // Linked BOM is derived automatically from the work order's own record
   // (seeded bomId) — same BOM whose materials populate the Details tab's
@@ -3263,6 +3266,18 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     ? buildDummyPoDetailData(singleVendorForm.poNumber, singleVendorForm)
     : null;
 
+  // Long "Allow Outsourced Stages" lists scroll inside a fixed-height box
+  // rather than relying on measured row heights — the fade only shows while
+  // there's more content below the fold, same pattern as the Expired
+  // Materials list in Material Preparation.
+  const updateOutsourceStagesFade = () => {
+    const el = outsourceStagesListRef.current;
+    if (el) setShowOutsourceStagesFade(el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+  };
+  useEffect(() => {
+    updateOutsourceStagesFade();
+  }, [outsourceSteps, vendors, routingStages, isOutsourceStagesExpanded, woStatus]);
+
   return (
     <div
       style={{
@@ -4924,36 +4939,69 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
               >
                 Allow Outsourced Stages
               </span>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                  width: "100%",
-                }}
-              >
-                {outsourceSteps.map((stepId) => {
-                  const st = routingStages.find((s) => s.step === stepId);
-                  if (!st) return null;
-                  
-                  const stepVendorOutput = vendors
-                    .filter((v) => !v.assignedSteps || v.assignedSteps.length === 0 || v.assignedSteps.includes(stepId))
-                    .reduce((sum, v) => sum + (parseInt(v.output, 10) || 0), 0);
+              <div style={{ position: "relative", width: "100%" }}>
+                <div
+                  ref={outsourceStagesListRef}
+                  onScroll={updateOutsourceStagesFade}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                    width: "100%",
+                    // ~4 full rows + half of the 5th at the typical single-line row height.
+                    maxHeight: isOutsourceStagesExpanded ? "none" : "128px",
+                    overflowY: isOutsourceStagesExpanded ? "visible" : "auto",
+                    paddingRight: "4px",
+                  }}
+                >
+                  {outsourceSteps.map((stepId) => {
+                    const st = routingStages.find((s) => s.step === stepId);
+                    if (!st) return null;
 
-                  return (
-                    <div key={stepId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                      <span style={{
-                        fontSize: "var(--text-title-3)",
-                        fontWeight: "var(--font-weight-bold)",
-                        color: "var(--neutral-on-surface-primary)",
-                      }}>
-                        Step {st.step}: {st.route} - {st.op}
-                      </span>
-                      {renderAllocationBar(stepVendorOutput, "mini")}
-                    </div>
-                  );
-                })}
+                    const stepVendorOutput = vendors
+                      .filter((v) => !v.assignedSteps || v.assignedSteps.length === 0 || v.assignedSteps.includes(stepId))
+                      .reduce((sum, v) => sum + (parseInt(v.output, 10) || 0), 0);
+
+                    return (
+                      <div key={stepId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexShrink: 0 }}>
+                        <span style={{
+                          fontSize: "var(--text-title-3)",
+                          fontWeight: "var(--font-weight-bold)",
+                          color: "var(--neutral-on-surface-primary)",
+                        }}>
+                          Step {st.step}: {st.route} - {st.op}
+                        </span>
+                        {renderAllocationBar(stepVendorOutput, "mini")}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: "32px",
+                    pointerEvents: "none",
+                    opacity: !isOutsourceStagesExpanded && showOutsourceStagesFade ? 1 : 0,
+                    transition: "opacity 0.15s ease",
+                    background: "linear-gradient(to bottom, rgba(255, 255, 255, 0), var(--neutral-surface-primary))",
+                  }}
+                />
               </div>
+
+              {isOutsourceStagesExpanded || showOutsourceStagesFade ? (
+                <Button
+                  variant="tertiary"
+                  size="small"
+                  onClick={() => setIsOutsourceStagesExpanded((prev) => !prev)}
+                  style={{ alignSelf: "flex-start", padding: 0 }}
+                >
+                  {isOutsourceStagesExpanded ? "Show less" : `Show all (${outsourceSteps.length} steps)`}
+                </Button>
+              ) : null}
             </div>
 
             <div
