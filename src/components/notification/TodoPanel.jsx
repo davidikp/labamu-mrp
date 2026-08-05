@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { StatusBadge, FilterPill, SearchBar, LocaleProvider } from "../../ce-ui";
 import { Button } from "../common/Button.jsx";
@@ -6,6 +6,9 @@ import { useNotifications } from "../../context/NotificationContext.jsx";
 import { timeAgo } from "./NotificationBell.jsx";
 import { SalesIcon, ProcurementIcon, ProductIcon, ResourcesIcon, DocumentIcon } from "../icons/Icons.jsx";
 import { Clock } from "lucide-react";
+
+// How many to-do cards are shown up front, and how many more load per page.
+const PAGE_SIZE = 10;
 
 const STATUS_COLOR = {
   approval: "orange",
@@ -31,6 +34,11 @@ export const TodoPanel = () => {
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState([]); // empty = all
   const [statusFilter, setStatusFilter] = useState([]); // empty = all
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreTimerRef = useRef(null);
+  const scrollRef = useRef(null);
+  const sentinelRef = useRef(null);
 
   const L = {
     en: { title: "Need To Do", module: "Module", status: "Status", allModule: "All Modules", allStatus: "All Status", search: "Search to-do", empty: "You are all caught up — no actions needed right now.", seeDetail: "See Detail" },
@@ -50,13 +58,93 @@ export const TodoPanel = () => {
   statusOptions.sort((a, b) => a.label.localeCompare(b.label));
 
   const q = search.trim().toLowerCase();
-  const rows = todoItems
+  const filteredRows = todoItems
     .filter((i) => moduleFilter.length === 0 || moduleFilter.includes(i.module))
     .filter((i) => statusFilter.length === 0 || statusFilter.includes(i.todo?.type))
     .filter((i) => !q || `${i.entityId} ${t(i.title)} ${t(i.body)}`.toLowerCase().includes(q));
+  // Default view shows PAGE_SIZE cards; more load a page at a time instead of
+  // rendering the whole (filtered) list at once.
+  const rows = filteredRows.slice(0, visibleCount);
+  const hasMore = filteredRows.length > rows.length;
+
+  // Reset back to the first page whenever the filters/search change — a new
+  // result set shouldn't inherit however far the previous one was scrolled.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+    setLoadingMore(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, moduleFilter, statusFilter]);
+
+  useEffect(
+    () => () => {
+      if (loadMoreTimerRef.current) window.clearTimeout(loadMoreTimerRef.current);
+    },
+    []
+  );
+
+  const loadMore = () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    // Simulated network delay so the skeleton state is visible in the demo.
+    loadMoreTimerRef.current = window.setTimeout(() => {
+      setVisibleCount((count) => count + PAGE_SIZE);
+      setLoadingMore(false);
+    }, 600);
+  };
+
+  // Auto-load the next page once the sentinel at the bottom of the list
+  // scrolls into view, instead of requiring a "Load more" click.
+  useEffect(() => {
+    if (!hasMore || loadingMore) return undefined;
+    const root = scrollRef.current;
+    const target = sentinelRef.current;
+    if (!root || !target || typeof IntersectionObserver === "undefined") return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { root, rootMargin: "48px" }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, visibleCount, search, moduleFilter, statusFilter]);
+
+  // Placeholder card shown while the next page is "loading" (simulated delay).
+  const renderSkeletonRow = (key) => (
+    <div
+      key={`skeleton-${key}`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "16px",
+        padding: "16px",
+        border: "1px solid #E5E7EB",
+        borderRadius: "12px",
+      }}
+    >
+      <div className="todo-skeleton-block" style={{ flexShrink: 0, width: "44px", height: "44px", borderRadius: "10px" }} />
+      <div style={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+        <span className="todo-skeleton-block" style={{ width: "50%", height: "14px" }} />
+        <span className="todo-skeleton-block" style={{ width: "80%", height: "13px" }} />
+      </div>
+      <div className="todo-skeleton-block" style={{ flexShrink: 0, width: "92px", height: "32px", borderRadius: "8px" }} />
+    </div>
+  );
 
   return (
     <LocaleProvider locale={language === "id" ? "id" : "en"}>
+      <style>{`
+        @keyframes todoSkeletonPulse {
+          0%, 100% { opacity: 0.35; }
+          50% { opacity: 0.8; }
+        }
+        .todo-skeleton-block {
+          display: inline-block;
+          border-radius: 4px;
+          background: #E5E7EB;
+          animation: todoSkeletonPulse 1.2s ease-in-out infinite;
+        }
+      `}</style>
       <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #E5E7EB", display: "flex", flexDirection: "column", flex: 1, width: "100%", height: "100%", minHeight: 0 }}>
         {/* Title */}
         <div style={{ flexShrink: 0, padding: "20px 24px 0", display: "flex", alignItems: "center", gap: "10px" }}>
@@ -87,7 +175,7 @@ export const TodoPanel = () => {
         </div>
 
         {/* Cards — scrolls internally once the section is pinned to the top */}
-        <div style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto" }}>
+        <div ref={scrollRef} style={{ flex: "1 1 auto", minHeight: 0, overflow: "auto" }}>
           {rows.length === 0 ? (
             <div style={{ padding: "36px 24px", textAlign: "center", color: "#6B7280", fontSize: "14px" }}>{L.empty}</div>
           ) : (
@@ -141,6 +229,12 @@ export const TodoPanel = () => {
                 </div>
                 );
               })}
+
+              {loadingMore ? [0, 1, 2].map((k) => renderSkeletonRow(k)) : null}
+
+              {/* Invisible sentinel — scrolling it into view auto-loads the
+                  next page instead of requiring a "Load more" click. */}
+              {hasMore ? <div ref={sentinelRef} style={{ height: "1px" }} /> : null}
             </div>
           )}
         </div>
