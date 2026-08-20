@@ -622,7 +622,13 @@ const DropdownSelect = (props) => {
     size,
     style,
     className,
+    error,
+    hasError,
+    state,
+    errorText,
+    clearable = true,
   } = props;
+  const isError = error ?? hasError ?? state === "error";
 
   // Anything relying on custom option rendering keeps the legacy widget.
   if (renderOption) {
@@ -648,6 +654,9 @@ const DropdownSelect = (props) => {
         disabled={disabled}
         searchable={searchable}
         size={SIZE_MAP[size] || "lg"}
+        error={isError}
+        errorText={errorText}
+        clearable={clearable}
       />
     </div>
   );

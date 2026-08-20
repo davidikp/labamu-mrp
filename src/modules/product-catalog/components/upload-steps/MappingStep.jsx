@@ -1,0 +1,143 @@
+import React from "react";
+import { Table } from "../../../../ce-ui";
+import { Info } from "../../../../components/icons/Icons.jsx";
+import { StatusBadge } from "../../../../components/common/StatusBadge.jsx";
+import { DropdownSelect } from "../../../../components/common/DropdownSelect.jsx";
+import { Tooltip } from "../../../../components/atoms/Tooltip.jsx";
+import { PRODUCT_FIELDS_CONFIG, NOT_MAPPED } from "../../mock/productFieldsConfig.js";
+
+// Presentational/controlled: `mapping` and `recommendation` are owned by the
+// parent page so the fixed "Normalize and Review" / "Cancel Upload" footer
+// buttons (rendered by the page, not this step) can read/act on the same
+// state. `recommendation` is a one-time snapshot computed when the file was
+// analyzed — it stays fixed even if the user later changes a Source Column
+// selection, since it's meant to show what the AI originally matched.
+export const MappingStep = ({ headers, rows = [], mapping, recommendation, onMappingChange, missingRequired = [] }) => {
+  const headerOptions = [
+    { value: NOT_MAPPED, label: "— Not mapped —" },
+    ...headers.map((h) => ({ value: h, label: h })),
+  ];
+
+  const data = PRODUCT_FIELDS_CONFIG.map((field) => ({ id: field.key, field }));
+
+  // The example is a live sample pulled from the first uploaded row under
+  // whichever source column is currently mapped — not the static example on
+  // the product field config — so it updates as the user changes a mapping.
+  const getSampleValue = (sourceColumn) => {
+    if (!sourceColumn || sourceColumn === NOT_MAPPED) return "—";
+    const sampleRow = rows.find((r) => r[sourceColumn] != null && String(r[sourceColumn]).trim() !== "");
+    const value = sampleRow ? sampleRow[sourceColumn] : rows[0]?.[sourceColumn];
+    return value != null && String(value).trim() !== "" ? String(value) : "—";
+  };
+
+  const columns = [
+    {
+      key: "field",
+      header: "Product Field",
+      width: 260,
+      render: (_, row) => (
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 0" }}>
+          <span style={{ fontSize: "var(--text-title-3)" }}>{row.field.label}</span>
+          {row.field.required && <StatusBadge variant="blue-light">Required</StatusBadge>}
+          {row.field.helpText && (
+            <Tooltip content={row.field.helpText}>
+              <span style={{ display: "inline-flex", cursor: "help", color: "var(--neutral-on-surface-tertiary)" }}>
+                <Info size={14} />
+              </span>
+            </Tooltip>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "sourceColumn",
+      header: "Source Column",
+      render: (_, row) => {
+        const mappedValue = mapping[row.field.key] ?? NOT_MAPPED;
+        const isMissing = missingRequired.includes(row.field.key);
+        return (
+          <div style={{ padding: "8px 0" }}>
+            <DropdownSelect
+              // "— Not mapped —" renders as the plain placeholder (grey)
+              // instead of a "selected" option, even though it's technically
+              // a valid selectable value in the menu.
+              value={mappedValue === NOT_MAPPED ? undefined : mappedValue}
+              options={headerOptions}
+              onChange={(val) => onMappingChange(row.field.key, val === "" ? NOT_MAPPED : val)}
+              hasError={isMissing}
+              errorText={isMissing ? "Field cannot be empty" : undefined}
+              placeholder="— Not mapped —"
+            />
+          </div>
+        );
+      },
+    },
+    {
+      key: "example",
+      header: "Example Value",
+      width: 200,
+      render: (_, row) => {
+        const mappedValue = mapping[row.field.key] ?? NOT_MAPPED;
+        return (
+          <div style={{ padding: "12px 0" }}>
+            <span style={{ color: "var(--neutral-on-surface-primary)" }}>{getSampleValue(mappedValue)}</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: "recommendation",
+      header: "AI Recommendation",
+      width: 240,
+      render: (_, row) => {
+        const recommended = recommendation[row.field.key] ?? NOT_MAPPED;
+        return (
+          <div style={{ padding: "12px 0" }}>
+            <span style={{ color: "var(--neutral-on-surface-primary)" }}>
+              {recommended === NOT_MAPPED ? "No match found" : `Matched to "${recommended}"`}
+            </span>
+          </div>
+        );
+      },
+    },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "24px 0", flex: 1, minHeight: 0 }}>
+      <style>{`
+        .pc-mapping-table > div:last-child { display: none; }
+        .pc-mapping-table th, .pc-mapping-table td { height: auto !important; }
+        .pc-mapping-table th {
+          padding-top: 12px !important;
+          padding-bottom: 12px !important;
+          /* border-bottom on a sticky <th> can vanish while scrolling under
+             border-collapse — a box-shadow paints reliably instead. */
+          border-bottom: none !important;
+          box-shadow: inset 0 -1px 0 var(--neutral-line-separator-2);
+        }
+      `}</style>
+      <div
+        style={{
+          background: "var(--feature-brand-container-lighter)",
+          borderRadius: "12px",
+          padding: "16px 20px",
+          margin: "0 24px",
+          display: "flex",
+          gap: "16px",
+          alignItems: "flex-start",
+        }}
+      >
+        <div style={{ marginTop: "2px" }}>
+          <Info size={20} color="var(--feature-brand-primary)" />
+        </div>
+        <span style={{ fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-primary)" }}>
+          Your file columns have been mapped automatically. Review the mappings before continuing.
+        </span>
+      </div>
+
+      <div style={{ height: "calc(100vh - 480px)", minHeight: "280px" }}>
+        <Table className="pc-mapping-table" columns={columns} data={data} showPagination={false} selectedRowId={null} />
+      </div>
+    </div>
+  );
+};
