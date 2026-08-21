@@ -245,6 +245,7 @@ export const ReviewStep = ({ rows, onRowsChange, normalizationStats, duplicates 
         key: field.key,
         header,
         width,
+        tooltip: field.helpText,
         // Only SKU and Name are user-sortable — they're the fields people
         // actually scan/search by; everything else stays presentation-order.
         sortable: field.key === "sku" || field.key === "name",
