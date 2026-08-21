@@ -32,6 +32,7 @@ import {
 } from "../../purchase-order/styles/purchaseOrderInputStyles.js";
 
 export let activityLogsCache = {};
+export let costingLogsCache = {};
 
 let nextActualCostLineId = 1;
 
@@ -487,7 +488,7 @@ const SearchableVendorSelect = ({
   );
 };
 
-export const WorkOrderDetailPage = ({ onNavigate, isSidebarCollapsed, initialData }) => {
+export const WorkOrderDetailPage = ({ onNavigate, isSidebarCollapsed, initialData, woSettings }) => {
   const scrollToTop = () => {
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "auto" });
@@ -610,6 +611,42 @@ export const WorkOrderDetailPage = ({ onNavigate, isSidebarCollapsed, initialDat
     const formattedTimestamp = `${isoDate} at ${hrs}:${mins}`;
     
     setActivityLogs(prev => [
+      {
+        name: "Natasha Smith",
+        email: "natasha@company.com",
+        title,
+        desc,
+        timestamp: formattedTimestamp,
+      },
+      ...prev
+    ]);
+  };
+
+  // Costing Log: separate from the Activity Log — only cost line item
+  // add/edit/delete and costing status changes (Ready to Finalize/Confirmed)
+  // land here, so Finance/PIC can audit who touched Actual COGS and when
+  // without wading through production/operational activity.
+  const [costingLogs, setCostingLogs] = useState(() => {
+    if (initialData?.wo && costingLogsCache[initialData.wo]) {
+      return costingLogsCache[initialData.wo];
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (initialData?.wo) {
+      costingLogsCache[initialData.wo] = costingLogs;
+    }
+  }, [costingLogs, initialData?.wo]);
+
+  const addCostingLog = (title, desc = undefined) => {
+    const d = new Date();
+    const isoDate = d.toISOString().split('T')[0];
+    const hrs = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    const formattedTimestamp = `${isoDate} at ${hrs}:${mins}`;
+
+    setCostingLogs(prev => [
       {
         name: "Natasha Smith",
         email: "natasha@company.com",
@@ -884,6 +921,22 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     initialData?.statusKey || "not_started"
   );
   const isCancelled = woStatus === "cancelled";
+
+  // Costing Status ("Open" → "Ready to Finalize" → "Confirmed") is driven by
+  // the global Actual COGS setting (Work Order Settings) — read live here, not
+  // snapshotted per WO, so changing it takes effect for every WO immediately.
+  const actualCogsMode = woSettings?.actualCogsMode || "disabled";
+  const [costingStatus, setCostingStatus] = useState(() => {
+    const cached = initialData?.wo ? MOCK_WO_TABLE_DATA.find((w) => w.wo === initialData.wo) : null;
+    return initialData?.costingStatus || cached?.costingStatus || "Open";
+  });
+  const COSTING_BADGE_VARIANT = {
+    Open: "grey-light",
+    "Ready to Finalize": "blue-light",
+    Confirmed: "green-light",
+  };
+  const [isConfirmCostingModalOpen, setIsConfirmCostingModalOpen] = useState(false);
+
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
@@ -1456,9 +1509,11 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         end: displayEndDate,
         bomId: actualCogsBomId,
         actualCogs,
+        costingStatus,
+        costingBadge: COSTING_BADGE_VARIANT[costingStatus] || "grey-light",
       };
     }
-  }, [vendors, routingStages, outsourceSteps, woStatus, displayStartDate, displayEndDate, actualCogsBomId, actualCogs]);
+  }, [vendors, routingStages, outsourceSteps, woStatus, displayStartDate, displayEndDate, actualCogsBomId, actualCogs, costingStatus]);
 
   const hasStages = routingStages.length > 0;
   const allStagesCompleted =
@@ -1479,6 +1534,30 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
   const canCompleteWorkOrder =
     allStagesCompleted && !hasOngoingMaterialRequest && woStatus !== "completed";
 
+  // When the Actual COGS setting is enabled, once routing stages finish,
+  // Costing Status flips to "Ready to Finalize" so Finance/PIC can review and
+  // confirm Actual COGS — independently of (and without blocking) the Work
+  // Order's own completion.
+  useEffect(() => {
+    if (
+      actualCogsMode === "enabled" &&
+      allStagesCompleted &&
+      !hasOngoingMaterialRequest &&
+      costingStatus === "Open"
+    ) {
+      setCostingStatus("Ready to Finalize");
+    }
+  }, [actualCogsMode, allStagesCompleted, hasOngoingMaterialRequest, costingStatus]);
+
+  const handleConfirmCosting = () => {
+    setCostingStatus("Confirmed");
+    addCostingLog(
+      "Costing Confirmed",
+      "Actual COGS reviewed and confirmed. Cost items are now read-only."
+    );
+    setIsConfirmCostingModalOpen(false);
+  };
+
   const handleCompleteWorkOrder = () => {
     setIsCompleteModalOpen(false);
     // Finalize any material request that hadn't reached a terminal status yet.
@@ -1488,6 +1567,13 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       )
     );
     setWoStatus("completed");
+    // When Actual COGS review isn't required, costing auto-confirms alongside
+    // WO completion. Otherwise Costing Status stays on its own independent
+    // track (Open/Ready to Finalize) and gets confirmed separately afterward.
+    if (actualCogsMode !== "enabled" && costingStatus !== "Confirmed") {
+      setCostingStatus("Confirmed");
+      addCostingLog("Costing Confirmed", "Costing auto-confirmed on Work Order completion.");
+    }
     addActivityLog("Completed");
     setToastMessage("Work order completed");
     setShowSuccessToast(true);
@@ -4102,6 +4188,14 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
 
             <LabelValue label="Created On" value={`2025-12-08; 15:00`} />
             <LabelValue label="Notes" value="-" />
+            <LabelValue
+              label="Costing Status"
+              value={costingStatus}
+              badge={{
+                variant: COSTING_BADGE_VARIANT[costingStatus] || "grey-light",
+                text: costingStatus,
+              }}
+            />
           </div>
         </Card>
 
@@ -5734,23 +5828,27 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                                 </span>
                                 <span style={{ fontSize: "var(--text-title-3)" }}>{formatIDR(line.amount)}</span>
                                 <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
-                                  <Tooltip content="Edit Cost Item">
-                                    <IconButton
-                                      icon={EditIcon}
-                                      size="small"
-                                      color="var(--feature-brand-primary)"
-                                      onClick={() => openEditCostItemModal(key, idx)}
-                                    />
-                                  </Tooltip>
-                                  <Tooltip content="Delete Cost Item">
-                                    <IconButton
-                                      icon={DeleteIcon}
-                                      size="small"
-                                      color="var(--status-red-primary)"
-                                      hoverBackground="#FAE6E8"
-                                      onClick={() => openDeleteCostItemModal(key, idx)}
-                                    />
-                                  </Tooltip>
+                                  {costingStatus !== "Confirmed" ? (
+                                    <>
+                                      <Tooltip content="Edit Cost Item">
+                                        <IconButton
+                                          icon={EditIcon}
+                                          size="small"
+                                          color="var(--feature-brand-primary)"
+                                          onClick={() => openEditCostItemModal(key, idx)}
+                                        />
+                                      </Tooltip>
+                                      <Tooltip content="Delete Cost Item">
+                                        <IconButton
+                                          icon={DeleteIcon}
+                                          size="small"
+                                          color="var(--status-red-primary)"
+                                          hoverBackground="#FAE6E8"
+                                          onClick={() => openDeleteCostItemModal(key, idx)}
+                                        />
+                                      </Tooltip>
+                                    </>
+                                  ) : null}
                                 </div>
                               </div>
                             ))
@@ -5775,6 +5873,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                           )}
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
+                          {costingStatus !== "Confirmed" ? (
                           <Button
                             variant="outlined"
                             size="small"
@@ -5785,6 +5884,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                           >
                             Add Cost Item
                           </Button>
+                          ) : null}
                           {atMaxCostItems ? (
                             <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-tertiary)" }}>Maximum 10 items</span>
                           ) : null}
@@ -5805,6 +5905,11 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                   {initialData?.product || "Wooden Chair"} Classic Model BOM
                 </span>
               </span>
+              {costingStatus === "Confirmed" ? (
+                <span style={{ fontSize: "14px", color: "var(--neutral-on-surface-secondary)", marginTop: "-12px" }}>
+                  Costing has been confirmed. Cost items are read-only.
+                </span>
+              ) : null}
 
               <div
                 style={{
@@ -6151,118 +6256,252 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         })()}
 
         {activeTab === "logs" && (
-          <div
-            style={{
-              background: "var(--neutral-surface-primary)",
-              borderRadius: "16px",
-              border: "1px solid var(--neutral-line-separator-1)",
-              overflow: "hidden",
-            }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
             <div
               style={{
-                padding: "24px 24px 0 24px",
-                display: "flex",
-                alignItems: "center",
+                background: "var(--neutral-surface-primary)",
+                borderRadius: "16px",
+                border: "1px solid var(--neutral-line-separator-1)",
+                overflow: "hidden",
               }}
             >
-              <span
+              <div
                 style={{
-                  fontSize: "var(--text-title-2)",
-                  fontWeight: "var(--font-weight-bold)",
-                  color: "var(--neutral-on-surface-primary)",
+                  padding: "24px 24px 0 24px",
+                  display: "flex",
+                  alignItems: "center",
                 }}
               >
-                Activity Logs
-              </span>
-            </div>
-            <div style={{ padding: "24px" }}>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <div
+                <span
                   style={{
-                    display: "flex",
-                    paddingBottom: "12px",
-                    borderBottom: "1px solid var(--neutral-line-separator-1)",
+                    fontSize: "var(--text-title-2)",
                     fontWeight: "var(--font-weight-bold)",
-                    fontSize: "var(--text-title-3)",
                     color: "var(--neutral-on-surface-primary)",
                   }}
                 >
-                  <div style={{ flex: "1.1" }}>Name</div>
-                  <div style={{ flex: "1.9" }}>Email</div>
-                  <div style={{ flex: "2.8" }}>Activity</div>
-                  <div style={{ width: "190px" }}>Timestamp</div>
-                </div>
-
-                {activityLogs.map((log, idx, arr) => (
+                  Activity Logs
+                </span>
+              </div>
+              <div style={{ padding: "24px" }}>
+                <div style={{ display: "flex", flexDirection: "column" }}>
                   <div
-                    key={idx}
                     style={{
                       display: "flex",
-                      alignItems: "flex-start",
-                      padding: "16px 0",
-                      borderBottom:
-                        idx === arr.length - 1
-                          ? "none"
-                          : "1px solid var(--neutral-line-separator-1)",
+                      paddingBottom: "12px",
+                      borderBottom: "1px solid var(--neutral-line-separator-1)",
+                      fontWeight: "var(--font-weight-bold)",
                       fontSize: "var(--text-title-3)",
+                      color: "var(--neutral-on-surface-primary)",
                     }}
                   >
+                    <div style={{ flex: "1.1" }}>Name</div>
+                    <div style={{ flex: "1.9" }}>Email</div>
+                    <div style={{ flex: "2.8" }}>Activity</div>
+                    <div style={{ width: "190px" }}>Timestamp</div>
+                  </div>
+
+                  {activityLogs.map((log, idx, arr) => (
                     <div
+                      key={idx}
                       style={{
-                        flex: "1.1",
-                        color: "var(--neutral-on-surface-primary)",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        padding: "16px 0",
+                        borderBottom:
+                          idx === arr.length - 1
+                            ? "none"
+                            : "1px solid var(--neutral-line-separator-1)",
+                        fontSize: "var(--text-title-3)",
                       }}
                     >
-                      {log.name}
-                    </div>
-                    <div
-                      style={{
-                        flex: "1.9",
-                        color: "var(--neutral-on-surface-secondary)",
-                      }}
-                    >
-                      {log.email}
-                    </div>
-                    <div style={{ flex: "2.8" }}>
                       <div
                         style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "4px",
+                          flex: "1.1",
+                          color: "var(--neutral-on-surface-primary)",
                         }}
                       >
-                        <span
+                        {log.name}
+                      </div>
+                      <div
+                        style={{
+                          flex: "1.9",
+                          color: "var(--neutral-on-surface-secondary)",
+                        }}
+                      >
+                        {log.email}
+                      </div>
+                      <div style={{ flex: "2.8" }}>
+                        <div
                           style={{
-                            fontWeight: "var(--font-weight-bold)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "4px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontWeight: "var(--font-weight-bold)",
+                              color: "var(--neutral-on-surface-primary)",
+                            }}
+                          >
+                            {log.title}
+                          </span>
+                          {log.desc && (
+                            <span
+                              style={{
+                                color: "var(--neutral-on-surface-secondary)",
+                                lineHeight: "1.5",
+                                whiteSpace: "pre-wrap",
+                              }}
+                            >
+                              {log.desc}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          width: "190px",
+                          color: "var(--neutral-on-surface-secondary)",
+                        }}
+                      >
+                        {log.timestamp}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Costing Log: kept separate from the Activity Log above — only
+                cost line item add/edit/delete and costing status changes
+                (Ready to Finalize/Confirmed) land here. */}
+            <div
+              style={{
+                background: "var(--neutral-surface-primary)",
+                borderRadius: "16px",
+                border: "1px solid var(--neutral-line-separator-1)",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  padding: "24px 24px 0 24px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "var(--text-title-2)",
+                    fontWeight: "var(--font-weight-bold)",
+                    color: "var(--neutral-on-surface-primary)",
+                  }}
+                >
+                  Costing Log
+                </span>
+              </div>
+              <div style={{ padding: "24px" }}>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      paddingBottom: "12px",
+                      borderBottom: "1px solid var(--neutral-line-separator-1)",
+                      fontWeight: "var(--font-weight-bold)",
+                      fontSize: "var(--text-title-3)",
+                      color: "var(--neutral-on-surface-primary)",
+                    }}
+                  >
+                    <div style={{ flex: "1.1" }}>Name</div>
+                    <div style={{ flex: "1.9" }}>Email</div>
+                    <div style={{ flex: "2.8" }}>Activity</div>
+                    <div style={{ width: "190px" }}>Timestamp</div>
+                  </div>
+
+                  {costingLogs.length === 0 ? (
+                    <div
+                      style={{
+                        padding: "24px 0",
+                        textAlign: "center",
+                        color: "var(--neutral-on-surface-tertiary)",
+                        fontSize: "var(--text-title-3)",
+                      }}
+                    >
+                      No costing activity yet.
+                    </div>
+                  ) : (
+                    costingLogs.map((log, idx, arr) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          padding: "16px 0",
+                          borderBottom:
+                            idx === arr.length - 1
+                              ? "none"
+                              : "1px solid var(--neutral-line-separator-1)",
+                          fontSize: "var(--text-title-3)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            flex: "1.1",
                             color: "var(--neutral-on-surface-primary)",
                           }}
                         >
-                          {log.title}
-                        </span>
-                        {log.desc && (
-                          <span
+                          {log.name}
+                        </div>
+                        <div
+                          style={{
+                            flex: "1.9",
+                            color: "var(--neutral-on-surface-secondary)",
+                          }}
+                        >
+                          {log.email}
+                        </div>
+                        <div style={{ flex: "2.8" }}>
+                          <div
                             style={{
-                              color: "var(--neutral-on-surface-secondary)",
-                              lineHeight: "1.5",
-                              whiteSpace: "pre-wrap",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "4px",
                             }}
                           >
-                            {log.desc}
-                          </span>
-                        )}
+                            <span
+                              style={{
+                                fontWeight: "var(--font-weight-bold)",
+                                color: "var(--neutral-on-surface-primary)",
+                              }}
+                            >
+                              {log.title}
+                            </span>
+                            {log.desc && (
+                              <span
+                                style={{
+                                  color: "var(--neutral-on-surface-secondary)",
+                                  lineHeight: "1.5",
+                                  whiteSpace: "pre-wrap",
+                                }}
+                              >
+                                {log.desc}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            width: "190px",
+                            color: "var(--neutral-on-surface-secondary)",
+                          }}
+                        >
+                          {log.timestamp}
+                        </div>
                       </div>
-                    </div>
-                    <div
-                      style={{
-                        width: "190px",
-                        color: "var(--neutral-on-surface-secondary)",
-                      }}
-                    >
-                      {log.timestamp}
-                    </div>
-                  </div>
-                ))}
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -6326,6 +6565,60 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
           </Button>
         </div>
       ) : null}
+
+      {costingStatus === "Ready to Finalize" ? (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: isSidebarCollapsed ? "82px" : "286px",
+            transition: "left 0.2s ease",
+            right: 0,
+            background: "var(--neutral-surface-primary)",
+            borderTop: "1px solid var(--neutral-line-separator-1)",
+            padding: "12px 24px",
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            zIndex: 100,
+          }}
+        >
+          <Button
+            variant="filled"
+            size="medium"
+            onClick={() => setIsConfirmCostingModalOpen(true)}
+          >
+            Confirm Costing
+          </Button>
+        </div>
+      ) : null}
+
+      <GeneralModal
+        isOpen={isConfirmCostingModalOpen}
+        onClose={() => setIsConfirmCostingModalOpen(false)}
+        title="Confirm Costing?"
+        description="Actual COGS will become read-only once costing is confirmed."
+        footer={
+          <>
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={handleConfirmCosting}
+            >
+              Confirm Costing
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => setIsConfirmCostingModalOpen(false)}
+            >
+              Cancel
+            </Button>
+          </>
+        }
+      />
 
       <GeneralModal
         isOpen={isCompleteModalOpen}
