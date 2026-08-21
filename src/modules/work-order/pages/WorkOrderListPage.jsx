@@ -11,14 +11,23 @@ import { MOCK_WO_TABLE_DATA } from "../mock/workOrderMocks.js";
 
 const cellStyle = (overrides) => ({
   minWidth: 0,
-  height: "56px",
-  padding: "0 12px",
+  minHeight: "56px",
+  padding: "12px",
   display: "flex",
   alignItems: "center",
   fontSize: "var(--text-title-3)",
   color: "var(--neutral-on-surface-primary)",
+  whiteSpace: "normal",
+  wordBreak: "break-word",
+  overflowWrap: "break-word",
   ...overrides,
 });
+
+const wrapTextStyle = {
+  whiteSpace: "normal",
+  wordBreak: "break-word",
+  overflowWrap: "break-word",
+};
 
 export const WorkOrderListPage = ({ onNavigate, t }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,14 +73,14 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
   ];
   const tableColumns = [
     { label: "Work Order No.", key: "wo", flex: "1.6", sortable: true },
-    { label: "Order Number", key: "ord", flex: "1.6", sortable: true },
-    { label: "Product", key: "product", flex: "1.4", sortable: true },
+    { label: "Order No", key: "ord", flex: "1.6", sortable: true },
+    { label: "Target", key: "product", flex: "1.4", sortable: true },
     { label: "Qty", key: "qty", flex: "0.6", sortable: false },
     { label: "Priority", key: "priority", flex: "0.8", sortable: false },
-    { label: "Planned Start Date", key: "start", flex: "1.2", sortable: false },
-    { label: "Planned End Date", key: "end", flex: "1.2", sortable: false },
+    { label: "Planned Date", key: "plannedDate", flex: "1.6", sortable: false },
     { label: "Created By", key: "createdBy", flex: "1", sortable: false },
-    { label: "Status", key: "status", flex: "1.2", sortable: false },
+    { label: "Costing Status", key: "costingStatus", flex: "1.2", sortable: false },
+    { label: "WO Status", key: "status", flex: "1.2", sortable: false },
   ];
   const statusCounts = statusCards.reduce((acc, card) => {
     acc[card.key] = MOCK_WO_TABLE_DATA.filter(
@@ -216,7 +225,7 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
         >
           {t("work_order.title")}
         </h1>
-        <Button variant="outlined" leftIcon={Settings}>
+        <Button variant="outlined" leftIcon={Settings} onClick={() => onNavigate("settings")}>
           {t("work_order.settings")}
         </Button>
       </div>
@@ -367,8 +376,8 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
                   style={{
                     flex: col.flex,
                     minWidth: 0,
-                    height: "49px",
-                    padding: "0 12px",
+                    minHeight: "49px",
+                    padding: "8px 12px",
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
@@ -378,13 +387,7 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
                     cursor: col.sortable ? "pointer" : "default",
                   }}
                 >
-                  <span
-                    style={{
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
+                  <span style={wrapTextStyle}>
                     {col.label}
                   </span>
                   {col.sortable && (
@@ -441,35 +444,17 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
                       color: "var(--feature-brand-primary)",
                     })}
                   >
-                    <span
-                      style={{
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
+                    <span style={wrapTextStyle}>
                       {row.wo}
                     </span>
                   </div>
                   <div style={cellStyle({ flex: tableColumns[1].flex })}>
-                    <span
-                      style={{
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
+                    <span style={wrapTextStyle}>
                       {row.ord}
                     </span>
                   </div>
                   <div style={cellStyle({ flex: tableColumns[2].flex })}>
-                    <span
-                      style={{
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
+                    <span style={wrapTextStyle}>
                       {row.product}
                     </span>
                   </div>
@@ -485,37 +470,19 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
                     {row.priority}
                   </div>
                   <div style={cellStyle({ flex: tableColumns[5].flex })}>
-                      <span
-                        style={{
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                      {row.start || "-"}
+                      <span style={wrapTextStyle}>
+                      {row.start || row.end ? `${row.start || "-"} → ${row.end || "-"}` : "-"}
                       </span>
                   </div>
                   <div style={cellStyle({ flex: tableColumns[6].flex })}>
-                    <span
-                      style={{
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {row.end || "-"}
+                    <span style={wrapTextStyle}>
+                      {row.createdBy}
                     </span>
                   </div>
                   <div style={cellStyle({ flex: tableColumns[7].flex })}>
-                    <span
-                      style={{
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {row.createdBy}
-                    </span>
+                    <StatusBadge variant={row.costingBadge || "grey-light"}>
+                      {row.costingStatus || "Open"}
+                    </StatusBadge>
                   </div>
                   <div style={cellStyle({ flex: tableColumns[8].flex })}>
                     <StatusBadge variant={row.sBadge}>{row.status}</StatusBadge>

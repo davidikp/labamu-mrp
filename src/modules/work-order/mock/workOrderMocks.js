@@ -609,3 +609,21 @@ export const MOCK_WO_TABLE_DATA = [
     ],
   },
 ];
+
+// Costing status derivation — whether Actual COGS gets gated by routing
+// completion is a single global setting (Work Order Settings), read live by
+// WorkOrderDetailPage; it isn't snapshotted per WO. Costing Status itself IS
+// still per-WO lifecycle state though: existing seed rows default to "Open"
+// (or "Confirmed" if already Completed), same as today's behavior.
+const COSTING_BADGE_BY_STATUS = {
+  Open: "grey-light",
+  "Ready to Finalize": "blue-light",
+  Confirmed: "green-light",
+};
+
+MOCK_WO_TABLE_DATA.forEach((row) => {
+  if (!row.costingStatus) {
+    row.costingStatus = row.statusKey === "completed" ? "Confirmed" : "Open";
+  }
+  row.costingBadge = COSTING_BADGE_BY_STATUS[row.costingStatus] || "grey-light";
+});
