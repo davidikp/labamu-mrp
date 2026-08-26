@@ -3909,7 +3909,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         width="720px"
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {shortageMaterials.length > 0 && woStatus !== "completed" ? (
+          {shortageMaterials.length > 0 && woStatus !== "completed" && costingStatus !== "Ready to Finalize" ? (
             <div
               style={{
                 display: "flex",
@@ -4343,7 +4343,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                 </span>
               </span>
             </div>
-            {woStatus !== "not_started" && !isCancelled ? (
+            {woStatus !== "not_started" && !isCancelled && costingStatus !== "Ready to Finalize" ? (
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 {hasSubmittedRequest ? (
                   <Button
@@ -6539,7 +6539,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         </div>
       ) : null}
 
-      {canCompleteWorkOrder ? (
+      {canCompleteWorkOrder || (woStatus === "completed" && costingStatus === "Ready to Finalize") ? (
         <div
           style={{
             position: "fixed",
@@ -6553,43 +6553,28 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             display: "flex",
             justifyContent: "flex-end",
             alignItems: "center",
+            gap: "12px",
             zIndex: 100,
           }}
         >
-          <Button
-            variant="filled"
-            size="medium"
-            onClick={() => setIsCompleteModalOpen(true)}
-          >
-            Complete
-          </Button>
-        </div>
-      ) : null}
-
-      {costingStatus === "Ready to Finalize" ? (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 0,
-            left: isSidebarCollapsed ? "82px" : "286px",
-            transition: "left 0.2s ease",
-            right: 0,
-            background: "var(--neutral-surface-primary)",
-            borderTop: "1px solid var(--neutral-line-separator-1)",
-            padding: "12px 24px",
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            zIndex: 100,
-          }}
-        >
-          <Button
-            variant="filled"
-            size="medium"
-            onClick={() => setIsConfirmCostingModalOpen(true)}
-          >
-            Confirm Costing
-          </Button>
+          {woStatus === "completed" && costingStatus === "Ready to Finalize" ? (
+            <Button
+              variant="filled"
+              size="medium"
+              onClick={() => setIsConfirmCostingModalOpen(true)}
+            >
+              Confirm Costing
+            </Button>
+          ) : null}
+          {canCompleteWorkOrder ? (
+            <Button
+              variant="filled"
+              size="medium"
+              onClick={() => setIsCompleteModalOpen(true)}
+            >
+              Complete
+            </Button>
+          ) : null}
         </div>
       ) : null}
 
@@ -6598,16 +6583,10 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         onClose={() => setIsConfirmCostingModalOpen(false)}
         title="Confirm Costing?"
         description="Actual COGS will become read-only once costing is confirmed."
+        hideFooterDivider
+        footerPaddingTop={24}
         footer={
           <>
-            <Button
-              variant="filled"
-              size="large"
-              style={{ width: "100%" }}
-              onClick={handleConfirmCosting}
-            >
-              Confirm Costing
-            </Button>
             <Button
               variant="outlined"
               size="large"
@@ -6615,6 +6594,14 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
               onClick={() => setIsConfirmCostingModalOpen(false)}
             >
               Cancel
+            </Button>
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={handleConfirmCosting}
+            >
+              Yes, Confirm
             </Button>
           </>
         }
@@ -6624,17 +6611,15 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         isOpen={isCompleteModalOpen}
         onClose={() => setIsCompleteModalOpen(false)}
         title="Complete Work Order?"
-        description="This action can't be undone. Actual COGS will be calculated from received materials."
+        description={
+          actualCogsMode === "enabled"
+            ? "Completing this step will send the Work Order for Actual COGS review. The Work Order will be completed after the assigned user confirms the costing."
+            : "Actual COGS will be automatically confirmed without review, and the Work Order will be completed."
+        }
+        hideFooterDivider
+        footerPaddingTop={24}
         footer={
           <>
-            <Button
-              variant="filled"
-              size="large"
-              style={{ width: "100%" }}
-              onClick={handleCompleteWorkOrder}
-            >
-              Complete
-            </Button>
             <Button
               variant="outlined"
               size="large"
@@ -6642,6 +6627,14 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
               onClick={() => setIsCompleteModalOpen(false)}
             >
               Cancel
+            </Button>
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={handleCompleteWorkOrder}
+            >
+              Yes, Complete
             </Button>
           </>
         }
