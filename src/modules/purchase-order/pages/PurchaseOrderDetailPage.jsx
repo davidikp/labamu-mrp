@@ -1811,6 +1811,22 @@ export const PurchaseOrderDetailPage = ({
             } else if (vendor.receivedOutput > 0) {
               vendor.status = "Partially Received";
             }
+            // Releasing to the vendor added this amount to the In Progress of
+            // the first step the assignment covers; receiving it back has to
+            // take it off again, or the qty stays counted as in progress
+            // forever. Replaces the array rather than mutating rows in place,
+            // so the work-order return-data snapshot below stays independent.
+            const receivedSteps = (vendor.assignedSteps || []).filter((step) =>
+              Number.isFinite(step)
+            );
+            if (receivedSteps.length > 0 && receivedNow > 0 && Array.isArray(wo.routingStages)) {
+              const targetStep = Math.min(...receivedSteps);
+              wo.routingStages = wo.routingStages.map((stage) =>
+                Number(stage.step) === targetStep
+                  ? { ...stage, prog: Math.max(0, (Number(stage.prog) || 0) - receivedNow) }
+                  : stage
+              );
+            }
             addWoActivityLog(line.woRef, "Assignment Receipt", `Received ${receivedNow} items for ${line.assignmentId}`);
           }
         }
@@ -2009,6 +2025,34 @@ export const PurchaseOrderDetailPage = ({
           };
         }),
       };
+
+      // Same In Progress give-back as above, applied to the snapshot the Work
+      // Order detail page reads when it regains control.
+      const progReturnedByStep = {};
+      (woData.vendors || []).forEach((vendor) => {
+        if (vendor.poNumber !== poNumber) return;
+        const receivedSteps = (vendor.assignedSteps || []).filter((step) =>
+          Number.isFinite(step)
+        );
+        if (receivedSteps.length === 0) return;
+        const vendorReceivedNow = affectedLines.reduce((sum, l) => {
+          if (l.type === "wo" && l.assignmentId === vendor.assignmentId) {
+            return sum + (Number(l.receiveNow) || 0);
+          }
+          return sum;
+        }, 0);
+        if (vendorReceivedNow <= 0) return;
+        const targetStep = Math.min(...receivedSteps);
+        progReturnedByStep[targetStep] = (progReturnedByStep[targetStep] || 0) + vendorReceivedNow;
+      });
+      if (Object.keys(progReturnedByStep).length > 0) {
+        nextRoutingStages = nextRoutingStages.map((stage) => {
+          const returned = progReturnedByStep[Number(stage.step)];
+          return returned
+            ? { ...stage, prog: Math.max(0, (Number(stage.prog) || 0) - returned) }
+            : stage;
+        });
+      }
 
       updatedReturnData.routingStages = nextRoutingStages;
       updatedReturnData.routingUpdates = nextRoutingUpdates;

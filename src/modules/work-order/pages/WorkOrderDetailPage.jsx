@@ -3516,6 +3516,27 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       })
     );
 
+    // Items received back from the vendor are no longer "in progress" — move
+    // that amount off the same first-assigned-step's In Progress value that
+    // the release added it to, so it isn't double-counted forever.
+    const receivedVendor = vendors.find((v) => v.id === selectedVendorForProof);
+    const receivedSteps = (receivedVendor?.assignedSteps || []).filter((step) =>
+      Number.isFinite(step)
+    );
+    if (receivedSteps.length > 0 && logReceivedAmount > 0) {
+      const targetStep = Math.min(...receivedSteps);
+      setRoutingStages((prev) =>
+        prev.map((stage) =>
+          Number(stage.step) === targetStep
+            ? {
+                ...stage,
+                prog: Math.max(0, (parseInt(stage.prog || 0, 10) || 0) - logReceivedAmount),
+              }
+            : stage
+        )
+      );
+    }
+
     if (logAssignmentId) {
       addActivityLog("Assignment Receipt", `Received ${logReceivedAmount} for ${logAssignmentId}`);
     }
