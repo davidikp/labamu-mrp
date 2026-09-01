@@ -701,8 +701,18 @@ export const PurchaseOrderDetailPage = ({
   const hasReceiptHistory =
     receiptLogs.some((log) => !!log.receiptNumber) ||
     (formData?.receiptLogs || []).some((log) => !!log.receiptNumber);
+  // Once items have been released to the vendor on the Work Order assignment
+  // this PO was raised for, the PO is locked in — it can no longer be
+  // cancelled or revised (same treatment as a PO that already has receipts).
+  const hasWorkOrderRelease = MOCK_WO_TABLE_DATA.some((wo) =>
+    (wo.vendors || []).some(
+      (v) =>
+        v.poNumber === poNumber &&
+        ((v.sendHistory?.length || 0) > 0 || (Number(v.sentOutput) || 0) > 0)
+    )
+  );
   const showFooterIssuedCancel =
-    currentStatus === "Issued" && !hasReceiptHistory;
+    currentStatus === "Issued" && !hasReceiptHistory && !hasWorkOrderRelease;
   const resolvePoStatusKey = (status) => {
     if (status === "Waiting for Approval") return "ready_to_send";
     if (status === "Issued") return "issued";

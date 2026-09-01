@@ -1704,28 +1704,17 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
   // rather than trusting a one-time bump made only when the request was
   // first submitted (which never reflected later progress/completion).
 
-  // Completion is purely routing-driven — Costing Status is a separate,
-  // parallel track and never blocks the Work Order from completing.
+  // Two-step close-out when Actual COGS is enabled: finishing the routing
+  // stages surfaces Complete (costing still "Open"), Complete moves costing to
+  // "Ready to Finalize" while the WO stays In Progress, and Confirm Costing is
+  // what finally marks the WO Completed. The "Ready to Finalize" clause below
+  // is what hides Complete during that middle step.
   const canCompleteWorkOrder =
     allStagesCompleted &&
     !hasOngoingMaterialRequest &&
     woStatus !== "completed" &&
+    costingStatus !== "Ready to Finalize" &&
     (fulfillmentType !== "StockBuild" || woStatus === "in_progress");
-
-  // When the Actual COGS setting is enabled, once routing stages finish,
-  // Costing Status flips to "Ready to Finalize" so Finance/PIC can review and
-  // confirm Actual COGS — independently of (and without blocking) the Work
-  // Order's own completion.
-  useEffect(() => {
-    if (
-      actualCogsMode === "enabled" &&
-      allStagesCompleted &&
-      !hasOngoingMaterialRequest &&
-      costingStatus === "Open"
-    ) {
-      setCostingStatus("Ready to Finalize");
-    }
-  }, [actualCogsMode, allStagesCompleted, hasOngoingMaterialRequest, costingStatus]);
 
   // The Actual COGS tab is hidden while the WO is Not Started — if it happens
   // to be the active tab when the status lands there, fall back to Details so
@@ -1832,12 +1821,24 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
 
   // Final step for both flows: actually marks the WO Completed, and for
   // Stock Build also creates the Stock Batch + an "In" Stock Transaction.
+  // Confirming costing is the final step of the close-out: it locks Actual
+  // COGS and, for a WO still waiting in "Ready to Finalize", marks it
+  // Completed.
   const handleConfirmCosting = () => {
     setCostingStatus("Confirmed");
     addCostingLog(
       "Costing Confirmed",
       "Actual COGS reviewed and confirmed. Cost items are now read-only."
     );
+    if (woStatus !== "completed") {
+      setWoStatus("completed");
+      setCompletedDate(new Date().toISOString().slice(0, 10));
+      addActivityLog("Completed");
+      setToastMessage("Costing confirmed and work order completed");
+    } else {
+      setToastMessage("Costing confirmed");
+    }
+    setShowSuccessToast(true);
     setIsConfirmCostingModalOpen(false);
   };
 
@@ -1907,21 +1908,35 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         r.status !== "Completed" && r.status !== "Cancelled" ? { ...r, status: "Completed" } : r
       )
     );
-    setWoStatus("completed");
-    setCompletedDate(today);
-    // Actual COGS setting disabled: costing auto-confirms once the WO is
-    // done — no separate Finance/PIC review step. When enabled, completion
-    // doesn't wait on costing — Costing Status stays whatever it currently is
-    // (Open/Ready to Finalize) and gets confirmed independently afterward.
-    if (actualCogsMode !== "enabled" && costingStatus !== "Confirmed") {
-      setCostingStatus("Confirmed");
-      addCostingLog("Costing Confirmed", "Costing auto-confirmed on Work Order completion.");
+    if (actualCogsMode === "enabled") {
+      // Actual COGS enabled: production is done but the WO stays In Progress
+      // until Finance/PIC confirms costing — handleConfirmCosting is what
+      // marks it Completed.
+      setCostingStatus("Ready to Finalize");
+      addCostingLog(
+        "Ready to Finalize",
+        "Production finished. Actual COGS is ready for review and confirmation."
+      );
+      setToastMessage(
+        fulfillmentType === "StockBuild"
+          ? "Stock build confirmed — costing is ready to finalize"
+          : "Production finished — costing is ready to finalize"
+      );
+    } else {
+      // Actual COGS disabled: no separate Finance/PIC review step, so the WO
+      // completes and costing auto-confirms in one go.
+      setWoStatus("completed");
+      setCompletedDate(today);
+      if (costingStatus !== "Confirmed") {
+        setCostingStatus("Confirmed");
+        addCostingLog("Costing Confirmed", "Costing auto-confirmed on Work Order completion.");
+      }
+      addActivityLog("Completed");
+      setToastMessage(
+        fulfillmentType === "StockBuild" ? "Stock build confirmed and posted to stock" : "Work order completed"
+      );
     }
-    addActivityLog("Completed");
     setIsFinalCompleteModalOpen(false);
-    setToastMessage(
-      fulfillmentType === "StockBuild" ? "Stock build confirmed and posted to stock" : "Work order completed"
-    );
     setShowSuccessToast(true);
   };
 
@@ -3402,6 +3417,24 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         return v;
       })
     );
+
+    // Items released to a vendor are physically being worked on, so they count
+    // as In Progress on the first step that assignment covers (the lowest of
+    // its assignedSteps).
+    const releasedAmount = parseInt(sendAmount, 10) || 0;
+    const assignmentSteps = (selectedSendVendor?.assignedSteps || []).filter((step) =>
+      Number.isFinite(step)
+    );
+    const firstIncludedStep = assignmentSteps.length > 0 ? Math.min(...assignmentSteps) : null;
+    if (firstIncludedStep !== null && releasedAmount > 0) {
+      setRoutingStages((prev) =>
+        prev.map((stage) =>
+          Number(stage.step) === firstIncludedStep
+            ? { ...stage, prog: (parseInt(stage.prog || 0, 10) || 0) + releasedAmount }
+            : stage
+        )
+      );
+    }
 
     addActivityLog("Item Released to Vendor", `Sent ${sendAmount} items to ${selectedSendVendor?.name} for assignment ${selectedSendVendor?.assignmentId}`);
     setIsSendToVendorModalOpen(false);
@@ -6239,7 +6272,18 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
           const linkedBom = actualCogsBomId ? getBom(actualCogsBomId) : null;
           const materialCost = requestHistory.length > 0 ? computeMaterialCost(linkedBom?.materials || []) : 0;
 
-          const outsourcingVendors = (vendors || []).filter((v) => v.name !== "Internal" && v.assignedSteps?.length);
+          // An outsourcing assignment only becomes a real cost once items have
+          // actually been released to the vendor (Release to Vendor records a
+          // sendHistory entry and bumps sentOutput). Assigned-but-not-released
+          // vendors are left out of Actual COGS entirely — including the
+          // Outsourcing Cost section itself, if none have been released yet.
+          // The subtotal still uses the full assigned qty, not the released
+          // qty: a release makes the assignment billable, it doesn't prorate it.
+          const isAssignmentReleased = (v) =>
+            (v.sendHistory?.length || 0) > 0 || (Number(v.sentOutput) || 0) > 0;
+          const outsourcingVendors = (vendors || []).filter(
+            (v) => v.name !== "Internal" && v.assignedSteps?.length && isAssignmentReleased(v)
+          );
           const hasOutsourcing = outsourceSteps?.length > 0 && outsourcingVendors.length > 0;
           const outsourcingRows = outsourcingVendors.map((v) => {
             const linkedPo = v.poNumber ? MOCK_PO_TABLE_DATA.find((po) => po.poNumber === v.poNumber) : null;
@@ -7066,7 +7110,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         </div>
       ) : null}
 
-      {canCompleteWorkOrder || (woStatus === "completed" && costingStatus === "Ready to Finalize") ? (
+      {canCompleteWorkOrder || (woStatus !== "not_started" && !isCancelled && costingStatus === "Ready to Finalize") ? (
         <div
           style={{
             position: "fixed",
@@ -7084,7 +7128,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             zIndex: 100,
           }}
         >
-          {woStatus === "completed" && costingStatus === "Ready to Finalize" ? (
+          {woStatus !== "not_started" && !isCancelled && costingStatus === "Ready to Finalize" ? (
             <Button
               variant="filled"
               size="medium"
