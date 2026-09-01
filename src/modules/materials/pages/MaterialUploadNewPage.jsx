@@ -180,9 +180,9 @@ export const MaterialUploadNewPage = ({ onNavigate, showSnackbar, initialData, i
         handleAnalyzed(headers, rows, uploadedFileName);
       },
       () => {
-        // The file was read fine but had no rows. Keep it selected on the
-        // Upload step — closing the modal (Back to Upload) shouldn't reset
-        // what the user already picked.
+        // The selected file is left in place (not cleared) — the user
+        // returns to the Upload step with it still preselected instead of
+        // an empty picker.
         analyzeCancelRef.current = null;
         setIsAnalyzing(false);
         setTemplateSuggestionVariant("empty");

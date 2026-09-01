@@ -4,13 +4,12 @@ import { Button } from "../../../components/common/Button.jsx";
 import { DownloadIcon } from "../../../components/icons/Icons.jsx";
 
 // Shown right after an analyze failure redirects the user back to the upload
-// field. Two variants depending on what actually went wrong:
+// field. Two variants depending on what actually went wrong — both share the
+// same "Download Template" (secondary) / "Back to Upload" (primary, just
+// closes the modal) footer:
 // - "error": analyzeFile() itself failed (unreadable file structure, timeout,
 //   or the demo's "Simulate Timeout" control).
 // - "empty": the file was read fine but contained no rows.
-// Both variants share the same footer — "Back to Upload" just closes the
-// modal (the user re-selects/re-uploads a file from scratch); "Download
-// Template" is the secondary, less prominent action.
 export const UseTemplateSuggestionModal = ({ isOpen, onClose, onDownloadTemplate, variant = "empty" }) => {
   const isError = variant === "error";
   return (
@@ -40,12 +39,7 @@ export const UseTemplateSuggestionModal = ({ isOpen, onClose, onDownloadTemplate
           >
             Download Template
           </Button>
-          <Button
-            variant="filled"
-            size="large"
-            onClick={onClose}
-            style={{ flex: 1 }}
-          >
+          <Button variant="filled" size="large" onClick={onClose} style={{ flex: 1 }}>
             Back to Upload
           </Button>
         </>

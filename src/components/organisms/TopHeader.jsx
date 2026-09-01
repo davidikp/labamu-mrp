@@ -5,7 +5,7 @@ import { NotificationBell } from "../notification/NotificationBell.jsx";
 const TopHeader = ({
   t,
   isSidebarCollapsed,
-  onOpenNotificationSettings,
+  onOpenNotificationPreferences,
 }) => {
   const settingsButtonRef = useRef(null);
   const quickMenuRef = useRef(null);
@@ -140,7 +140,7 @@ const TopHeader = ({
             type="button"
             onClick={() => {
               setIsQuickMenuOpen(false);
-              onOpenNotificationSettings?.();
+              onOpenNotificationPreferences?.();
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "var(--neutral-surface-grey-lighter)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -155,7 +155,7 @@ const TopHeader = ({
               cursor: "pointer",
             }}
           >
-            Notification Settings
+            Notification Preferences
           </button>
         </div>
       ) : null}

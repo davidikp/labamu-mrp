@@ -108,8 +108,8 @@ export const MaterialsListPage = ({ onNavigate, showSnackbar, t }) => {
     const matchesType = activeFilters.type.length === 0 || activeFilters.type.some(label => {
       const typeMap = {
         "Raw Material": "Raw",
-        "Semi-Finished Material": "Component",
-        "Finished Material": "Consumable"
+        "Semi-Finished Material": "SemiFinished",
+        "Finished Material": "Finished"
       };
       return typeMap[label] === row.type;
     });
@@ -291,8 +291,8 @@ export const MaterialsListPage = ({ onNavigate, showSnackbar, t }) => {
   const formatType = (type) => {
     const typeMap = {
       "Raw": "Raw Material",
-      "Component": "Semi-Finished Material",
-      "Consumable": "Finished Material"
+      "SemiFinished": "Semi-Finished Material",
+      "Finished": "Finished Material"
     };
     return typeMap[type] || type;
   };
@@ -312,7 +312,7 @@ export const MaterialsListPage = ({ onNavigate, showSnackbar, t }) => {
       sku: data.sku || `MAT-${Date.now().toString().slice(-4)}`,
       category: data.category,
       abcClassification: data.abcClassification,
-      type: data.materialType === "Raw" ? "Raw" : data.materialType === "Component" ? "Component" : "Consumable",
+      type: data.materialType === "Raw" ? "Raw" : data.materialType === "SemiFinished" ? "SemiFinished" : "Finished",
       image: data.image,
       onHandStock: 0,
       unit: data.uom,
@@ -625,9 +625,9 @@ export const MaterialsListPage = ({ onNavigate, showSnackbar, t }) => {
         />
       </div>
 
-      <MaterialCreateDrawer 
-        isOpen={isCreateDrawerOpen} 
-        onClose={() => setIsCreateDrawerOpen(false)} 
+      <MaterialCreateDrawer
+        isOpen={isCreateDrawerOpen}
+        onClose={() => setIsCreateDrawerOpen(false)}
         onSave={handleSaveMaterial}
       />
     </div>

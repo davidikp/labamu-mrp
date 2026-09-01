@@ -15,6 +15,7 @@ const INDONESIAN_EXACT_TEXT = {
   "User Management": "Manajemen Pengguna",
   "FX Management": "Manajemen FX",
   "Notification Settings": "Pengaturan Notifikasi",
+  "Company Notification Settings": "Pengaturan Notifikasi Perusahaan",
   "Company Settings": "Pengaturan Perusahaan",
   "Labamu Staff": "Staf Labamu",
   "All Channels": "Semua Kanal",
@@ -832,6 +833,14 @@ const INDONESIAN_EXACT_TEXT = {
   "Search or select...": "Cari atau pilih...",
   "Enter quantity": "Masukkan jumlah",
   "Enter qty": "Masukkan jumlah",
+  "Enter cost per unit": "Masukkan biaya per unit",
+  "Enter storage location": "Masukkan lokasi penyimpanan",
+  "Add notes (optional)": "Tambahkan catatan (opsional)",
+  Confirm: "Konfirmasi",
+  "Confirm Stock Build": "Konfirmasi Stock Build",
+  "Confirm stock build?": "Konfirmasi stock build?",
+  "The actual output quantity and production cost will be used to update your inventory. Make sure the information is correct before continuing.":
+    "Jumlah hasil produksi dan biaya produksi aktual akan digunakan untuk memperbarui stok. Pastikan informasinya sudah benar sebelum melanjutkan.",
   "Select a routing first": "Pilih routing terlebih dahulu.",
   "Enter hours": "Masukkan jam",
   "No results": "Tidak ada hasil",
@@ -1056,6 +1065,10 @@ const INDONESIAN_EXACT_TEXT = {
   "Notification settings saved": "Pengaturan notifikasi berhasil disimpan",
   "Notification preferences saved": "Preferensi notifikasi berhasil disimpan",
   "Changes discarded": "Perubahan dibatalkan",
+  Okay: "Oke",
+  "Discard changes?": "Batalkan perubahan?",
+  "Yes, Discard": "Ya, Batalkan",
+  "Keep Editing": "Lanjutkan Mengedit",
   "Set to company default": "Gunakan pengaturan default perusahaan",
 
   // --- Bulk Upload — Product Catalog & Materials (bulk-upload-translation.md) ---
@@ -1136,9 +1149,9 @@ const INDONESIAN_EXACT_TEXT = {
   "Yes, Skip": "Ya, Lewati",
   "Unable to analyze file": "Tidak dapat menganalisis file",
   "We couldn’t process your file. Try again, or use our template to prepare your data in the recommended format.": "Kami tidak dapat memproses file Anda. Coba lagi, atau gunakan template kami untuk menyiapkan data Anda dalam format yang disarankan.",
-  "No data found": "Data tidak ditemukan",
-  "We couldn’t find any data to process in your file. Add your data and try again, or use our template to get started.": "Kami tidak menemukan data untuk diproses di file Anda. Tambahkan data Anda dan coba lagi, atau gunakan template kami untuk memulai.",
   "Back to Upload": "Kembali ke Unggah",
+  "No data found": "Data tidak ditemukan",
+  "We couldn’t find any data to process in your file. Add your data and try again, or use our template to get started.": "Kami tidak dapat menemukan data untuk diproses dalam file Anda. Tambahkan data Anda dan coba lagi, atau gunakan template kami untuk memulai.",
   "No products to import": "Tidak ada produk untuk diimpor",
   "There are no products ready to import. Add or update your product data before continuing.": "Belum ada produk yang siap diimpor. Tambahkan atau perbarui data produk sebelum melanjutkan.",
   "Back to Review": "Kembali ke Peninjauan",
@@ -1279,6 +1292,14 @@ const INDONESIAN_FRAGMENT_REPLACEMENTS = [
 
 const INDONESIAN_DYNAMIC_TEXT = [
   {
+    pattern: /^Remind Day must be between (\d+)-(\d+) days$/i,
+    replacer: (_, min, max) => `Hari pengingat harus di antara ${min}-${max} hari`,
+  },
+  {
+    pattern: /^Reminder: (\d+) days? before$/i,
+    replacer: (_, days) => `Pengingat: ${days} hari sebelumnya`,
+  },
+  {
     pattern: /^Revised to Version (\d+)\.0$/i,
     replacer: (_, num) => `Direvisi ke Versi ${num}.0`,
   },
@@ -1414,6 +1435,7 @@ const INDONESIAN_DYNAMIC_TEXT = [
     replacer: (_, itemName, perUnit, totalWo) =>
       `${itemName} dengan Biaya Aktual per Unit: ${perUnit} dan Total Biaya Perintah Kerja Ini: ${totalWo}`,
   },
+
   // --- Bulk Upload — Product Catalog & Materials (bulk-upload-translation.md) ---
   {
     // Review step normalization badge, e.g. "18 of 20 rows normalized by AI".

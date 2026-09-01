@@ -333,7 +333,7 @@ const PoReceiptsTab = ({
                                   description: line.desc || "-",
                                   category: line.type === 'wo' ? "Work Order" : "Raw Material",
                                   status: "Active",
-                                  type: line.type === 'wo' ? "Component" : "Raw",
+                                  type: line.type === 'wo' ? "SemiFinished" : "Raw",
                                   unit: "Pcs",
                                   onHandStock: 0,
                                   averageCost: line.price || 0
@@ -547,7 +547,7 @@ const PoReceiptsTab = ({
                                 marginTop: "4px",
                               }}
                             >
-                              Avail to receive: {availToReceive} pcs
+                              Ready to receive: {availToReceive} pcs
                             </span>
                           ) : null}
                         </div>

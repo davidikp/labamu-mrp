@@ -7,7 +7,8 @@ import { timeAgo } from "./NotificationBell.jsx";
 import { SalesIcon, ProcurementIcon, ProductIcon, ResourcesIcon, DocumentIcon } from "../icons/Icons.jsx";
 import { Clock } from "lucide-react";
 
-// How many to-do cards are shown up front, and how many more load per page.
+// How many to-do cards are shown up front; more load per page as the
+// sentinel at the bottom of the list scrolls into view.
 const PAGE_SIZE = 10;
 
 const STATUS_COLOR = {
@@ -62,13 +63,13 @@ export const TodoPanel = () => {
     .filter((i) => moduleFilter.length === 0 || moduleFilter.includes(i.module))
     .filter((i) => statusFilter.length === 0 || statusFilter.includes(i.todo?.type))
     .filter((i) => !q || `${i.entityId} ${t(i.title)} ${t(i.body)}`.toLowerCase().includes(q));
-  // Default view shows PAGE_SIZE cards; more load a page at a time instead of
-  // rendering the whole (filtered) list at once.
+  // Default view shows PAGE_SIZE cards; more load as the sentinel scrolls
+  // into view instead of rendering the whole filtered list at once.
   const rows = filteredRows.slice(0, visibleCount);
   const hasMore = filteredRows.length > rows.length;
 
-  // Reset back to the first page whenever the filters/search change — a new
-  // result set shouldn't inherit however far the previous one was scrolled.
+  // Reset back to the first page whenever the filters/search change the
+  // underlying result set, so pagination matches what's actually visible.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
     setLoadingMore(false);
@@ -107,27 +108,22 @@ export const TodoPanel = () => {
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, visibleCount, search, moduleFilter, statusFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMore, loadingMore, visibleCount]);
 
   // Placeholder card shown while the next page is "loading" (simulated delay).
-  const renderSkeletonRow = (key) => (
+  const renderSkeletonCard = (key) => (
     <div
       key={`skeleton-${key}`}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "16px",
-        padding: "16px",
-        border: "1px solid #E5E7EB",
-        borderRadius: "12px",
-      }}
+      style={{ display: "flex", alignItems: "center", gap: "16px", padding: "16px", border: "1px solid #E5E7EB", borderRadius: "12px" }}
     >
-      <div className="todo-skeleton-block" style={{ flexShrink: 0, width: "44px", height: "44px", borderRadius: "10px" }} />
+      <div style={{ flexShrink: 0, width: "44px", height: "44px", borderRadius: "10px" }} className="todo-skeleton-block" />
       <div style={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
-        <span className="todo-skeleton-block" style={{ width: "50%", height: "14px" }} />
-        <span className="todo-skeleton-block" style={{ width: "80%", height: "13px" }} />
+        <span className="todo-skeleton-block" style={{ width: "40%", height: "13px" }} />
+        <span className="todo-skeleton-block" style={{ width: "70%", height: "12px" }} />
+        <span className="todo-skeleton-block" style={{ width: "30%", height: "18px", borderRadius: "999px" }} />
       </div>
-      <div className="todo-skeleton-block" style={{ flexShrink: 0, width: "92px", height: "32px", borderRadius: "8px" }} />
+      <div style={{ flexShrink: 0, width: "88px", height: "32px" }} className="todo-skeleton-block" />
     </div>
   );
 
@@ -229,14 +225,13 @@ export const TodoPanel = () => {
                 </div>
                 );
               })}
-
-              {loadingMore ? [0, 1, 2].map((k) => renderSkeletonRow(k)) : null}
-
-              {/* Invisible sentinel — scrolling it into view auto-loads the
-                  next page instead of requiring a "Load more" click. */}
-              {hasMore ? <div ref={sentinelRef} style={{ height: "1px" }} /> : null}
+              {loadingMore ? [0, 1, 2].map((i) => renderSkeletonCard(i)) : null}
             </div>
           )}
+
+          {/* Invisible sentinel — scrolling it into view auto-loads the
+              next page instead of requiring a "Load more" click. */}
+          {hasMore ? <div ref={sentinelRef} style={{ height: "1px" }} /> : null}
         </div>
 
       </div>

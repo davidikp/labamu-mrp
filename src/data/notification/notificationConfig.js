@@ -76,6 +76,20 @@ export const NOTIFICATION_MODULES = {
     route: "material-request",
     color: "#0D9488",
   },
+  inventory: {
+    key: "inventory",
+    label: { en: "Inventory", id: "Inventory" },
+    noun: { en: "Material", id: "Material" },
+    route: "materials",
+    color: "#DC2626",
+  },
+  work_order: {
+    key: "work_order",
+    label: { en: "Work Order", id: "Work Order" },
+    noun: { en: "Work Order", id: "Work Order" },
+    route: "work-order",
+    color: "#F59E0B",
+  },
   product_catalog: {
     key: "product_catalog",
     label: { en: "Product Catalog", id: "Katalog Produk" },
@@ -89,6 +103,13 @@ export const NOTIFICATION_MODULES = {
     noun: { en: "Bulk Upload", id: "Bulk Upload" },
     route: "materials/bulk-upload-list",
     color: "#0D9488",
+  },
+  compliance: {
+    key: "compliance",
+    label: { en: "Compliance", id: "Kepatuhan" },
+    noun: { en: "Compliance", id: "Kepatuhan" },
+    route: "quotes",
+    color: "#DC2626",
   },
 };
 

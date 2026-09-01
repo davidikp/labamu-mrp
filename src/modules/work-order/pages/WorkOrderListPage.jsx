@@ -8,31 +8,32 @@ import { StatusBadge } from "../../../components/common/StatusBadge.jsx";
 import { TablePaginationFooter } from "../../../components/table/TablePaginationFooter.jsx";
 import { TableSearchField } from "../../../components/table/TableSearchField.jsx";
 import { MOCK_WO_TABLE_DATA } from "../mock/workOrderMocks.js";
+// Stock Build is disabled: the "New WO" entry point and its create drawer are
+// hidden. WorkOrderCreateDrawer.jsx is kept in place (it also exports shared
+// helpers) so the flow can be restored by re-adding the button + drawer here.
+// import { WorkOrderCreateDrawer } from "../components/WorkOrderCreateDrawer.jsx";
 
 const cellStyle = (overrides) => ({
   minWidth: 0,
   minHeight: "56px",
-  padding: "12px",
+  padding: "8px 12px",
   display: "flex",
   alignItems: "center",
   fontSize: "var(--text-title-3)",
   color: "var(--neutral-on-surface-primary)",
-  whiteSpace: "normal",
-  wordBreak: "break-word",
-  overflowWrap: "break-word",
   ...overrides,
 });
 
 const wrapTextStyle = {
   whiteSpace: "normal",
-  wordBreak: "break-word",
-  overflowWrap: "break-word",
+  overflowWrap: "anywhere",
 };
 
-export const WorkOrderListPage = ({ onNavigate, t }) => {
+export const WorkOrderListPage = ({ onNavigate, t, showSnackbar }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilters, setPriorityFilters] = useState([]);
   const [creatorFilters, setCreatorFilters] = useState([]);
+  const [fulfillmentFilters, setFulfillmentFilters] = useState([]);
   const [startDateFilterType, setStartDateFilterType] = useState("all");
   const [startCustomDateFrom, setStartCustomDateFrom] = useState(null);
   const [startCustomDateTo, setStartCustomDateTo] = useState(null);
@@ -120,6 +121,11 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
   const creatorOptions = Array.from(
     new Set(MOCK_WO_TABLE_DATA.map((row) => row.createdBy))
   );
+  // Stock Build is disabled — every work order is a Customer Order, so the
+  // Fulfillment Type filter has nothing left to discriminate on and is hidden.
+  const fulfillmentOptions = [
+    { value: "CustomerOrder", label: "Customer Order" },
+  ];
   const toggleMultiFilter = (value, setter) => {
     setter((prev) =>
       prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
@@ -147,6 +153,8 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
       priorityFilters.length === 0 || priorityFilters.includes(row.priority);
     const matchesCreator =
       creatorFilters.length === 0 || creatorFilters.includes(row.createdBy);
+    const matchesFulfillment =
+      fulfillmentFilters.length === 0 || fulfillmentFilters.includes(row.fulfillmentType);
     const matchesStartDate = matchesDateFilter(row.start, startDateFilterType, startCustomDateFrom, startCustomDateTo);
     const matchesEndDate = matchesDateFilter(row.end, endDateFilterType, endCustomDateFrom, endCustomDateTo);
     return (
@@ -154,6 +162,7 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
       matchesSearch &&
       matchesPriority &&
       matchesCreator &&
+      matchesFulfillment &&
       matchesStartDate &&
       matchesEndDate
     );
@@ -181,6 +190,7 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
     searchQuery,
     priorityFilters.join("|"),
     creatorFilters.join("|"),
+    fulfillmentFilters.join("|"),
     startDateFilterType,
     startCustomDateFrom,
     startCustomDateTo,
@@ -225,9 +235,11 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
         >
           {t("work_order.title")}
         </h1>
-        <Button variant="outlined" leftIcon={Settings} onClick={() => onNavigate("settings")}>
-          {t("work_order.settings")}
-        </Button>
+        <div style={{ display: "flex", gap: "12px" }}>
+          <Button variant="outlined" leftIcon={Settings} onClick={() => onNavigate("settings")}>
+            {t("work_order.settings")}
+          </Button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
@@ -450,12 +462,22 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
                   </div>
                   <div style={cellStyle({ flex: tableColumns[1].flex })}>
                     <span style={wrapTextStyle}>
-                      {row.ord}
+                      {row.fulfillmentType === "StockBuild" ? "-" : row.ord}
                     </span>
                   </div>
-                  <div style={cellStyle({ flex: tableColumns[2].flex })}>
-                    <span style={wrapTextStyle}>
+                  <div style={cellStyle({ flex: tableColumns[2].flex, flexDirection: "column", alignItems: "flex-start", justifyContent: "center", gap: "2px", minHeight: "56px" })}>
+                    <span style={{ ...wrapTextStyle, maxWidth: "100%" }}>
                       {row.product}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "var(--text-body)",
+                        color: "var(--neutral-on-surface-secondary)",
+                        ...wrapTextStyle,
+                        maxWidth: "100%",
+                      }}
+                    >
+                      {row.targetType === "Material" ? "Material" : "Product"}
                     </span>
                   </div>
                   <div style={cellStyle({ flex: tableColumns[3].flex })}>
@@ -512,6 +534,7 @@ export const WorkOrderListPage = ({ onNavigate, t }) => {
           onPageChange={setCurrentPage}
         />
       </div>
+
     </div>
   );
 };

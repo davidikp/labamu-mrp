@@ -3,6 +3,7 @@ import { Send, Truck } from "lucide-react";
 import { AddIcon, Box, Building2, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, CircleDollarSign, CloseIcon, DeleteIcon, DocumentIcon, DownloadIcon, EditIcon, FileText, Info, Minus, Plus, Upload, Users } from "../../../components/icons/Icons.jsx";
 import { Button } from "../../../components/common/Button.jsx";
 import { Checkbox } from "../../../components/common/Checkbox.jsx";
+import { ClampedDescriptionText } from "../../../components/common/ClampedDescriptionText.jsx";
 import { DropdownSelect } from "../../../components/common/DropdownSelect.jsx";
 import { FilterMenu } from "../../../components/molecules/FilterMenu.jsx";
 import { ChipTabBar } from "../../../components/molecules/ChipTabBar.jsx";
@@ -11,16 +12,19 @@ import { IconButton } from "../../../components/common/IconButton.jsx";
 import { StatusBadge } from "../../../components/common/StatusBadge.jsx";
 import { TableSearchField } from "../../../components/table/TableSearchField.jsx";
 import { Card, DateInputControl, DateRangeInputControl, DocumentTypeBadge, FormField, ImageUploadField, InputField, InputGroup, LabelValue, PhoneInputField, ProgressRing, ProofDocumentList, SectionCard, UploadDescriptionCard, UploadDropzone, UnifiedInputShell, focusInputFrame, blurInputFrame } from "../components/WorkOrderDetailWidgets.jsx";
-import { TextField } from "../../../ce-ui";
+import { Table, TextField } from "../../../ce-ui";
 import { Tooltip } from "../../../components/atoms/Tooltip.jsx";
 import { MOCK_COMPANY } from "../../../data/company.js";
 import { MOCK_VENDORS } from "../../../data/vendors.js";
 import { MOCK_PO_TABLE_DATA } from "../../purchase-order/mock/purchaseOrderMocks.js";
 import { MOCK_WO_TABLE_DATA } from "../mock/workOrderMocks.js";
+import { MOCK_MATERIALS_DATA } from "../../materials/mock/materialsMocks.js";
 import { getBom, DEFAULT_COGS, resolveMaterialOption } from "../../bill-of-materials/mock/bomMocks.js";
 import { computeMaterialCost, computeTotalCogs, fieldTotal, formatIDR } from "../../bill-of-materials/utils/bomUtils.js";
 import { DetailCard, detailTableHeaderRowStyle, detailTableRowStyle } from "../../bill-of-materials/components/BomShared.jsx";
-import { getRequests, addRequest, getStockBatchesForSku } from "../../material-request/mock/materialRequestMocks.js";
+import { getRequests, addRequest, getStockBatchesForSku, REQUEST_STATUS_META } from "../../material-request/mock/materialRequestMocks.js";
+import { addBatch } from "../../materials/mock/batchesStore.js";
+import { addTransaction } from "../../materials/mock/transactionsStore.js";
 import { formatCurrency, formatNumberWithCommas, parseNumberFromCommas } from "../../../utils/format/formatUtils.js";
 import { normalizeProofDocuments, createUploadDocumentRecord, validateUploadFile } from "../../../utils/upload/uploadUtils.js";
 import { MAX_PROOF_UPLOAD_FILES } from "../../../constants/appConstants.js";
@@ -30,6 +34,8 @@ import {
   baseInputBorderColor,
   fieldStyle,
 } from "../../purchase-order/styles/purchaseOrderInputStyles.js";
+import { WorkOrderEditDrawer } from "../components/WorkOrderEditDrawer.jsx";
+import { AdditionalOutputEditDrawer } from "../components/AdditionalOutputEditDrawer.jsx";
 
 export let activityLogsCache = {};
 export let costingLogsCache = {};
@@ -70,24 +76,37 @@ export const addWoActivityLog = (woNumber, title, desc = undefined) => {
 // order starts empty (no requests yet).
 const ONGOING_REQUEST_WO = "WO-202604-002";
 
-// Fresh BOM materials — nothing requested or received yet.
-const EMPTY_BOM_MATERIALS = [
-  { id: 1, type: "BOM", name: "Wooden Plank", sku: "WOD-023UDISJJDS", requiredQty: 50, requestedQty: 0, receivedQty: 0, unit: "unit" },
-  { id: 2, type: "BOM", name: "Paint", sku: "PAI-WIQIFQJFJSA", requiredQty: 5, requestedQty: 0, receivedQty: 0, unit: "liter" },
-  { id: 3, type: "BOM", name: "Nail", sku: "NAI-9AIF0U092F", requiredQty: 10, requestedQty: 0, receivedQty: 0, unit: "box" },
-  { id: 4, type: "BOM", name: "Wooden Plank with With Black Striped Leopard Pattern Finish", sku: "WOD-887GHFKKS02", requiredQty: 20, requestedQty: 0, receivedQty: 0, unit: "unit" },
-];
+// Materials table is genuinely BOM-driven: it's computed from the work order's
+// linked BOM (getBom(bomId).materials), each material's per-unit quantity scaled
+// by the work order's total quantity. This works the same way for both Product
+// and Material target-type work orders — the BOM is the BOM either way.
+// requestedQty/receivedQty are preserved from any previously-saved WO state (so
+// in-progress requests survive a re-render/navigation) and otherwise start at 0.
+const initialBomMaterials = (woId, initialData) => {
+  const cachedWo = woId ? MOCK_WO_TABLE_DATA.find((w) => w.wo === woId) : null;
+  const bomId = initialData?.bomId || cachedWo?.bomId || null;
+  const totalQty = Number(initialData?.qty ?? cachedWo?.qty ?? 0) || 0;
+  const bom = bomId ? getBom(bomId) : null;
+  if (!bom || !Array.isArray(bom.materials)) return [];
 
-// Ongoing work order: materials already have requested and/or received quantities
-// from the existing material requests (see request history).
-const ONGOING_BOM_MATERIALS = [
-  { id: 1, type: "BOM", name: "Wooden Plank", sku: "WOD-023UDISJJDS", requiredQty: 50, requestedQty: 20, receivedQty: 25, unit: "unit" },
-  { id: 2, type: "BOM", name: "Paint", sku: "PAI-WIQIFQJFJSA", requiredQty: 5, requestedQty: 3, receivedQty: 2, unit: "liter" },
-  { id: 3, type: "BOM", name: "Nail", sku: "NAI-9AIF0U092F", requiredQty: 10, requestedQty: 5, receivedQty: 0, unit: "box" },
-];
+  const savedMaterials = initialData?.materials || cachedWo?.materials;
 
-const initialBomMaterials = (woId) =>
-  woId === ONGOING_REQUEST_WO ? ONGOING_BOM_MATERIALS : EMPTY_BOM_MATERIALS;
+  return bom.materials.map((m, idx) => {
+    const saved = Array.isArray(savedMaterials)
+      ? savedMaterials.find((sm) => sm.sku === m.sku)
+      : null;
+    return {
+      id: idx + 1,
+      type: "BOM",
+      name: m.name,
+      sku: m.sku,
+      requiredQty: (m.quantity || 0) * totalQty,
+      requestedQty: saved?.requestedQty || 0,
+      receivedQty: saved?.receivedQty || 0,
+      unit: m.unit,
+    };
+  });
+};
 
 // Catalog of materials available for Non-BOM requests (outside the work order BOM)
 const NON_BOM_CATALOG = [
@@ -192,8 +211,26 @@ const ONGOING_REQUEST_HISTORY = [
   { id: "REQ0129027", date: "08/02/2025; 15:00", by: "Zoe Adams", status: "Cancelled" },
 ];
 
-const initialRequestHistory = (woId) =>
-  woId === ONGOING_REQUEST_WO ? ONGOING_REQUEST_HISTORY : [];
+// Completed work order with a fulfilled material request, used to demo the Actual COGS material breakdown.
+const COMPLETED_REQUEST_WO = "WO-2024-08-012-00001";
+const COMPLETED_REQUEST_HISTORY = [
+  { id: "REQ0129020", date: "20/12/2025; 09:30", by: "Naomi", status: "Completed" },
+];
+
+// In-progress work order with a partially fulfilled material request, used to demo the Actual COGS
+// material breakdown while a request is still being transferred.
+const IN_PROGRESS_REQUEST_WO = "WO-202604-007";
+const IN_PROGRESS_REQUEST_HISTORY = [
+  { id: "REQ0129022", date: "27/04/2026; 09:00", by: "John Doe", status: "Transferring" },
+  { id: "REQ0129021", date: "26/04/2026; 10:15", by: "John Doe", status: "Completed" },
+];
+
+const initialRequestHistory = (woId) => {
+  if (woId === ONGOING_REQUEST_WO) return ONGOING_REQUEST_HISTORY;
+  if (woId === COMPLETED_REQUEST_WO) return COMPLETED_REQUEST_HISTORY;
+  if (woId === IN_PROGRESS_REQUEST_WO) return IN_PROGRESS_REQUEST_HISTORY;
+  return [];
+};
 
 const REQUEST_STATUS_VARIANT = {
   "New Request": "blue",
@@ -488,14 +525,43 @@ const SearchableVendorSelect = ({
   );
 };
 
+const PRIORITY_BADGE_VARIANT = {
+  High: "red-light",
+  Medium: "yellow-light",
+  Low: "grey-light",
+};
+
 export const WorkOrderDetailPage = ({ onNavigate, isSidebarCollapsed, initialData, woSettings }) => {
   const scrollToTop = () => {
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "auto" });
     }
   };
-  const TOTAL_QTY = initialData?.qty || 100;
-  
+  const [mainQty, setMainQty] = useState(initialData?.qty || 100);
+  const [product, setProduct] = useState(initialData?.product || "");
+  const [sku, setSku] = useState(initialData?.sku || "");
+  const [priority, setPriority] = useState(initialData?.priority || "Medium");
+  const [notes, setNotes] = useState(initialData?.notes || "");
+  const [orderType, setOrderType] = useState(initialData?.orderType || "Internal");
+  const [outputs, setOutputs] = useState(
+    initialData?.outputs?.length
+      ? initialData.outputs
+      : initialData?.materialId
+        ? [{ isMain: true, materialId: initialData.materialId, name: initialData?.product, sku: initialData?.sku, qty: initialData?.qty }]
+        : []
+  );
+  // Total Output = sum of every output's quantity (main + additional) — drives
+  // Actual COGS per-unit math and output-allocation limits below.
+  const TOTAL_QTY = outputs.length
+    ? outputs.reduce((sum, o) => sum + (Number(o.qty) || 0), 0)
+    : mainQty;
+  // Routing Stages (and vendor/outsourcing step assignment, which is tied to
+  // routing) are driven by the main output quantity alone — additional
+  // outputs don't factor into routing progress math.
+  const ROUTING_QTY = mainQty;
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+  const [isAdditionalOutputEditOpen, setIsAdditionalOutputEditOpen] = useState(false);
+
   const [activeTab, setActiveTab] = useState("details");
   const [activityLogs, setActivityLogs] = useState(() => {
     if (initialData?.wo && activityLogsCache[initialData.wo]) {
@@ -609,7 +675,7 @@ export const WorkOrderDetailPage = ({ onNavigate, isSidebarCollapsed, initialDat
     const hrs = String(d.getHours()).padStart(2, '0');
     const mins = String(d.getMinutes()).padStart(2, '0');
     const formattedTimestamp = `${isoDate} at ${hrs}:${mins}`;
-    
+
     setActivityLogs(prev => [
       {
         name: "Natasha Smith",
@@ -935,22 +1001,49 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     "Ready to Finalize": "blue-light",
     Confirmed: "green-light",
   };
-  const [isConfirmCostingModalOpen, setIsConfirmCostingModalOpen] = useState(false);
-
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
   const [readyStartDate, setReadyStartDate] = useState("");
   const [readyEndDate, setReadyEndDate] = useState("");
-  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [isStockBuildFormModalOpen, setIsStockBuildFormModalOpen] = useState(false);
+  const [isFinalCompleteModalOpen, setIsFinalCompleteModalOpen] = useState(false);
+  const [isConfirmCostingModalOpen, setIsConfirmCostingModalOpen] = useState(false);
+  const [completedDate, setCompletedDate] = useState(() => {
+    const cached = initialData?.wo ? MOCK_WO_TABLE_DATA.find((w) => w.wo === initialData.wo) : null;
+    return initialData?.completedDate || cached?.completedDate || null;
+  });
+  const [postedToStock, setPostedToStock] = useState(() => {
+    const cached = initialData?.wo ? MOCK_WO_TABLE_DATA.find((w) => w.wo === initialData.wo) : null;
+    return initialData?.postedToStock || cached?.postedToStock || false;
+  });
+  const [postOutputForm, setPostOutputForm] = useState({ notes: "" });
+  // One row per work order output (Main + Additional) for the Confirm Stock
+  // Build cost-allocation table: percentage / allocatedCost / unitCost stay
+  // in sync with each other (see updateOutputCostRow), storageLocation and
+  // expiryDate are per-row since outputs may be stocked separately.
+  const [outputCostRows, setOutputCostRows] = useState([]);
+  const [postOutputErrors, setPostOutputErrors] = useState({});
+  // Snapshot of outputCostRows taken at final confirmation, so the "Confirm
+  // Build Detail" tab can show exactly what was submitted even after the
+  // in-progress outputCostRows/postOutputForm state resets.
+  const [confirmedStockBuild, setConfirmedStockBuild] = useState(() => {
+    const cached = initialData?.wo ? MOCK_WO_TABLE_DATA.find((w) => w.wo === initialData.wo) : null;
+    return initialData?.confirmedStockBuild || cached?.confirmedStockBuild || null;
+  });
 
   // --- Request Material flow state ---
-  const [materials, setMaterials] = useState(() => initialBomMaterials(initialData?.wo));
-  const [requestHistory, setRequestHistory] = useState(() => initialRequestHistory(initialData?.wo));
+  const [materials, setMaterials] = useState(() => initialBomMaterials(initialData?.wo, initialData));
+  const [requestHistory, setRequestHistory] = useState(() => {
+    const cachedWo = initialData?.wo
+      ? MOCK_WO_TABLE_DATA.find((w) => w.wo === initialData.wo)
+      : null;
+    return initialData?.requestHistory || cachedWo?.requestHistory || initialRequestHistory(initialData?.wo);
+  });
   // Ongoing work order has prior requests, so the history is available up front.
   // Other work orders only show it after a request is submitted in-session.
   const [hasSubmittedRequest, setHasSubmittedRequest] = useState(
-    initialData?.wo === ONGOING_REQUEST_WO
+    initialData?.wo === ONGOING_REQUEST_WO || requestHistory.length > 0
   );
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -970,10 +1063,40 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     ...overrides,
   });
 
+  // Requested/Received Qty must match whatever the Material Request module
+  // currently shows for this WO's requests. "Requested Qty" only counts
+  // quantity still sitting in an active (non-terminal) request — once a
+  // request reaches Completed/Cancelled it's resolved, so any of it that
+  // wasn't actually fulfilled drops back out of "requested" and becomes
+  // available to request again (i.e. shortage), rather than sitting there
+  // as a permanently-outstanding number. "Received Qty" always reflects
+  // however much the module has actually allocated (fulfillableQty),
+  // regardless of the request's status.
+  const getLiveMaterialRequestTotals = (sku) => {
+    const relevantRequests = getRequests().filter((r) =>
+      requestHistory.some((rh) => rh.id === r.requestId)
+    );
+    let requestedQty = 0;
+    let receivedQty = 0;
+    relevantRequests.forEach((r) => {
+      const isActive = r.status !== "completed" && r.status !== "cancelled";
+      (r.items || []).forEach((item) => {
+        if (item.sku !== sku) return;
+        if (isActive) {
+          requestedQty += Number(item.requestedQty) || 0;
+        }
+        const fulfillable = item.allocation?.fulfillableQty;
+        if (typeof fulfillable === "number") receivedQty += fulfillable;
+      });
+    });
+    return { requestedQty, receivedQty };
+  };
+
   const remainingForMaterial = (name) => {
     const m = materials.find((mat) => mat.type === "BOM" && mat.name === name);
     if (!m) return null;
-    return Math.max(0, m.requiredQty - m.requestedQty - m.receivedQty);
+    const live = getLiveMaterialRequestTotals(m.sku);
+    return Math.max(0, m.requiredQty - live.requestedQty - live.receivedQty);
   };
 
   const unitForDraftRow = (row) => {
@@ -987,19 +1110,17 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
 
   const buildRemainingBomDraft = () =>
     materials
-      .filter(
-        (m) => m.type === "BOM" && m.requiredQty - m.requestedQty - m.receivedQty > 0
-      )
+      .filter((m) => m.type === "BOM" && remainingForMaterial(m.name) > 0)
       .map((m) =>
         makeDraftRow({
           type: "BOM",
           materialName: m.name,
-          qty: String(m.requiredQty - m.requestedQty - m.receivedQty),
+          qty: String(remainingForMaterial(m.name)),
         })
       );
 
   const shortageMaterials = materials.filter(
-    (m) => m.type === "BOM" && m.requiredQty - m.requestedQty - m.receivedQty > 0
+    (m) => m.type === "BOM" && remainingForMaterial(m.name) > 0
   );
 
   const openRequestModal = (prefillRemaining = false) => {
@@ -1060,15 +1181,22 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     return `REQ${String(num + 1).padStart(7, "0")}`;
   };
 
-  // Open the material request detail page in a new tab (the row lives inside a modal,
-  // so we avoid replacing the current page). The history stores the display id
-  // (e.g. REQ0129032); the material request store keys it as `requestId`. A fresh tab
-  // has no navigation state, so we route by the id the detail page resolves with.
+  // Navigate to the material request detail page in the same session (the row
+  // lives inside a modal). The history stores the display id (e.g. REQ0129032);
+  // the material request store keys it as `requestId`, so resolve to that id.
   const openRequestDetail = (req) => {
     const match = getRequests().find((r) => r.requestId === req.id);
     const id = match ? match.id : req.id;
-    // Opened from the Work Order side → default the detail page to the Production POV.
-    window.open(`/material-request/${id}?pov=production`, "_blank", "noopener");
+    // Opened from the Work Order side → default the detail page to the Production POV,
+    // and remember this work order so its Back button returns here instead of the list.
+    onNavigate("material_request_detail", {
+      id,
+      pov: "production",
+      returnTo: {
+        view: "work_order_detail",
+        data: initialData,
+      },
+    });
   };
 
   const formatRequestTimestamp = () => {
@@ -1122,9 +1250,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       const qtyNum = parseFloat(row.qty) || 0;
       if (row.type === "BOM") {
         const mat = materials.find((m) => m.type === "BOM" && m.name === row.materialName);
-        const remaining = mat
-          ? Math.max(0, mat.requiredQty - mat.requestedQty - mat.receivedQty)
-          : null;
+        const remaining = mat ? remainingForMaterial(mat.name) : null;
         const isExceeding = remaining != null && qtyNum > remaining;
         const sku = mat ? mat.sku : "";
         return {
@@ -1327,7 +1453,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
   const [isRoutingUpdatesExpanded, setIsRoutingUpdatesExpanded] = useState(false);
   const [isOutsourceStagesExpanded, setIsOutsourceStagesExpanded] = useState(false);
   const outsourceStagesListRef = useRef(null);
-  const [showOutsourceStagesFade, setShowOutsourceStagesFade] = useState(false);
+  const [outsourceStagesCollapsedHeight, setOutsourceStagesCollapsedHeight] = useState(null);
 
   // Linked BOM is derived automatically from the work order's own record
   // (seeded bomId) — same BOM whose materials populate the Details tab's
@@ -1336,6 +1462,13 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     ? MOCK_WO_TABLE_DATA.find((w) => w.wo === initialData.wo)
     : null;
   const actualCogsBomId = initialData?.bomId || cachedWoForCogs?.bomId || null;
+  const targetType = initialData?.targetType || cachedWoForCogs?.targetType || "Product";
+  const fulfillmentType = initialData?.fulfillmentType || cachedWoForCogs?.fulfillmentType || "CustomerOrder";
+  const targetMaterialId = initialData?.materialId || cachedWoForCogs?.materialId || null;
+  const targetMaterialObj = targetMaterialId
+    ? MOCK_MATERIALS_DATA.find((m) => m.id === targetMaterialId)
+    : null;
+  const targetMaterialUom = targetMaterialObj?.unit || "unit";
   const [actualCogs, setActualCogs] = useState(() => {
     const savedCogs = initialData?.actualCogs || cachedWoForCogs?.actualCogs;
     if (savedCogs) return savedCogs;
@@ -1352,6 +1485,21 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       })
     );
   });
+  // Shared Total Actual COGS, used by both the Actual COGS tab and the
+  // Confirm Stock Build modal's cost-allocation table. Outsourcing cost is
+  // intentionally left out here (it needs the tab's own vendor-cost rows to
+  // compute) — material/labour/packing/shipping/overhead/other cover the
+  // common case.
+  const linkedBomForCogs = actualCogsBomId ? getBom(actualCogsBomId) : null;
+  const materialCostForCogs = requestHistory.length > 0 ? computeMaterialCost(linkedBomForCogs?.materials || []) : 0;
+  const totalActualCogsForModal =
+    materialCostForCogs +
+    fieldTotal(actualCogs.labour) +
+    fieldTotal(actualCogs.packing) +
+    fieldTotal(actualCogs.shipping) +
+    fieldTotal(actualCogs.overhead) +
+    fieldTotal(actualCogs.other);
+
   const [showActualMaterialBreakdown, setShowActualMaterialBreakdown] = useState(true);
   const [expandedActualCostMaterials, setExpandedActualCostMaterials] = useState({});
   const toggleActualCostMaterial = (materialId) =>
@@ -1385,7 +1533,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
   const logCostItemChange = (actionTitle, key, label, amount) => {
     const costTypeTitle = ACTUAL_COGS_FIELDS.find((f) => f.key === key)?.title || key;
     const perUnit = TOTAL_QTY > 0 ? Math.round((Number(amount) || 0) / TOTAL_QTY) : 0;
-    addActivityLog(
+    addCostingLog(
       `${costTypeTitle} ${actionTitle}`,
       `${label} with Total Cost per Unit: ${formatIDR(perUnit)} and Total Cost This WO: ${formatIDR(amount)}`
     );
@@ -1439,7 +1587,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     if (line) {
       const costTypeTitle = ACTUAL_COGS_FIELDS.find((f) => f.key === key)?.title || key;
       const perUnit = TOTAL_QTY > 0 ? Math.round((Number(line.amount) || 0) / TOTAL_QTY) : 0;
-      addActivityLog(
+      addCostingLog(
         `${costTypeTitle} Item Deleted`,
         `${line.label} with Total Cost per Unit: ${formatIDR(perUnit)} and Total Cost This WO: ${formatIDR(line.amount)}. Reason: ${deleteCostItemReason.trim()}`
       );
@@ -1511,9 +1659,22 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         actualCogs,
         costingStatus,
         costingBadge: COSTING_BADGE_VARIANT[costingStatus] || "grey-light",
+        completedDate,
+        postedToStock,
+        requestHistory,
+        materials,
+        priority,
+        pBadge: PRIORITY_BADGE_VARIANT[priority] || "yellow-light",
+        notes,
+        orderType,
+        product,
+        sku,
+        qty: mainQty,
+        outputs,
+        confirmedStockBuild,
       };
     }
-  }, [vendors, routingStages, outsourceSteps, woStatus, displayStartDate, displayEndDate, actualCogsBomId, actualCogs, costingStatus]);
+  }, [vendors, routingStages, outsourceSteps, woStatus, displayStartDate, displayEndDate, actualCogsBomId, actualCogs, costingStatus, completedDate, postedToStock, requestHistory, materials, priority, notes, orderType, product, sku, mainQty, outputs, confirmedStockBuild]);
 
   const hasStages = routingStages.length > 0;
   const allStagesCompleted =
@@ -1522,17 +1683,34 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       const vendorCompleted = vendors
         .filter((v) => v.name !== "Internal" && v.assignedSteps && v.assignedSteps.includes(stage.step))
         .reduce((acc, v) => acc + (parseInt(v.receivedOutput, 10) || 0), 0);
-      return (stage.comp || 0) + vendorCompleted >= TOTAL_QTY;
+      return (stage.comp || 0) + vendorCompleted >= ROUTING_QTY;
     });
 
   // A work order can only complete once no material request is still ongoing —
   // i.e. every request is Completed/Cancelled (or there is no request history).
-  const hasOngoingMaterialRequest = requestHistory.some(
-    (r) => r.status !== "Completed" && r.status !== "Cancelled"
-  );
+  // Status lives in the Material Request module's own store and progresses
+  // independently, so check the live status rather than the frozen one
+  // captured when the request was first made.
+  const hasOngoingMaterialRequest = requestHistory.some((r) => {
+    const liveRequest = getRequests().find((req) => req.requestId === r.id);
+    const liveStatus = liveRequest?.status;
+    return liveStatus ? liveStatus !== "completed" && liveStatus !== "cancelled" : true;
+  });
 
+  // Requested/Received Qty in the Materials table must match whatever the
+  // Material Request module currently shows for this WO's requests — sum
+  // requestedQty across every item with this SKU, and receivedQty from
+  // however much of it the module has actually allocated (fulfillableQty),
+  // rather than trusting a one-time bump made only when the request was
+  // first submitted (which never reflected later progress/completion).
+
+  // Completion is purely routing-driven — Costing Status is a separate,
+  // parallel track and never blocks the Work Order from completing.
   const canCompleteWorkOrder =
-    allStagesCompleted && !hasOngoingMaterialRequest && woStatus !== "completed";
+    allStagesCompleted &&
+    !hasOngoingMaterialRequest &&
+    woStatus !== "completed" &&
+    (fulfillmentType !== "StockBuild" || woStatus === "in_progress");
 
   // When the Actual COGS setting is enabled, once routing stages finish,
   // Costing Status flips to "Ready to Finalize" so Finance/PIC can review and
@@ -1549,6 +1727,111 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     }
   }, [actualCogsMode, allStagesCompleted, hasOngoingMaterialRequest, costingStatus]);
 
+  // The Actual COGS tab is hidden while the WO is Not Started — if it happens
+  // to be the active tab when the status lands there, fall back to Details so
+  // the panel area is never left blank.
+  useEffect(() => {
+    if (woStatus === "not_started" && activeTab === "cogs") {
+      setActiveTab("details");
+    }
+  }, [woStatus, activeTab]);
+
+  // Step 1 for Stock Build: opens the form modal (Quantity/Cost/Storage/etc).
+  // Product/Customer Order work orders skip straight to the final confirm
+  // step since they have no output-posting form to fill in.
+  const openCompleteModal = () => {
+    if (fulfillmentType === "StockBuild") {
+      const totalOutputQtyAll = outputs.reduce((sum, o) => sum + (Number(o.qty) || 0), 0) || 1;
+      const rows = outputs.map((o) => {
+        const material = MOCK_MATERIALS_DATA.find((m) => m.id === o.materialId);
+        const qty = Number(o.qty) || 0;
+        const percentage = (qty / totalOutputQtyAll) * 100;
+        const allocatedCost = totalActualCogsForModal * (percentage / 100);
+        const unitCost = qty > 0 ? allocatedCost / qty : 0;
+        return {
+          id: o.materialId,
+          materialId: o.materialId,
+          name: o.name || material?.name || "-",
+          sku: o.sku || material?.sku || "-",
+          unit: o.unit || material?.unit || "unit",
+          qty,
+          percentage: String(Number(percentage.toFixed(2))),
+          allocatedCost: String(Math.round(allocatedCost)),
+          unitCost: String(Math.round(unitCost)),
+          storageLocation: "",
+          expiryDate: "",
+          averageCost: material?.averageCost ?? null,
+        };
+      });
+      setOutputCostRows(rows);
+      setPostOutputForm({ notes: "" });
+      setIsStockBuildFormModalOpen(true);
+    } else {
+      setIsFinalCompleteModalOpen(true);
+    }
+  };
+
+  // Editing % / Allocated Cost / Unit Cost recalculates the other two so the
+  // formula relationship (allocated = total * %, unit = allocated / qty)
+  // stays intact no matter which field the user typed into.
+  const updateOutputCostRow = (materialId, field, rawValue) => {
+    setOutputCostRows((prev) =>
+      prev.map((row) => {
+        if (row.materialId !== materialId) return row;
+        const qty = Number(row.qty) || 0;
+        const total = totalActualCogsForModal;
+        if (field === "percentage") {
+          const pct = Number(rawValue) || 0;
+          const allocatedCost = total * (pct / 100);
+          const unitCost = qty > 0 ? allocatedCost / qty : 0;
+          return { ...row, percentage: rawValue, allocatedCost: String(Math.round(allocatedCost)), unitCost: String(Math.round(unitCost)) };
+        }
+        if (field === "allocatedCost") {
+          const alloc = Number(rawValue) || 0;
+          const percentage = total > 0 ? (alloc / total) * 100 : 0;
+          const unitCost = qty > 0 ? alloc / qty : 0;
+          return { ...row, allocatedCost: rawValue, percentage: String(Number(percentage.toFixed(2))), unitCost: String(Math.round(unitCost)) };
+        }
+        if (field === "unitCost") {
+          const uc = Number(rawValue) || 0;
+          const allocatedCost = uc * qty;
+          const percentage = total > 0 ? (allocatedCost / total) * 100 : 0;
+          return { ...row, unitCost: rawValue, allocatedCost: String(Math.round(allocatedCost)), percentage: String(Number(percentage.toFixed(2))) };
+        }
+        return { ...row, [field]: rawValue };
+      })
+    );
+  };
+
+  // Live (not just on-confirm) validation for the cost-allocation table:
+  // percentages must add up to 100%, and none of the three linked cost
+  // fields may be zero. Storage Location stays optional.
+  const outputCostPercentageTotal = outputCostRows.reduce((sum, row) => sum + (Number(row.percentage) || 0), 0);
+  const outputCostPercentageOver =
+    outputCostRows.length > 0 && outputCostPercentageTotal - 100 > 0.5;
+  const outputCostPercentageUnder =
+    outputCostRows.length > 0 && 100 - outputCostPercentageTotal > 0.5;
+  const outputCostPercentageMismatch = outputCostPercentageOver || outputCostPercentageUnder;
+  const getOutputCostRowErrors = (row) => ({
+    percentage: Number(row.percentage) <= 0 ? "Field must be greater than 0" : "",
+    allocatedCost: Number(row.allocatedCost) <= 0 ? "Field must be greater than 0" : "",
+    unitCost: Number(row.unitCost) <= 0 ? "Field must be greater than 0" : "",
+  });
+
+  // Step 1 -> Step 2 for Stock Build: validates the form, then hands off to
+  // the same final "Complete Work Order?" confirmation Product orders use.
+  const handleStockBuildFormConfirm = () => {
+    const hasFieldErrors = outputCostRows.some((row) => {
+      const rowErrors = getOutputCostRowErrors(row);
+      return rowErrors.percentage || rowErrors.allocatedCost || rowErrors.unitCost;
+    });
+    if (hasFieldErrors || outputCostPercentageMismatch) return;
+    setIsStockBuildFormModalOpen(false);
+    setIsFinalCompleteModalOpen(true);
+  };
+
+  // Final step for both flows: actually marks the WO Completed, and for
+  // Stock Build also creates the Stock Batch + an "In" Stock Transaction.
   const handleConfirmCosting = () => {
     setCostingStatus("Confirmed");
     addCostingLog(
@@ -1558,8 +1841,66 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     setIsConfirmCostingModalOpen(false);
   };
 
-  const handleCompleteWorkOrder = () => {
-    setIsCompleteModalOpen(false);
+  const handleFinalComplete = () => {
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (fulfillmentType === "StockBuild") {
+      const woId = initialData?.wo;
+
+      outputCostRows.forEach((row, idx) => {
+        const qty = Number(row.qty) || 0;
+        const costPerUnit = Math.round(Number(row.unitCost) || 0);
+        const batchNo = `BN-${today.replace(/-/g, "")}-${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}-${idx}`;
+
+        addBatch({
+          id: `batch-${Date.now()}-${idx}`,
+          materialId: row.materialId,
+          batchNo,
+          initialQty: qty,
+          currentQty: qty,
+          reservedQty: 0,
+          costPerUnit,
+          purchaseDate: today,
+          expiryDate: row.expiryDate || "",
+          expectedDate: today,
+          receivedDate: today,
+          storageLocation: row.storageLocation,
+          vendor: "Internal Production",
+          attachments: [],
+          status: "Received",
+          reference: woId,
+          notes: postOutputForm.notes || "",
+        });
+
+        addTransaction({
+          id: `tx-${Date.now()}-${idx}`,
+          materialId: row.materialId,
+          date: new Date().toISOString(),
+          batchNo,
+          type: "In",
+          quantity: qty,
+          unit: row.unit,
+          workOrder: woId,
+          product: row.name,
+          reason: "Stock Build Output",
+          actionBy: "Natasha",
+        });
+
+        addActivityLog(
+          "Posted Output to Stock",
+          `${qty} ${row.unit} of ${row.name} posted to stock batch ${batchNo} (Storage: ${row.storageLocation || "-"}).`
+        );
+      });
+
+      setPostedToStock(true);
+      setConfirmedStockBuild({
+        confirmedAt: new Date().toISOString(),
+        notes: postOutputForm.notes || "",
+        totalActualCogs: totalActualCogsForModal,
+        rows: outputCostRows,
+      });
+    }
+
     // Finalize any material request that hadn't reached a terminal status yet.
     setRequestHistory((prev) =>
       prev.map((r) =>
@@ -1567,15 +1908,20 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       )
     );
     setWoStatus("completed");
-    // When Actual COGS review isn't required, costing auto-confirms alongside
-    // WO completion. Otherwise Costing Status stays on its own independent
-    // track (Open/Ready to Finalize) and gets confirmed separately afterward.
+    setCompletedDate(today);
+    // Actual COGS setting disabled: costing auto-confirms once the WO is
+    // done — no separate Finance/PIC review step. When enabled, completion
+    // doesn't wait on costing — Costing Status stays whatever it currently is
+    // (Open/Ready to Finalize) and gets confirmed independently afterward.
     if (actualCogsMode !== "enabled" && costingStatus !== "Confirmed") {
       setCostingStatus("Confirmed");
       addCostingLog("Costing Confirmed", "Costing auto-confirmed on Work Order completion.");
     }
     addActivityLog("Completed");
-    setToastMessage("Work order completed");
+    setIsFinalCompleteModalOpen(false);
+    setToastMessage(
+      fulfillmentType === "StockBuild" ? "Stock build confirmed and posted to stock" : "Work order completed"
+    );
     setShowSuccessToast(true);
   };
 
@@ -1624,7 +1970,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
   })();
 
   const stagesWithTotals = [];
-  let previousEffectiveComp = TOTAL_QTY;
+  let previousEffectiveComp = ROUTING_QTY;
 
   routingStages.forEach((row) => {
     const vendorComp = vendors
@@ -1661,7 +2007,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     const rowIndex = stagesWithTotals.findIndex((r) => r.step === minStep);
     if (rowIndex === -1) return 0;
 
-    const prevCompleted = minStep === 1 ? TOTAL_QTY : (stagesWithTotals[rowIndex - 1]?.effectiveTotalComp || 0);
+    const prevCompleted = minStep === 1 ? ROUTING_QTY : (stagesWithTotals[rowIndex - 1]?.effectiveTotalComp || 0);
     const currStage = stagesWithTotals[rowIndex];
     const internalProg = currStage?.prog || 0;
     const internalCompleted = currStage?.comp || 0;
@@ -1685,14 +2031,14 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       const row = stagesWithTotals[rowIndex];
       const stepTotalPool =
         row.step === 1
-          ? TOTAL_QTY
+          ? ROUTING_QTY
           : stagesWithTotals[rowIndex - 1]?.totalComp || 0;
       firstOutsourceStart = Math.max(
         0,
         stepTotalPool - (row.prog || 0) - (row.totalComp || 0)
       );
 
-      if ((row.totalComp || 0) >= TOTAL_QTY) {
+      if ((row.totalComp || 0) >= ROUTING_QTY) {
         isFirstOutsourceCompleted = true;
       }
     }
@@ -1803,9 +2149,9 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       const proposedTotal =
         currentOtherTotal + (parseInt(singleVendorForm.output, 10) || 0);
 
-      if (proposedTotal > TOTAL_QTY) {
+      if (proposedTotal > ROUTING_QTY) {
         setAssignedOutputError(
-          `Cannot exceed total work order quantity (${TOTAL_QTY} unit). You have ${TOTAL_QTY - currentOtherTotal} unit available.`
+          `Cannot exceed total work order quantity (${ROUTING_QTY} unit). You have ${ROUTING_QTY - currentOtherTotal} unit available.`
         );
         hasError = true;
       }
@@ -3298,7 +3644,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     selectedStageIndex === -1
       ? 0
       : selectedStageIndex === 0
-        ? TOTAL_QTY
+        ? ROUTING_QTY
         : stagesWithTotals[selectedStageIndex - 1]?.totalComp || 0;
   const selectedStageVendorCompleted = selectedStageData?.vendorComp || 0;
   const selectedStageYetToStart = Math.max(
@@ -3352,17 +3698,28 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     ? buildDummyPoDetailData(singleVendorForm.poNumber, singleVendorForm)
     : null;
 
-  // Long "Allow Outsourced Stages" lists scroll inside a fixed-height box
-  // rather than relying on measured row heights — the fade only shows while
-  // there's more content below the fold, same pattern as the Expired
-  // Materials list in Material Preparation.
-  const updateOutsourceStagesFade = () => {
-    const el = outsourceStagesListRef.current;
-    if (el) setShowOutsourceStagesFade(el.scrollHeight - el.scrollTop - el.clientHeight > 4);
-  };
+  // Measure actual rendered row heights so the collapsed "Allow Outsourced
+  // Stages" list clips at exactly 4 full rows + half of the 5th, regardless
+  // of how tall each row ends up being (text wrapping, mini bar size, etc).
   useEffect(() => {
-    updateOutsourceStagesFade();
-  }, [outsourceSteps, vendors, routingStages, isOutsourceStagesExpanded, woStatus]);
+    const el = outsourceStagesListRef.current;
+    if (!el || outsourceSteps.length <= 4) {
+      setOutsourceStagesCollapsedHeight(null);
+      return;
+    }
+    const rows = Array.from(el.children);
+    if (rows.length < 5) {
+      setOutsourceStagesCollapsedHeight(null);
+      return;
+    }
+    const gap = 12;
+    let height = 0;
+    for (let i = 0; i < 4; i++) {
+      height += rows[i].offsetHeight + gap;
+    }
+    height += rows[4].offsetHeight / 2;
+    setOutsourceStagesCollapsedHeight(height);
+  }, [outsourceSteps, vendors, routingStages, woStatus]);
 
   return (
     <div
@@ -3423,7 +3780,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: "560px",
+              width: "640px",
               maxWidth: "100%",
               height: "100%",
               background: "var(--neutral-surface-primary)",
@@ -3540,7 +3897,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             >
               <div style={{ width: "144px", flexShrink: 0 }}>Type</div>
               <div style={{ flex: "2" }}>Material</div>
-              <div style={{ flex: "1" }}>Quantity</div>
+              <div style={{ width: "160px", flexShrink: 0 }}>Quantity</div>
               <div style={{ width: "40px" }} />
             </div>
 
@@ -3633,7 +3990,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                       />
                       {err("material") && <span style={errStyle}>{err("material")}</span>}
                     </div>
-                    <div style={{ flex: "1" }}>
+                    <div style={{ width: "160px", flexShrink: 0 }}>
                       <InputField
                         type="number"
                         placeholder="Enter qty"
@@ -3970,7 +4327,16 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
               <div style={{ flex: "1" }}>Requested By</div>
               <div style={{ flex: "0.7" }}>Status</div>
             </div>
-            {requestHistory.map((req) => (
+            {requestHistory.map((req) => {
+              // The Material Request module is the source of truth for status
+              // (it progresses independently — New Request → Preparing →
+              // Transferring → Completed/Cancelled); look it up live instead of
+              // trusting the frozen status captured when the request was made.
+              const liveRequest = getRequests().find((r) => r.requestId === req.id);
+              const statusMeta = liveRequest ? REQUEST_STATUS_META[liveRequest.status] : null;
+              const displayStatus = statusMeta?.label || req.status;
+              const displayVariant = statusMeta?.badge || REQUEST_STATUS_VARIANT[req.status] || "grey";
+              return (
               <div
                 key={req.id}
                 onClick={() => openRequestDetail(req)}
@@ -4010,14 +4376,13 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                   {req.by}
                 </div>
                 <div style={{ flex: "0.7" }}>
-                  <StatusBadge
-                    variant={REQUEST_STATUS_VARIANT[req.status] || "grey"}
-                  >
-                    {req.status}
+                  <StatusBadge variant={displayVariant}>
+                    {displayStatus}
                   </StatusBadge>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </GeneralModal>
@@ -4108,7 +4473,11 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
               </span>
             </div>
           </div>
-          {!isCancelled && <Button variant="outlined">Edit Work Order</Button>}
+          {!isCancelled && (
+            <Button variant="outlined" onClick={() => setIsEditDrawerOpen(true)}>
+              Edit Work Order
+            </Button>
+          )}
         </div>
 
         <Card>
@@ -4155,7 +4524,11 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
           >
             <LabelValue
               label="Order Number"
-              value={initialData?.ord || "ORD-248824-20251109-00001"}
+              value={
+                fulfillmentType === "StockBuild"
+                  ? "-"
+                  : initialData?.ord || "ORD-248824-20251109-00001"
+              }
             />
             <LabelValue
               label="Planned Start - End Date"
@@ -4179,15 +4552,15 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             />
             <LabelValue
               label="Priority"
-              value={initialData?.priority || "Medium"}
+              value={priority}
               badge={{
-                variant: initialData?.pBadge || "yellow-light",
-                text: initialData?.priority || "Medium",
+                variant: PRIORITY_BADGE_VARIANT[priority] || "yellow-light",
+                text: priority,
               }}
             />
 
             <LabelValue label="Created On" value={`2025-12-08; 15:00`} />
-            <LabelValue label="Notes" value="-" />
+            <LabelValue label="Notes" value={notes || "-"} />
             <LabelValue
               label="Costing Status"
               value={costingStatus}
@@ -4200,91 +4573,87 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         </Card>
 
         <Card style={{ gap: "16px" }}>
-          <span
-            style={{
-              fontSize: "var(--text-title-2)",
-              fontWeight: "var(--font-weight-bold)",
-            }}
-          >
-            Target Product
-          </span>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "24px",
-              padding: "20px 24px",
-              borderRadius: "16px",
-              border: "1px solid var(--neutral-line-separator-1)",
-              background: "var(--neutral-surface-primary)",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "16px",
-                minWidth: 0,
-                flex: 1,
-              }}
-            >
-              <div
-                style={{
-                  width: "72px",
-                  height: "72px",
-                  borderRadius: "16px",
-                  border: "1px solid var(--neutral-line-separator-1)",
-                  background: "var(--neutral-surface-primary)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <Box size={28} color="var(--neutral-on-surface-tertiary)" />
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px",
-                  minWidth: 0,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "18px",
-                    lineHeight: "26px",
-                    fontWeight: "var(--font-weight-bold)",
-                    color: "var(--neutral-on-surface-primary)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {initialData?.product || "Wooden Chair"}
-                </span>
-                <span
-                  style={{
-                    fontSize: "var(--text-title-3)",
-                    color: "var(--neutral-on-surface-secondary)",
-                  }}
-                >
-                  SKU: {initialData?.sku || "CH-WD-23948"}
-                </span>
-              </div>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span
               style={{
-                fontSize: "var(--text-big-title)",
+                fontSize: "var(--text-title-2)",
                 fontWeight: "var(--font-weight-bold)",
-                color: "var(--neutral-on-surface-primary)",
-                whiteSpace: "nowrap",
               }}
             >
-              {TOTAL_QTY} unit
+              {targetType === "Material" ? "Target Material" : "Target Product"}
             </span>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>
+            <div
+              style={{
+                flex: "1 1 260px",
+                minWidth: "220px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "16px",
+                padding: "16px",
+                borderRadius: "16px",
+                border: "1px solid var(--neutral-line-separator-1)",
+                background: "var(--neutral-surface-primary)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: 0 }}>
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--neutral-line-separator-1)",
+                    background: "var(--neutral-surface-primary)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Box size={24} color="var(--neutral-on-surface-tertiary)" />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span
+                      style={{
+                        fontSize: "16px",
+                        lineHeight: "22px",
+                        fontWeight: "var(--font-weight-bold)",
+                        color: "var(--neutral-on-surface-primary)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {product || "Wooden Chair"}
+                    </span>
+                    {outputs?.length > 1 ? (
+                      <StatusBadge variant="blue-light">Main Output</StatusBadge>
+                    ) : null}
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "var(--text-title-3)",
+                      color: "var(--neutral-on-surface-secondary)",
+                    }}
+                  >
+                    {sku || "CH-WD-23948"}
+                  </span>
+                </div>
+              </div>
+              <span
+                style={{
+                  fontSize: "var(--text-title-1)",
+                  fontWeight: "var(--font-weight-bold)",
+                  color: "var(--neutral-on-surface-primary)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {mainQty} unit
+              </span>
+            </div>
           </div>
         </Card>
 
@@ -4298,6 +4667,11 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
           <ChipTabBar
             tabs={[
               { id: "details", label: "Details" },
+              ...(fulfillmentType === "StockBuild" ? [{ id: "additional_output", label: "Additional Output" }] : []),
+              // Actual COGS has nothing to show before production starts, so the
+              // tab only appears once the WO has left "Not Started".
+              ...(woStatus === "not_started" ? [] : [{ id: "cogs", label: "Actual COGS" }]),
+              ...(confirmedStockBuild ? [{ id: "confirm_build", label: "Confirm Build Detail" }] : []),
               { id: "logs", label: "Logs" },
             ]}
             activeTab={activeTab}
@@ -4345,7 +4719,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             </div>
             {woStatus !== "not_started" && !isCancelled && costingStatus !== "Ready to Finalize" ? (
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                {hasSubmittedRequest ? (
+                {hasSubmittedRequest && woStatus !== "completed" ? (
                   <Button
                     variant="tertiary"
                     onClick={() => setIsHistoryModalOpen(true)}
@@ -4385,6 +4759,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             </div>
             {materials.map((row, i) => {
               const isBom = row.type === "BOM";
+              const liveTotals = getLiveMaterialRequestTotals(row.sku);
               return (
               <div
                 key={row.id}
@@ -4425,8 +4800,8 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                 <div style={{ flex: "1" }}>
                   {isBom ? `${row.requiredQty} ${row.unit}` : "—"}
                 </div>
-                <div style={{ flex: "1" }}>{`${row.requestedQty} ${row.unit}`}</div>
-                <div style={{ flex: "1" }}>{`${row.receivedQty} ${row.unit}`}</div>
+                <div style={{ flex: "1" }}>{`${liveTotals.requestedQty} ${row.unit}`}</div>
+                <div style={{ flex: "1" }}>{`${liveTotals.receivedQty} ${row.unit}`}</div>
               </div>
               );
             })}
@@ -4619,7 +4994,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                   <div>Completed</div>
                 </div>
                 {stagesWithTotals.map((row, i) => {
-                  const stepTotalPool = row.step === 1 ? TOTAL_QTY : 0;
+                  const stepTotalPool = row.step === 1 ? ROUTING_QTY : 0;
                   const start = Math.max(
                     0,
                     stepTotalPool - (row.prog || 0) - (row.effectiveTotalComp || 0)
@@ -4734,7 +5109,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                 {stagesWithTotals.map((row, i) => {
                   const stepTotalPool =
                     row.step === 1
-                      ? TOTAL_QTY
+                      ? ROUTING_QTY
                       : stagesWithTotals[i - 1].effectiveTotalComp;
                   const start = Math.max(
                     0,
@@ -4742,7 +5117,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                   );
 
                   const isHybrid = outsourceSteps.includes(row.step);
-                  const progressTarget = isHybrid ? internalOut : TOTAL_QTY;
+                  const progressTarget = isHybrid ? internalOut : ROUTING_QTY;
 
                   const internalRemaining = Math.max(
                     0,
@@ -4752,14 +5127,14 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
 
                   const displayStart = woStatus === "completed" ? 0 : start;
                   const displayProg = woStatus === "completed" ? 0 : (row.prog || 0);
-                  const displayComp = woStatus === "completed" ? TOTAL_QTY : (row.effectiveTotalComp || 0);
+                  const displayComp = woStatus === "completed" ? ROUTING_QTY : (row.effectiveTotalComp || 0);
 
                   const progress =
                     woStatus === "completed"
                       ? 100
                       : Math.min(
                           100,
-                          Math.round(((row.effectiveTotalComp || 0) / TOTAL_QTY) * 100)
+                          Math.round(((row.effectiveTotalComp || 0) / ROUTING_QTY) * 100)
                         ) || 0;
 
                   const isUnlocked =
@@ -4969,7 +5344,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                           >
                             {isCancelled
                               ? "Cancelled"
-                              : woStatus === "completed" || (row.totalComp || 0) >= TOTAL_QTY
+                              : woStatus === "completed" || (row.totalComp || 0) >= ROUTING_QTY
                               ? "Completed"
                               : "Waiting Prev Process"}
                           </span>
@@ -5036,16 +5411,16 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
               <div style={{ position: "relative", width: "100%" }}>
                 <div
                   ref={outsourceStagesListRef}
-                  onScroll={updateOutsourceStagesFade}
                   style={{
                     display: "flex",
                     flexDirection: "column",
                     gap: "12px",
                     width: "100%",
-                    // ~4 full rows + half of the 5th at the typical single-line row height.
-                    maxHeight: isOutsourceStagesExpanded ? "none" : "128px",
-                    overflowY: isOutsourceStagesExpanded ? "visible" : "auto",
-                    paddingRight: "4px",
+                    maxHeight:
+                      !isOutsourceStagesExpanded && outsourceStagesCollapsedHeight != null
+                        ? `${outsourceStagesCollapsedHeight}px`
+                        : "none",
+                    overflow: "hidden",
                   }}
                 >
                   {outsourceSteps.map((stepId) => {
@@ -5071,22 +5446,22 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                   })}
                 </div>
 
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: "32px",
-                    pointerEvents: "none",
-                    opacity: !isOutsourceStagesExpanded && showOutsourceStagesFade ? 1 : 0,
-                    transition: "opacity 0.15s ease",
-                    background: "linear-gradient(to bottom, rgba(255, 255, 255, 0), var(--neutral-surface-primary))",
-                  }}
-                />
+                {!isOutsourceStagesExpanded && outsourceStagesCollapsedHeight != null ? (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: "32px",
+                      pointerEvents: "none",
+                      background: "linear-gradient(to bottom, rgba(255, 255, 255, 0), var(--neutral-surface-primary))",
+                    }}
+                  />
+                ) : null}
               </div>
 
-              {isOutsourceStagesExpanded || showOutsourceStagesFade ? (
+              {outsourceSteps.length > 4 ? (
                 <Button
                   variant="tertiary"
                   size="small"
@@ -5296,7 +5671,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                     const rowIndex = stagesWithTotals.findIndex((r) => r.step === minStep);
                     let availableToProcess = 0;
                     if (rowIndex !== -1) {
-                      const prevCompleted = minStep === 1 ? TOTAL_QTY : (stagesWithTotals[rowIndex - 1]?.effectiveTotalComp || 0);
+                      const prevCompleted = minStep === 1 ? ROUTING_QTY : (stagesWithTotals[rowIndex - 1]?.effectiveTotalComp || 0);
                       const currStage = stagesWithTotals[rowIndex];
                       const internalProg = currStage?.prog || 0;
                       const internalCompleted = currStage?.comp || 0;
@@ -5716,9 +6091,153 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         </div>
         )}
 
-        {activeTab === "cogs" && (() => {
+        {activeTab === "additional_output" && fulfillmentType === "StockBuild" && (() => {
+          const additionalOutputRows = outputs.filter((o) => !o.isMain);
+          const mainOutputRow = outputs.find((o) => o.isMain);
+          return (
+            <DetailCard>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <span style={{ fontSize: "var(--text-title-2)", fontWeight: "var(--font-weight-bold)" }}>
+                    Additional Output
+                  </span>
+                  <span style={{ fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-secondary)" }}>
+                    Secondary outputs co-produced by this work order, alongside the main output.
+                  </span>
+                </div>
+                {woStatus !== "completed" ? (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => setIsAdditionalOutputEditOpen(true)}
+                  >
+                    Edit Additional Output
+                  </Button>
+                ) : null}
+              </div>
+
+              {additionalOutputRows.length === 0 ? (
+                <div
+                  style={{
+                    padding: "24px",
+                    textAlign: "center",
+                    color: "var(--neutral-on-surface-tertiary)",
+                    fontSize: "var(--text-title-3)",
+                    background: "var(--neutral-surface-primary)",
+                    border: "1.5px dashed var(--neutral-line-separator-1)",
+                    borderRadius: "16px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: "80px",
+                  }}
+                >
+                  No additional output added yet.
+                </div>
+              ) : (
+              <div style={{ overflowX: "auto" }}>
+                <style>{`.wo-additional-output-table table td { height: auto; vertical-align: middle; padding-top: 12px; padding-bottom: 12px; }`}</style>
+                <div className="wo-additional-output-table">
+                  <Table
+                    columns={[
+                      {
+                        key: "image",
+                        header: "Image",
+                        width: 64,
+                        render: (_v, row) => {
+                          const material = MOCK_MATERIALS_DATA.find((m) => m.id === row.materialId);
+                          return material?.image ? (
+                            <img
+                              src={material.image}
+                              alt={row.name}
+                              style={{
+                                width: "40px",
+                                height: "40px",
+                                borderRadius: "8px",
+                                objectFit: "cover",
+                                border: "1px solid var(--neutral-line-separator-1)",
+                              }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: "40px",
+                                height: "40px",
+                                borderRadius: "8px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: "var(--neutral-surface-grey-lighter)",
+                                border: "1px solid var(--neutral-line-separator-1)",
+                              }}
+                            >
+                              <Box size={18} color="var(--neutral-on-surface-tertiary)" />
+                            </div>
+                          );
+                        },
+                      },
+                      {
+                        key: "name",
+                        header: "Item Name",
+                        width: 220,
+                        render: (_v, row) => <span style={{ fontWeight: "var(--font-weight-bold)" }}>{row.name || "-"}</span>,
+                      },
+                      {
+                        key: "sku",
+                        header: "SKU",
+                        width: 160,
+                        render: (_v, row) => <span style={{ color: "var(--neutral-on-surface-secondary)" }}>{row.sku || "-"}</span>,
+                      },
+                      {
+                        key: "plannedQty",
+                        header: "Planned Qty",
+                        width: 140,
+                        render: (_v, row) => <span>{row.qty ?? "-"} {row.unit || ""}</span>,
+                      },
+                      {
+                        key: "producedQty",
+                        header: "Produced Qty",
+                        width: 140,
+                        render: (_v, row) => {
+                          // Not known until the Work Order is actually Completed —
+                          // until then, show "-" rather than implying 0 was produced.
+                          if (woStatus !== "completed") return <span>-</span>;
+                          const confirmedRow = confirmedStockBuild?.rows?.find(
+                            (r) => r.materialId === row.materialId
+                          );
+                          return <span>{confirmedRow ? confirmedRow.qty : 0} {row.unit || ""}</span>;
+                        },
+                      },
+                    ]}
+                    data={additionalOutputRows}
+                    totalRows={additionalOutputRows.length}
+                    showPagination={false}
+                    className="!h-auto"
+                    selectedRowId={null}
+                  />
+                </div>
+              </div>
+              )}
+
+              <AdditionalOutputEditDrawer
+                isOpen={isAdditionalOutputEditOpen}
+                onClose={() => setIsAdditionalOutputEditOpen(false)}
+                mainOutputMaterialId={mainOutputRow?.materialId}
+                additionalOutputs={additionalOutputRows}
+                onSave={(newAdditionalOutputs) => {
+                  setOutputs((prev) => [
+                    ...prev.filter((o) => o.isMain),
+                    ...newAdditionalOutputs,
+                  ]);
+                }}
+              />
+            </DetailCard>
+          );
+        })()}
+
+        {activeTab === "cogs" && woStatus !== "not_started" && (() => {
           const linkedBom = actualCogsBomId ? getBom(actualCogsBomId) : null;
-          const materialCost = computeMaterialCost(linkedBom?.materials || []);
+          const materialCost = requestHistory.length > 0 ? computeMaterialCost(linkedBom?.materials || []) : 0;
 
           const outsourcingVendors = (vendors || []).filter((v) => v.name !== "Internal" && v.assignedSteps?.length);
           const hasOutsourcing = outsourceSteps?.length > 0 && outsourcingVendors.length > 0;
@@ -5728,9 +6247,20 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
               linkedPo?.lines?.find((l) => l.woRef === initialData?.wo) || linkedPo?.lines?.[0] || null;
             const unitCost = matchedLine?.price || 0;
             const assignedQty = Number(v.output) || 0;
-            const includedSteps = (v.assignedSteps || [])
-              .map((step) => routingStages.find((s) => s.step === step)?.route || routingStages.find((s) => s.step === step)?.op || `Step ${step}`)
-              .join(", ");
+            const normalizedIncludedSteps = Array.from(
+              new Set((v.assignedSteps || []).filter((s) => Number.isFinite(s)))
+            ).sort((a, b) => a - b);
+            const includedSteps = normalizedIncludedSteps
+              .map((step) => {
+                const matchedStage = (routingStages || []).find((s) => Number(s.step) === step);
+                const routingName = matchedStage?.route;
+                const operationName = matchedStage?.op || matchedStage?.operation;
+                if (routingName && operationName) return `Step ${step}: ${routingName} - ${operationName}`;
+                if (routingName || operationName) return `Step ${step}: ${routingName || operationName}`;
+                return `Step ${step}`;
+              })
+              .map((label) => `• ${label}`)
+              .join("\n");
             return {
               id: v.id ?? v.assignmentId ?? v.name,
               vendor: v.name,
@@ -6034,7 +6564,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                   </div>
                 </div>
 
-                {linkedBom?.materials?.length ? (
+                {linkedBom?.materials?.length && requestHistory.length > 0 ? (
                   <div style={{ paddingLeft: "24px" }}>
                     <Button
                       variant="tertiary"
@@ -6068,7 +6598,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                   </div>
                 )}
 
-                {showActualMaterialBreakdown && linkedBom?.materials?.length ? (
+                {showActualMaterialBreakdown && linkedBom?.materials?.length && requestHistory.length > 0 ? (
                   <div style={{ paddingLeft: "32px" }}>
                     <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
                       <div style={detailTableHeaderRowStyle(MATERIAL_ACTUAL_COST_GRID_COLUMNS)}>
@@ -6082,7 +6612,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                       {linkedBom.materials.map((line, idx) => {
                         const option = resolveMaterialOption(line.materialId);
                         const unitPrice = option?.averageCost || 0;
-                        const qty = Number(line.quantity || 0);
+                        const qty = getLiveMaterialRequestTotals(line.sku).receivedQty;
                         const rowTotal = unitPrice * qty;
                         const perUnit = TOTAL_QTY > 0 ? rowTotal / TOTAL_QTY : 0;
                         const batches = getStockBatchesForSku(line.sku) || [];
@@ -6133,7 +6663,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                                   {qty} {line.unit || ""}
                                 </span>
                                 <span style={{ fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-primary)" }}>
-                                  {formatIDR(unitPrice)}
+                                  -
                                 </span>
                                 <span style={{ fontSize: "var(--text-title-3)" }}>{formatIDR(perUnit)}</span>
                                 <span style={{ fontSize: "var(--text-title-3)", textAlign: "right" }}>{formatIDR(rowTotal)}</span>
@@ -6188,7 +6718,9 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                           <div key={row.id} style={detailTableRowStyle(OUTSOURCING_COST_GRID_COLUMNS, idx === outsourcingRows.length - 1)}>
                             <span style={{ fontSize: "var(--text-title-3)" }}>{row.vendor}</span>
                             <span style={{ fontSize: "var(--text-title-3)" }}>{row.assignmentId}</span>
-                            <span style={{ fontSize: "var(--text-title-3)" }}>{row.includedSteps}</span>
+                            <div style={{ padding: "12px 0" }}>
+                              <ClampedDescriptionText text={row.includedSteps} />
+                            </div>
                             {row.poNumber !== "-" ? (
                               <span
                                 onClick={() => {
@@ -6255,127 +6787,115 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
           );
         })()}
 
-        {activeTab === "logs" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            <div
-              style={{
-                background: "var(--neutral-surface-primary)",
-                borderRadius: "16px",
-                border: "1px solid var(--neutral-line-separator-1)",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  padding: "24px 24px 0 24px",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "var(--text-title-2)",
-                    fontWeight: "var(--font-weight-bold)",
-                    color: "var(--neutral-on-surface-primary)",
-                  }}
-                >
-                  Activity Logs
-                </span>
-              </div>
-              <div style={{ padding: "24px" }}>
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      paddingBottom: "12px",
-                      borderBottom: "1px solid var(--neutral-line-separator-1)",
-                      fontWeight: "var(--font-weight-bold)",
-                      fontSize: "var(--text-title-3)",
-                      color: "var(--neutral-on-surface-primary)",
-                    }}
-                  >
-                    <div style={{ flex: "1.1" }}>Name</div>
-                    <div style={{ flex: "1.9" }}>Email</div>
-                    <div style={{ flex: "2.8" }}>Activity</div>
-                    <div style={{ width: "190px" }}>Timestamp</div>
-                  </div>
+        {activeTab === "confirm_build" && confirmedStockBuild && (
+          <Card style={{ gap: "16px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <span style={{ fontSize: "var(--text-title-2)", fontWeight: "var(--font-weight-bold)" }}>
+                Confirm Build Detail
+              </span>
+              <span style={{ fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-secondary)" }}>
+                Details of each output produced by this work order, and how much of the actual COGS was allocated to it.
+              </span>
+            </div>
 
-                  {activityLogs.map((log, idx, arr) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        padding: "16px 0",
-                        borderBottom:
-                          idx === arr.length - 1
-                            ? "none"
-                            : "1px solid var(--neutral-line-separator-1)",
-                        fontSize: "var(--text-title-3)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          flex: "1.1",
-                          color: "var(--neutral-on-surface-primary)",
-                        }}
-                      >
-                        {log.name}
-                      </div>
-                      <div
-                        style={{
-                          flex: "1.9",
-                          color: "var(--neutral-on-surface-secondary)",
-                        }}
-                      >
-                        {log.email}
-                      </div>
-                      <div style={{ flex: "2.8" }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "4px",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontWeight: "var(--font-weight-bold)",
-                              color: "var(--neutral-on-surface-primary)",
-                            }}
-                          >
-                            {log.title}
-                          </span>
-                          {log.desc && (
+            <div style={{ overflowX: "auto" }}>
+              <style>{`.confirmed-build-table table td { height: auto; vertical-align: middle; padding-top: 12px; padding-bottom: 12px; }`}</style>
+              <div className="confirmed-build-table">
+                <Table
+                  columns={[
+                    {
+                      key: "material",
+                      header: "Material",
+                      width: 200,
+                      render: (_v, row) => {
+                        const material = MOCK_MATERIALS_DATA.find((m) => m.id === row.materialId);
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <span style={{ fontWeight: "var(--font-weight-bold)" }}>{row.name}</span>
                             <span
                               style={{
-                                color: "var(--neutral-on-surface-secondary)",
-                                lineHeight: "1.5",
-                                whiteSpace: "pre-wrap",
+                                fontSize: "var(--text-body)",
+                                color: "var(--feature-brand-primary)",
+                                cursor: "pointer",
+                                textDecoration: "underline",
+                              }}
+                              onClick={() => {
+                                // Use the freshly-synced record (kept in step with local
+                                // state by the effect above) rather than the stale
+                                // `initialData` prop, so returning here shows the current
+                                // status/outputs instead of resetting to how the page
+                                // looked when it first mounted.
+                                const currentWoRecord =
+                                  MOCK_WO_TABLE_DATA.find((w) => w.wo === initialData?.wo) || initialData;
+                                onNavigate("material_detail", {
+                                  ...(material || { id: row.materialId, sku: row.sku, name: row.name }),
+                                  returnTo: { view: "work_order_detail", data: currentWoRecord },
+                                });
                               }}
                             >
-                              {log.desc}
+                              {row.sku}
                             </span>
-                          )}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          width: "190px",
-                          color: "var(--neutral-on-surface-secondary)",
-                        }}
-                      >
-                        {log.timestamp}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                          </div>
+                        );
+                      },
+                    },
+                    {
+                      key: "qty",
+                      header: "Produced Qty",
+                      width: 100,
+                      render: (_v, row) => <span>{row.qty} {row.unit}</span>,
+                    },
+                    {
+                      key: "percentage",
+                      header: "Cost Share %",
+                      width: 100,
+                      render: (_v, row) => <span>{row.percentage}%</span>,
+                    },
+                    {
+                      key: "allocatedCost",
+                      header: "Allocated Cost",
+                      width: 160,
+                      render: (_v, row) => <span>{formatIDR(Number(row.allocatedCost) || 0)}</span>,
+                    },
+                    {
+                      key: "unitCost",
+                      header: "Recognised Unit Cost",
+                      width: 160,
+                      render: (_v, row) => <span>{formatIDR(Number(row.unitCost) || 0)}</span>,
+                    },
+                    {
+                      key: "storageLocation",
+                      header: "Storage Location",
+                      width: 160,
+                      render: (_v, row) => <span>{row.storageLocation || "-"}</span>,
+                    },
+                    {
+                      key: "expiryDate",
+                      header: "Expiry Date",
+                      width: 140,
+                      render: (_v, row) => <span>{row.expiryDate || "-"}</span>,
+                    },
+                  ]}
+                  data={confirmedStockBuild.rows}
+                  totalRows={confirmedStockBuild.rows.length}
+                  showPagination={false}
+                  className="!h-auto"
+                  selectedRowId={null}
+                />
               </div>
             </div>
 
-            {/* Costing Log: kept separate from the Activity Log above — only
-                cost line item add/edit/delete and costing status changes
-                (Ready to Finalize/Confirmed) land here. */}
+            {confirmedStockBuild.notes ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-secondary)" }}>Notes</span>
+                <span style={{ fontSize: "var(--text-title-3)" }}>{confirmedStockBuild.notes}</span>
+              </div>
+            ) : null}
+          </Card>
+        )}
+
+        {activeTab === "logs" && (() => {
+          const renderLogCard = (title, logs) => (
             <div
               style={{
                 background: "var(--neutral-surface-primary)",
@@ -6398,7 +6918,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                     color: "var(--neutral-on-surface-primary)",
                   }}
                 >
-                  Costing Log
+                  {title}
                 </span>
               </div>
               <div style={{ padding: "24px" }}>
@@ -6419,19 +6939,8 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                     <div style={{ width: "190px" }}>Timestamp</div>
                   </div>
 
-                  {costingLogs.length === 0 ? (
-                    <div
-                      style={{
-                        padding: "24px 0",
-                        textAlign: "center",
-                        color: "var(--neutral-on-surface-tertiary)",
-                        fontSize: "var(--text-title-3)",
-                      }}
-                    >
-                      No costing activity yet.
-                    </div>
-                  ) : (
-                    costingLogs.map((log, idx, arr) => (
+                  {logs.length ? (
+                    logs.map((log, idx, arr) => (
                       <div
                         key={idx}
                         style={{
@@ -6500,12 +7009,30 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                         </div>
                       </div>
                     ))
+                  ) : (
+                    <div
+                      style={{
+                        padding: "24px 0",
+                        textAlign: "center",
+                        color: "var(--neutral-on-surface-tertiary)",
+                        fontSize: "var(--text-title-3)",
+                      }}
+                    >
+                      No entries yet.
+                    </div>
                   )}
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+              {renderLogCard("Activity Log", activityLogs)}
+              {renderLogCard("Costing Log", costingLogs)}
+            </div>
+          );
+        })()}
       </div>
 
       {woStatus === "not_started" ? (
@@ -6570,13 +7097,266 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             <Button
               variant="filled"
               size="medium"
-              onClick={() => setIsCompleteModalOpen(true)}
+              onClick={openCompleteModal}
             >
-              Complete
+              {fulfillmentType === "StockBuild" ? "Confirm Stock Build" : "Complete"}
             </Button>
           ) : null}
         </div>
       ) : null}
+
+      {isStockBuildFormModalOpen ? (
+      <div style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0, 0, 0, 0.28)",
+        display: "flex",
+        justifyContent: "flex-end",
+        zIndex: 13000,
+      }}>
+        <div style={{ position: "absolute", inset: 0 }} onClick={() => setIsStockBuildFormModalOpen(false)} />
+        <div style={{
+          position: "relative",
+          width: "1200px",
+          maxWidth: "calc(100vw - 24px)",
+          height: "100vh",
+          background: "var(--neutral-surface-primary)",
+          boxShadow: "-12px 0 32px rgba(0, 0, 0, 0.08)",
+          display: "flex",
+          flexDirection: "column",
+        }}>
+          {/* Drawer Header */}
+          <div style={{
+            padding: "20px 24px",
+            borderBottom: "1px solid var(--neutral-line-separator-1)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "var(--neutral-surface-primary)"
+          }}>
+            <h2 style={{
+              margin: 0,
+              fontSize: "var(--text-title-1)",
+              fontWeight: "var(--font-weight-bold)",
+              color: "var(--neutral-on-surface-primary)"
+            }}>
+              Confirm stock build?
+            </h2>
+            <IconButton
+              icon={CloseIcon}
+              onClick={() => setIsStockBuildFormModalOpen(false)}
+              size="small"
+              color="var(--neutral-on-surface-primary)"
+            />
+          </div>
+
+          {/* Drawer Body */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <span style={{ fontSize: "var(--text-title-3)", color: "var(--neutral-on-surface-secondary)" }}>
+            The actual output quantity and production cost will be used to update your inventory. Make sure the information is correct before continuing.
+          </span>
+
+          <Card style={{ padding: "16px", boxShadow: "none", border: "1px solid var(--neutral-line-separator-1)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-secondary)" }}>
+                Total Actual COGS
+              </span>
+              <span style={{ fontSize: "var(--text-title-3)", fontWeight: "var(--font-weight-bold)" }}>
+                {formatIDR(totalActualCogsForModal)}
+              </span>
+            </div>
+          </Card>
+
+          {outputCostPercentageOver ? (
+            <span style={{ fontSize: "12px", color: "var(--status-red-primary)" }}>
+              Total cost share % exceeds 100%
+            </span>
+          ) : null}
+          {outputCostPercentageUnder ? (
+            <span style={{ fontSize: "12px", color: "var(--status-red-primary)" }}>
+              Total cost share % below 100%
+            </span>
+          ) : null}
+
+          <div style={{ overflowX: "auto" }}>
+            <style>{`
+              .stock-build-cost-table table td { height: auto; vertical-align: middle; padding-top: 12px; padding-bottom: 12px; }
+            `}</style>
+            <div className="stock-build-cost-table">
+              <Table
+                columns={[
+                  {
+                    key: "material",
+                    header: "Material",
+                    width: 200,
+                    render: (_v, row) => (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                        <span style={{ fontWeight: "var(--font-weight-bold)" }}>{row.name}</span>
+                        <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-secondary)" }}>
+                          {row.sku}
+                        </span>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: "qty",
+                    header: "Produced Qty",
+                    width: 100,
+                    render: (_v, row) => (
+                      <span>
+                        {row.qty} {row.unit}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "percentage",
+                    header: "Cost Share %",
+                    width: 110,
+                    render: (_v, row) => {
+                      const rowErrors = getOutputCostRowErrors(row);
+                      return (
+                        <div>
+                          <InputField
+                            type="number"
+                            value={row.percentage}
+                            onChange={(e) => updateOutputCostRow(row.materialId, "percentage", e.target.value)}
+                            suffix="%"
+                            errorState={!!rowErrors.percentage || outputCostPercentageMismatch}
+                          />
+                          {rowErrors.percentage ? (
+                            <span style={{ fontSize: "11px", color: "var(--status-red-primary)" }}>{rowErrors.percentage}</span>
+                          ) : null}
+                        </div>
+                      );
+                    },
+                  },
+                  {
+                    key: "allocatedCost",
+                    header: "Allocated Cost",
+                    width: 160,
+                    render: (_v, row) => (
+                      <span style={Number(row.allocatedCost) <= 0 ? { color: "var(--status-red-primary)" } : undefined}>
+                        {formatIDR(Number(row.allocatedCost) || 0)}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "unitCost",
+                    header: "Recognised Unit Cost",
+                    width: 160,
+                    render: (_v, row) => {
+                      const rowErrors = getOutputCostRowErrors(row);
+                      return (
+                        <div>
+                          <InputField
+                            type="number"
+                            value={row.unitCost}
+                            onChange={(e) => updateOutputCostRow(row.materialId, "unitCost", e.target.value)}
+                            prefix="IDR"
+                            errorState={!!rowErrors.unitCost}
+                          />
+                          {rowErrors.unitCost ? (
+                            <span style={{ fontSize: "11px", color: "var(--status-red-primary)" }}>{rowErrors.unitCost}</span>
+                          ) : null}
+                        </div>
+                      );
+                    },
+                  },
+                  {
+                    key: "averageCost",
+                    header: "Current Avg. Cost",
+                    width: 140,
+                    render: (_v, row) => (
+                      <span>{row.averageCost != null ? formatIDR(row.averageCost) : "-"}</span>
+                    ),
+                  },
+                  {
+                    key: "storageLocation",
+                    header: "Storage Location",
+                    width: 160,
+                    render: (_v, row) => (
+                      <InputField
+                        value={row.storageLocation}
+                        onChange={(e) => updateOutputCostRow(row.materialId, "storageLocation", e.target.value)}
+                        placeholder="Enter storage location (optional)"
+                      />
+                    ),
+                  },
+                  {
+                    key: "expiryDate",
+                    header: "Expiry Date",
+                    width: 160,
+                    render: (_v, row) => (
+                      <InputField
+                        type="date"
+                        value={row.expiryDate}
+                        onChange={(e) => updateOutputCostRow(row.materialId, "expiryDate", e.target.value)}
+                      />
+                    ),
+                  },
+                ]}
+                data={outputCostRows}
+                totalRows={outputCostRows.length}
+                showPagination={false}
+                className="!h-auto"
+                selectedRowId={null}
+              />
+            </div>
+          </div>
+          </div>
+
+          {/* Drawer Footer */}
+          <div style={{
+            padding: "20px 24px",
+            borderTop: "1px solid var(--neutral-line-separator-1)",
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            background: "var(--neutral-surface-primary)"
+          }}>
+            <Button variant="outlined" size="large" onClick={() => setIsStockBuildFormModalOpen(false)} style={{ flex: 1 }}>
+              Cancel
+            </Button>
+            <Button variant="filled" size="large" onClick={handleStockBuildFormConfirm} style={{ flex: 1 }}>
+              Confirm
+            </Button>
+          </div>
+        </div>
+      </div>
+      ) : null}
+
+      <GeneralModal
+        isOpen={isFinalCompleteModalOpen}
+        onClose={() => setIsFinalCompleteModalOpen(false)}
+        title="Complete Work Order?"
+        description={
+          actualCogsMode === "enabled"
+            ? "Completing this step will send the Work Order for Actual COGS review. The Work Order will be completed after the assigned user confirms the costing."
+            : "Actual COGS will be automatically confirmed without review, and the Work Order will be completed."
+        }
+        hideFooterDivider
+        footerPaddingTop={24}
+        footer={
+          <>
+            <Button
+              variant="outlined"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={() => setIsFinalCompleteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={handleFinalComplete}
+            >
+              Yes, Complete
+            </Button>
+          </>
+        }
+      />
 
       <GeneralModal
         isOpen={isConfirmCostingModalOpen}
@@ -6602,39 +7382,6 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
               onClick={handleConfirmCosting}
             >
               Yes, Confirm
-            </Button>
-          </>
-        }
-      />
-
-      <GeneralModal
-        isOpen={isCompleteModalOpen}
-        onClose={() => setIsCompleteModalOpen(false)}
-        title="Complete Work Order?"
-        description={
-          actualCogsMode === "enabled"
-            ? "Completing this step will send the Work Order for Actual COGS review. The Work Order will be completed after the assigned user confirms the costing."
-            : "Actual COGS will be automatically confirmed without review, and the Work Order will be completed."
-        }
-        hideFooterDivider
-        footerPaddingTop={24}
-        footer={
-          <>
-            <Button
-              variant="outlined"
-              size="large"
-              style={{ width: "100%" }}
-              onClick={() => setIsCompleteModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="filled"
-              size="large"
-              style={{ width: "100%" }}
-              onClick={handleCompleteWorkOrder}
-            >
-              Yes, Complete
             </Button>
           </>
         }
@@ -7963,7 +8710,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                           .filter((v) => v.id !== singleVendorForm.id)
                           .reduce((sum, v) => sum + (parseInt(v.output, 10) || 0), 0);
                           
-                    const availableQty = Math.max(0, TOTAL_QTY - maxAssignedInConsideredSteps);
+                    const availableQty = Math.max(0, ROUTING_QTY - maxAssignedInConsideredSteps);
                     const isExceedingTotal = (parseInt(singleVendorForm.output, 10) || 0) > availableQty;
 
                     return (
@@ -9462,6 +10209,46 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
           state={deleteCostItemError ? "error" : undefined}
         />
       </GeneralModal>
+
+      <WorkOrderEditDrawer
+        isOpen={isEditDrawerOpen}
+        onClose={() => setIsEditDrawerOpen(false)}
+        workOrder={{
+          wo: initialData?.wo,
+          ord: initialData?.ord,
+          targetType,
+          fulfillmentType,
+          statusKey: woStatus,
+          orderType,
+          priority,
+          notes,
+          start: displayStartDate,
+          end: displayEndDate,
+          outputs,
+          // What's already in progress + completed at the very first routing
+          // stage — i.e. everything that has already left the "yet to start"
+          // pool, regardless of which downstream stage it's currently at.
+          // Total Output can't be edited below this.
+          processedQty: (stagesWithTotals[0]?.prog || 0) + (stagesWithTotals[0]?.totalComp || 0),
+          processedUnit: outputs.find((o) => o.isMain)?.unit || "unit",
+        }}
+        onSave={(changes) => {
+          setOrderType(changes.orderType);
+          setPriority(changes.priority);
+          setNotes(changes.notes);
+          setDisplayStartDate(changes.start);
+          setDisplayEndDate(changes.end);
+          // Customer-order work orders don't expose the Main/Additional
+          // Output fields, so those keys are omitted — leave the existing
+          // product/SKU/qty/outputs untouched rather than clearing them.
+          if (changes.outputs) {
+            setProduct(changes.product);
+            setSku(changes.sku);
+            setMainQty(changes.qty);
+            setOutputs(changes.outputs);
+          }
+        }}
+      />
     </div>
   );
 };
