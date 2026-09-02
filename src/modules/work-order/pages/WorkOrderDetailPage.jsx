@@ -70,11 +70,40 @@ export const addWoActivityLog = (woNumber, title, desc = undefined) => {
   }, ...activityLogsCache[woNumber]];
 };
 
+// Cross-module counterpart to addWoActivityLog, used by the Purchase Order
+// detail page when confirming a receipt against an outsourcing assignment —
+// Outsourcing Cost is Actual COGS, so a PO receipt updating it belongs in the
+// Costing Log (Finance/PIC audit trail), not just the operational Activity Log.
+export const addWoCostingLog = (woNumber, title, desc = undefined) => {
+  if (!woNumber) return;
+  const d = new Date();
+  const isoDate = d.toISOString().split('T')[0];
+  const hrs = String(d.getHours()).padStart(2, '0');
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  const formattedTimestamp = `${isoDate} at ${hrs}:${mins}`;
+
+  costingLogsCache[woNumber] = [{
+    name: "Natasha Smith",
+    email: "natasha@company.com",
+    title,
+    desc,
+    timestamp: formattedTimestamp,
+  }, ...(costingLogsCache[woNumber] || [])];
+};
+
 // --- Request Material flow constants ---
 // Work order id that is seeded as an already-ongoing request flow (non-zero
 // requested/received quantities + an existing request history). Every other work
 // order starts empty (no requests yet).
 const ONGOING_REQUEST_WO = "WO-202604-002";
+
+// Demo work order carrying at least one entry of every Activity Log and
+// Costing Log type that exists in the app, so both logs can be reviewed in
+// one place without having to click through every action that normally
+// creates them. See its seed data in workOrderMocks.js for the outsourcing/
+// receipt states this relies on, and the two mockLogs/costingLogs blocks
+// below that seed the entry types those seed vendors don't produce on their own.
+const FULL_DEMO_LOG_WO = "WO-2026-04-00099";
 
 // Materials table is genuinely BOM-driven: it's computed from the work order's
 // linked BOM (getBom(bomId).materials), each material's per-unit quantity scaled
@@ -140,11 +169,11 @@ const EXCEEDING_REASON_OPTIONS = [
 // (see modules/bill-of-materials/pages/BomDetailPage.jsx COGS_FIELDS) — Actual
 // COGS on a Work Order tracks the same shape, sourced from the linked BOM.
 const ACTUAL_COGS_FIELDS = [
-  { key: "labour", title: "Labour Cost", icon: Users, description: "Cost of human labour to produce one unit" },
-  { key: "packing", title: "Packing Cost", icon: FileText, description: "Cost of packaging this product for delivery" },
-  { key: "shipping", title: "Shipping Cost", icon: Upload, description: "Cost of moving goods" },
-  { key: "overhead", title: "Overhead Cost", icon: Building2, description: "Indirect factory costs not tied to a task" },
-  { key: "other", title: "Other Cost", icon: CircleDollarSign, description: "Additional production cost not covered above" },
+  { key: "labour", title: "Labour Cost", icon: Users, description: "Cost of labour used during production" },
+  { key: "packing", title: "Packing Cost", icon: FileText, description: "Cost of packaging used for the finished output" },
+  { key: "shipping", title: "Shipping Cost", icon: Upload, description: "Cost of transporting goods related to production" },
+  { key: "overhead", title: "Overhead Cost", icon: Building2, description: "Indirect production costs not tied to a specific task" },
+  { key: "other", title: "Other Cost", icon: CircleDollarSign, description: "Additional production costs not covered by other categories" },
 ];
 
 // Same palette convention as BomDetailPage's Cost Composition bar — reuse
@@ -660,6 +689,46 @@ export const WorkOrderDetailPage = ({ onNavigate, isSidebarCollapsed, initialDat
       });
     }
 
+    // FULL_DEMO_LOG_WO: its seeded vendors/receipts already produce Created,
+    // Ready to Process, Routing Progress Updated, Assignment Receipt and
+    // Completed above. The remaining Activity Log entry types only ever get
+    // created by live user actions (assigning/updating/removing a vendor,
+    // linking a PO, releasing items, requesting materials, posting stock
+    // build output) — add one of each here so every type is represented.
+    if (initialData?.wo === FULL_DEMO_LOG_WO) {
+      mockLogs.push(
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Material Request",
+          desc: "REQ0199099", timestamp: "2026-04-01 at 09:05",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Assignment Created",
+          desc: "WOA-9003 for Bintang Sejahtera\nSteps: 3 · Qty: 4", timestamp: "2026-04-04 at 08:00",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Assignment Updated",
+          desc: "WOA-9004 for PT Cahaya Abadi\nSteps: 4 · Qty: 8", timestamp: "2026-04-04 at 08:10",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Purchase Order Linked",
+          desc: "PO-202604-0099 linked to assignment WOA-9001", timestamp: "2026-04-02 at 08:30",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Item Released to Vendor",
+          desc: "Sent 10 items to CV Kayu Makmur for assignment WOA-9001", timestamp: "2026-04-02 at 09:00",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Assignment Removed",
+          desc: "WOA-9005 for PT Cahaya Makmur", timestamp: "2026-04-05 at 13:00",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Posted Output to Stock",
+          desc: "15 unit of Demo Full Log Cabinet posted to stock batch BN-20260410-000-0 (Storage: Warehouse A).",
+          timestamp: "2026-04-10 at 15:30",
+        }
+      );
+    }
+
     return mockLogs.sort((a, b) => new Date(b.timestamp.replace(" at ", "T")) - new Date(a.timestamp.replace(" at ", "T")));
   });
 
@@ -695,6 +764,73 @@ export const WorkOrderDetailPage = ({ onNavigate, isSidebarCollapsed, initialDat
   const [costingLogs, setCostingLogs] = useState(() => {
     if (initialData?.wo && costingLogsCache[initialData.wo]) {
       return costingLogsCache[initialData.wo];
+    }
+    // FULL_DEMO_LOG_WO: unlike the Activity Log, the Costing Log never
+    // auto-synthesizes from seed data (it's an append-only Finance/PIC audit
+    // trail written only by live cost-item/status actions) — seed one entry
+    // of every Costing Log type here, newest first, matching the exact
+    // title/desc conventions those actions produce (see logCostItemChange,
+    // confirmDeleteCostItem, handleFinalComplete, handleConfirmCosting and
+    // addWoCostingLog in PurchaseOrderDetailPage.jsx).
+    if (initialData?.wo === FULL_DEMO_LOG_WO) {
+      return [
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Costing Confirmed",
+          desc: "Actual COGS reviewed and confirmed. Cost items are now read-only.", timestamp: "2026-04-10 at 15:00",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Sent for Actual COGS Review",
+          desc: "Routing is complete. Actual COGS sent for review before this Work Order can be completed.",
+          timestamp: "2026-04-10 at 09:00",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Packing Cost Item Deleted",
+          desc: `Extra crate padding with Total Cost per Unit: ${formatIDR(Math.round(50000 / 15))} and Total Cost This WO: ${formatIDR(50000)}. Reason: Duplicate line item entered by mistake.`,
+          timestamp: "2026-04-09 at 08:30",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Other Cost Item Added",
+          desc: `Finishing consumables with Total Cost per Unit: ${formatIDR(Math.round(150000 / 15))} and Total Cost This WO: ${formatIDR(150000)}`,
+          timestamp: "2026-04-09 at 08:25",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Overhead Cost Item Added",
+          desc: `Factory overhead allocation with Total Cost per Unit: ${formatIDR(Math.round(180000 / 15))} and Total Cost This WO: ${formatIDR(180000)}`,
+          timestamp: "2026-04-09 at 08:20",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Shipping Cost Item Added",
+          desc: `Inbound - Supplier to Factory with Total Cost per Unit: ${formatIDR(Math.round(200000 / 15))} and Total Cost This WO: ${formatIDR(200000)}`,
+          timestamp: "2026-04-09 at 08:15",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Packing Cost Item Added",
+          desc: `Packing labour & materials with Total Cost per Unit: ${formatIDR(Math.round(350000 / 15))} and Total Cost This WO: ${formatIDR(350000)}`,
+          timestamp: "2026-04-09 at 08:10",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Labour Cost Item Edited",
+          desc: `Finishing labour with Total Cost per Unit: ${formatIDR(Math.round(500000 / 15))} and Total Cost This WO: ${formatIDR(500000)}`,
+          timestamp: "2026-04-09 at 08:05",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Labour Cost Item Added",
+          desc: `Assembly labour with Total Cost per Unit: ${formatIDR(Math.round(3200000 / 15))} and Total Cost This WO: ${formatIDR(3200000)}`,
+          timestamp: "2026-04-09 at 08:00",
+        },
+        {
+          // Task: a received PO against an outsourcing assignment also lands
+          // in the Costing Log (see addWoCostingLog / PurchaseOrderDetailPage.jsx).
+          name: "Natasha Smith", email: "natasha@company.com", title: "Outsourcing Cost Updated",
+          desc: `Received 10 unit(s) for assignment WOA-9001 (CV Kayu Makmur) via PO PO-202604-0099 at ${formatIDR(300000)}/unit.`,
+          timestamp: "2026-04-08 at 10:05",
+        },
+        {
+          name: "Natasha Smith", email: "natasha@company.com", title: "Outsourcing Cost Updated",
+          desc: `Received 3 unit(s) for assignment WOA-9002 (PT Mitra Sejahtera) via PO PO-202604-0100 at ${formatIDR(250000)}/unit.`,
+          timestamp: "2026-04-07 at 11:05",
+        },
+      ];
     }
     return [];
   });
@@ -1704,11 +1840,13 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
   // rather than trusting a one-time bump made only when the request was
   // first submitted (which never reflected later progress/completion).
 
-  // Two-step close-out when Actual COGS is enabled: finishing the routing
-  // stages surfaces Complete (costing still "Open"), Complete moves costing to
-  // "Ready to Finalize" while the WO stays In Progress, and Confirm Costing is
-  // what finally marks the WO Completed. The "Ready to Finalize" clause below
-  // is what hides Complete during that middle step.
+  // Completion is routing-driven — the Complete button becomes available the
+  // moment routing finishes, same as before Costing existed. What happens
+  // when it's clicked depends on Actual COGS mode (see handleFinalComplete):
+  // when enabled, the first click sends costing for review instead of
+  // completing outright, which is what actually holds the WO at In Progress
+  // — not a gate on the button itself. Once costing is back to "Confirmed"
+  // (or was never gated to begin with), the button completes normally again.
   const canCompleteWorkOrder =
     allStagesCompleted &&
     !hasOngoingMaterialRequest &&
@@ -1821,28 +1959,24 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
 
   // Final step for both flows: actually marks the WO Completed, and for
   // Stock Build also creates the Stock Batch + an "In" Stock Transaction.
-  // Confirming costing is the final step of the close-out: it locks Actual
-  // COGS and, for a WO still waiting in "Ready to Finalize", marks it
-  // Completed.
   const handleConfirmCosting = () => {
     setCostingStatus("Confirmed");
     addCostingLog(
       "Costing Confirmed",
       "Actual COGS reviewed and confirmed. Cost items are now read-only."
     );
-    if (woStatus !== "completed") {
-      setWoStatus("completed");
-      setCompletedDate(new Date().toISOString().slice(0, 10));
-      addActivityLog("Completed");
-      setToastMessage("Costing confirmed and work order completed");
-    } else {
-      setToastMessage("Costing confirmed");
-    }
-    setShowSuccessToast(true);
     setIsConfirmCostingModalOpen(false);
+    // Costing was the only thing holding this WO at In Progress (it already
+    // finished routing before being sent for review) — confirming it is what
+    // actually completes the Work Order now, no second Complete click needed.
+    completeWorkOrder();
   };
 
-  const handleFinalComplete = () => {
+  // Shared completion logic — marks the WO Completed, and for Stock Build
+  // also creates the Stock Batch + an "In" Stock Transaction. Called either
+  // directly (Actual COGS disabled) or once Finance/PIC confirms costing
+  // (Actual COGS enabled — see handleConfirmCosting above).
+  const completeWorkOrder = () => {
     const today = new Date().toISOString().slice(0, 10);
 
     if (fulfillmentType === "StockBuild") {
@@ -1908,36 +2042,51 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         r.status !== "Completed" && r.status !== "Cancelled" ? { ...r, status: "Completed" } : r
       )
     );
-    if (actualCogsMode === "enabled") {
-      // Actual COGS enabled: production is done but the WO stays In Progress
-      // until Finance/PIC confirms costing — handleConfirmCosting is what
-      // marks it Completed.
+    setWoStatus("completed");
+    setCompletedDate(today);
+    // Actual COGS setting disabled: costing auto-confirms once the WO is
+    // done — no separate Finance/PIC review step. When enabled, costing was
+    // already confirmed by Finance/PIC before this ran (see
+    // handleConfirmCosting), so nothing further to do here.
+    if (actualCogsMode !== "enabled" && costingStatus !== "Confirmed") {
+      setCostingStatus("Confirmed");
+      addCostingLog("Costing Confirmed", "Costing auto-confirmed on Work Order completion.");
+    }
+    addActivityLog("Completed");
+    setToastMessage(
+      fulfillmentType === "StockBuild" ? "Stock build confirmed and posted to stock" : "Work order completed"
+    );
+    setShowSuccessToast(true);
+  };
+
+  const handleFinalComplete = () => {
+    // Guard against completing while Actual COGS review is still pending —
+    // canCompleteWorkOrder already keeps the button/modal from being reached
+    // this way, but this is the actual status-changing action.
+    if (costingStatus === "Ready to Finalize") {
+      setIsFinalCompleteModalOpen(false);
+      return;
+    }
+
+    // Actual COGS setting enabled, first time through: routing just
+    // finished, but completing doesn't happen yet — this click is what sends
+    // the WO for Actual COGS review instead. The WO stays In Progress; once
+    // Finance/PIC confirms costing (see handleConfirmCosting), the WO
+    // completes automatically — no second Complete click needed.
+    if (actualCogsMode === "enabled" && costingStatus === "Open") {
       setCostingStatus("Ready to Finalize");
       addCostingLog(
-        "Ready to Finalize",
-        "Production finished. Actual COGS is ready for review and confirmation."
+        "Sent for Actual COGS Review",
+        "Routing is complete. Actual COGS sent for review before this Work Order can be completed."
       );
-      setToastMessage(
-        fulfillmentType === "StockBuild"
-          ? "Stock build confirmed — costing is ready to finalize"
-          : "Production finished — costing is ready to finalize"
-      );
-    } else {
-      // Actual COGS disabled: no separate Finance/PIC review step, so the WO
-      // completes and costing auto-confirms in one go.
-      setWoStatus("completed");
-      setCompletedDate(today);
-      if (costingStatus !== "Confirmed") {
-        setCostingStatus("Confirmed");
-        addCostingLog("Costing Confirmed", "Costing auto-confirmed on Work Order completion.");
-      }
-      addActivityLog("Completed");
-      setToastMessage(
-        fulfillmentType === "StockBuild" ? "Stock build confirmed and posted to stock" : "Work order completed"
-      );
+      setIsFinalCompleteModalOpen(false);
+      setToastMessage("Work order sent for Actual COGS review");
+      setShowSuccessToast(true);
+      return;
     }
+
+    completeWorkOrder();
     setIsFinalCompleteModalOpen(false);
-    setShowSuccessToast(true);
   };
 
   const internalVendor = vendors.find((v) => v.name === "Internal");
@@ -3377,19 +3526,40 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     const errors = {};
     if (!sendBy) errors.sendBy = "Field cannot be empty";
     if (!sendAmount) errors.sendAmount = "Field cannot be empty";
-    if (sendProofDocuments.length === 0) {
-      setSendProofUploadError("Field cannot be empty");
-    }
-
-    if (Object.keys(errors).length > 0 || sendProofDocuments.length === 0) {
-      setSendErrors(errors);
-      return;
-    }
 
     const normalizedProofDocuments = sendProofDocuments.map((doc) => ({
       ...doc,
       description: (doc.description || "").trim(),
     }));
+
+    if (normalizedProofDocuments.length === 0) {
+      setSendProofUploadError("Field cannot be empty");
+    }
+
+    if (Object.keys(errors).length > 0 || normalizedProofDocuments.length === 0) {
+      setSendErrors(errors);
+      return;
+    }
+
+    // Only the File Description field itself shows an error state here — the
+    // upload dropzone stays untouched, matching Confirm Receipt on the
+    // Purchase Order detail page.
+    const nextSendDescriptionErrors = {};
+    normalizedProofDocuments.forEach((doc) => {
+      if (!doc.description) nextSendDescriptionErrors[doc.id] = "Field cannot be empty";
+    });
+
+    if (Object.keys(nextSendDescriptionErrors).length > 0) {
+      setSendProofDescriptionErrors(nextSendDescriptionErrors);
+      const firstErrorId = Object.keys(nextSendDescriptionErrors)[0];
+      setTimeout(() => {
+        const element = document.getElementById(firstErrorId);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 100);
+      return;
+    }
 
     setVendors(
       vendors.map((v) => {
@@ -3418,22 +3588,28 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       })
     );
 
-    // Items released to a vendor are physically being worked on, so they count
-    // as In Progress on the first step that assignment covers (the lowest of
-    // its assignedSteps).
-    const releasedAmount = parseInt(sendAmount, 10) || 0;
-    const assignmentSteps = (selectedSendVendor?.assignedSteps || []).filter((step) =>
-      Number.isFinite(step)
-    );
-    const firstIncludedStep = assignmentSteps.length > 0 ? Math.min(...assignmentSteps) : null;
-    if (firstIncludedStep !== null && releasedAmount > 0) {
+    // Releasing items to a vendor puts them "in progress" at the first stage
+    // the assignment covers — mirror that onto the routing table.
+    if (selectedSendVendor?.assignedSteps?.length) {
+      const addedAmount = parseInt(sendAmount, 10) || 0;
+      const targetStep = Math.min(...selectedSendVendor.assignedSteps);
       setRoutingStages((prev) =>
-        prev.map((stage) =>
-          Number(stage.step) === firstIncludedStep
-            ? { ...stage, prog: (parseInt(stage.prog || 0, 10) || 0) + releasedAmount }
-            : stage
+        prev.map((r) =>
+          r.step === targetStep ? { ...r, prog: (r.prog || 0) + addedAmount } : r
         )
       );
+    }
+
+    // Once anything has been released against a PO, that PO can no longer be
+    // cancelled or revised — mirrors the existing "has receipt history" lock.
+    if (selectedSendVendor?.poNumber) {
+      const poIndex = MOCK_PO_TABLE_DATA.findIndex((po) => po.poNumber === selectedSendVendor.poNumber);
+      if (poIndex !== -1) {
+        MOCK_PO_TABLE_DATA[poIndex] = {
+          ...MOCK_PO_TABLE_DATA[poIndex],
+          hasReleaseHistory: true,
+        };
+      }
     }
 
     addActivityLog("Item Released to Vendor", `Sent ${sendAmount} items to ${selectedSendVendor?.name} for assignment ${selectedSendVendor?.assignmentId}`);
@@ -3444,6 +3620,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     setSendProofDocuments([]);
     setSendErrors({});
     setSendProofUploadError("");
+    setSendProofDescriptionErrors({});
     setToastMessage("Items released to vendor successfully");
     setShowSuccessToast(true);
   };
@@ -3516,23 +3693,17 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
       })
     );
 
-    // Items received back from the vendor are no longer "in progress" — move
-    // that amount off the same first-assigned-step's In Progress value that
-    // the release added it to, so it isn't double-counted forever.
+    // Items received back from the vendor are no longer "in progress" —
+    // move that amount off the same first-assigned-step's In Progress value
+    // that the release added it to.
     const receivedVendor = vendors.find((v) => v.id === selectedVendorForProof);
-    const receivedSteps = (receivedVendor?.assignedSteps || []).filter((step) =>
-      Number.isFinite(step)
-    );
-    if (receivedSteps.length > 0 && logReceivedAmount > 0) {
-      const targetStep = Math.min(...receivedSteps);
+    if (receivedVendor?.assignedSteps?.length && logReceivedAmount > 0) {
+      const targetStep = Math.min(...receivedVendor.assignedSteps);
       setRoutingStages((prev) =>
-        prev.map((stage) =>
-          Number(stage.step) === targetStep
-            ? {
-                ...stage,
-                prog: Math.max(0, (parseInt(stage.prog || 0, 10) || 0) - logReceivedAmount),
-              }
-            : stage
+        prev.map((r) =>
+          r.step === targetStep
+            ? { ...r, prog: Math.max(0, (r.prog || 0) - logReceivedAmount) }
+            : r
         )
       );
     }
@@ -6293,51 +6464,70 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
           const linkedBom = actualCogsBomId ? getBom(actualCogsBomId) : null;
           const materialCost = requestHistory.length > 0 ? computeMaterialCost(linkedBom?.materials || []) : 0;
 
-          // An outsourcing assignment only becomes a real cost once items have
-          // actually been released to the vendor (Release to Vendor records a
-          // sendHistory entry and bumps sentOutput). Assigned-but-not-released
-          // vendors are left out of Actual COGS entirely — including the
-          // Outsourcing Cost section itself, if none have been released yet.
-          // The subtotal still uses the full assigned qty, not the released
-          // qty: a release makes the assignment billable, it doesn't prorate it.
-          const isAssignmentReleased = (v) =>
-            (v.sendHistory?.length || 0) > 0 || (Number(v.sentOutput) || 0) > 0;
+          // Only count a vendor's outsourcing cost once its assignment has
+          // actually been released (sent) to them — an assigned-but-not-yet-
+          // released vendor hasn't incurred any cost yet.
           const outsourcingVendors = (vendors || []).filter(
-            (v) => v.name !== "Internal" && v.assignedSteps?.length && isAssignmentReleased(v)
+            (v) => v.name !== "Internal" && v.assignedSteps?.length && Number(v.sentOutput) > 0
           );
           const hasOutsourcing = outsourceSteps?.length > 0 && outsourcingVendors.length > 0;
-          const outsourcingRows = outsourcingVendors.map((v) => {
-            const linkedPo = v.poNumber ? MOCK_PO_TABLE_DATA.find((po) => po.poNumber === v.poNumber) : null;
-            const matchedLine =
-              linkedPo?.lines?.find((l) => l.woRef === initialData?.wo) || linkedPo?.lines?.[0] || null;
-            const unitCost = matchedLine?.price || 0;
-            const assignedQty = Number(v.output) || 0;
-            const normalizedIncludedSteps = Array.from(
-              new Set((v.assignedSteps || []).filter((s) => Number.isFinite(s)))
-            ).sort((a, b) => a - b);
-            const includedSteps = normalizedIncludedSteps
-              .map((step) => {
-                const matchedStage = (routingStages || []).find((s) => Number(s.step) === step);
-                const routingName = matchedStage?.route;
-                const operationName = matchedStage?.op || matchedStage?.operation;
-                if (routingName && operationName) return `Step ${step}: ${routingName} - ${operationName}`;
-                if (routingName || operationName) return `Step ${step}: ${routingName || operationName}`;
-                return `Step ${step}`;
-              })
-              .map((label) => `• ${label}`)
-              .join("\n");
-            return {
-              id: v.id ?? v.assignmentId ?? v.name,
-              vendor: v.name,
-              assignmentId: v.assignmentId || "-",
-              includedSteps: includedSteps || "-",
-              poNumber: v.poNumber || "-",
-              assignedQty,
-              unitCost,
-              subtotal: unitCost * assignedQty,
-              rawVendor: v,
-            };
-          });
+          const outsourcingRows = outsourcingVendors
+            .map((v) => {
+              const linkedPo = v.poNumber ? MOCK_PO_TABLE_DATA.find((po) => po.poNumber === v.poNumber) : null;
+              // A PO generated/linked from a vendor assignment (handleSaveNewPo,
+              // appendLineToExistingPo) writes its line(s) into po.formData.lines,
+              // not po.lines — same rule the PO detail page itself follows
+              // ("Prefer the live mock's formData lines — they include any
+              // newly-injected assignment lines"). Reading only po.lines here
+              // would silently miss those lines and show Unit Cost as 0.
+              const linkedPoLines = linkedPo?.formData?.lines?.length
+                ? linkedPo.formData.lines
+                : linkedPo?.lines || [];
+              // Match the PO line for this exact assignment first (the reliable
+              // key), then fall back to matching by WO, then the first line —
+              // this keeps Unit Cost aligned to the PO line that actually
+              // belongs to this vendor assignment instead of silently picking
+              // an unrelated line's price when a PO has more than one line.
+              const matchedLine =
+                linkedPoLines.find((l) => l.assignmentId === v.assignmentId) ||
+                linkedPoLines.find((l) => l.woRef === initialData?.wo) ||
+                linkedPoLines[0] ||
+                null;
+              const unitCost = matchedLine?.price || 0;
+              // Actual cost only counts once the vendor's purchase order has
+              // actually been received — not merely assigned/sent — so Received
+              // Qty is the cumulative quantity received across all PO receipts
+              // for this assignment (vendor.receivedOutput).
+              const receivedQty = Number(v.receivedOutput) || 0;
+              const normalizedIncludedSteps = Array.from(
+                new Set((v.assignedSteps || []).filter((s) => Number.isFinite(s)))
+              ).sort((a, b) => a - b);
+              const includedSteps = normalizedIncludedSteps
+                .map((step) => {
+                  const matchedStage = (routingStages || []).find((s) => Number(s.step) === step);
+                  const routingName = matchedStage?.route;
+                  const operationName = matchedStage?.op || matchedStage?.operation;
+                  if (routingName && operationName) return `Step ${step}: ${routingName} - ${operationName}`;
+                  if (routingName || operationName) return `Step ${step}: ${routingName || operationName}`;
+                  return `Step ${step}`;
+                })
+                .map((label) => `• ${label}`)
+                .join("\n");
+              return {
+                id: v.id ?? v.assignmentId ?? v.name,
+                vendor: v.name,
+                assignmentId: v.assignmentId || "-",
+                includedSteps: includedSteps || "-",
+                poNumber: v.poNumber || "-",
+                receivedQty,
+                unitCost,
+                subtotal: unitCost * receivedQty,
+                rawVendor: v,
+              };
+            })
+            // Not received yet: this assignment hasn't actually incurred cost,
+            // so it doesn't appear in Actual COGS until a PO receipt lands.
+            .filter((row) => row.receivedQty > 0);
           const outsourcingTotal = outsourcingRows.reduce((sum, r) => sum + r.subtotal, 0);
 
           const compositionSegments = [
@@ -6612,7 +6802,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                         <StatusBadge variant="grey-light">Auto-calculated</StatusBadge>
                       </span>
                       <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-secondary)" }}>
-                        Sum of BOM qty × avg stock cost per material
+                        Cost of materials used during production, updated when requested materials are received
                       </span>
                     </div>
                   </div>
@@ -6669,7 +6859,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                       <div style={detailTableHeaderRowStyle(MATERIAL_ACTUAL_COST_GRID_COLUMNS)}>
                         <span>Material</span>
                         <span>Type</span>
-                        <span>Quantity Used</span>
+                        <span>Used Qty</span>
                         <span>Forecasted Cost per Unit</span>
                         <span>Total Cost per Unit</span>
                         <span style={{ textAlign: "right" }}>Total Cost This WO</span>
@@ -6752,9 +6942,12 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <Truck size={16} color="var(--neutral-on-surface-secondary)" style={{ marginTop: "2px" }} />
                         <div style={{ display: "flex", flexDirection: "column" }}>
-                          <span style={{ color: "var(--neutral-on-surface-primary)", fontWeight: "bold" }}>Outsourcing Cost</span>
+                          <span style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--neutral-on-surface-primary)", fontWeight: "bold" }}>
+                            Outsourcing Cost
+                            <StatusBadge variant="grey-light">Auto-calculated</StatusBadge>
+                          </span>
                           <span style={{ fontSize: "12px", color: "var(--neutral-on-surface-secondary)" }}>
-                            Cost of routing steps outsourced to external vendors
+                            Cost of routing steps assigned to external vendors, updated when the related purchase order is received
                           </span>
                         </div>
                       </div>
@@ -6768,6 +6961,27 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                       </div>
                     </div>
 
+                    {outsourcingRows.length === 0 ? (
+                      <div style={{ paddingLeft: "32px" }}>
+                        <div
+                          style={{
+                            padding: "24px",
+                            textAlign: "center",
+                            color: "var(--neutral-on-surface-tertiary)",
+                            fontSize: "var(--text-title-3)",
+                            background: "var(--neutral-surface-primary)",
+                            border: "1.5px dashed var(--neutral-line-separator-1)",
+                            borderRadius: "16px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minHeight: "80px",
+                          }}
+                        >
+                          No cost items added yet.
+                        </div>
+                      </div>
+                    ) : (
                     <div style={{ paddingLeft: "24px" }}>
                       <div style={{ width: "100%", display: "flex", flexDirection: "column" }}>
                         <div style={detailTableHeaderRowStyle(OUTSOURCING_COST_GRID_COLUMNS)}>
@@ -6775,7 +6989,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                           <span>Assignment ID</span>
                           <span>Included Step</span>
                           <span>Purchase Order</span>
-                          <span>Assigned Qty</span>
+                          <span>Received Qty</span>
                           <span>Unit Cost</span>
                           <span style={{ textAlign: "right" }}>Subtotal</span>
                         </div>
@@ -6819,13 +7033,14 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                             ) : (
                               <span style={{ fontSize: "var(--text-title-3)" }}>{row.poNumber}</span>
                             )}
-                            <span style={{ fontSize: "var(--text-title-3)" }}>{row.assignedQty}</span>
+                            <span style={{ fontSize: "var(--text-title-3)" }}>{row.receivedQty}</span>
                             <span style={{ fontSize: "var(--text-title-3)" }}>{formatIDR(row.unitCost)}</span>
                             <span style={{ fontSize: "var(--text-title-3)", textAlign: "right" }}>{formatIDR(row.subtotal)}</span>
                           </div>
                         ))}
                       </div>
                     </div>
+                    )}
                   </div>
                 </React.Fragment>
               ) : null}
@@ -7131,7 +7346,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
         </div>
       ) : null}
 
-      {canCompleteWorkOrder || (woStatus !== "not_started" && !isCancelled && costingStatus === "Ready to Finalize") ? (
+      {canCompleteWorkOrder || costingStatus === "Ready to Finalize" ? (
         <div
           style={{
             position: "fixed",
@@ -7149,7 +7364,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             zIndex: 100,
           }}
         >
-          {woStatus !== "not_started" && !isCancelled && costingStatus === "Ready to Finalize" ? (
+          {costingStatus === "Ready to Finalize" ? (
             <Button
               variant="filled"
               size="medium"
@@ -9892,6 +10107,7 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
                   setSendProofDocuments([]);
                   setSendErrors({});
                   setSendProofUploadError("");
+                  setSendProofDescriptionErrors({});
                 }}
                 style={{ flex: 1 }}
               >

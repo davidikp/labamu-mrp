@@ -25,6 +25,9 @@ import {
   getCustomerById,
   isScreeningValid,
   getScreeningBadgeVariant,
+  getEffectiveScreeningStatus,
+  getScreeningStatusLabel,
+  SCREENING_VALIDITY_MONTHS,
   updateCustomer as updateCustomerRecord,
 } from "../../customer/mock/customerMocks.js";
 import { SimulateScreeningPanel } from "../components/SimulateScreeningPanel.jsx";
@@ -62,10 +65,15 @@ const SCENARIO_FORCED_RESULT = {
   never_screened_error: "TechnicalError",
   stale_passed: "Passed",
   stale_failed: "Failed",
+  expired_passed: "Passed",
+  expired_failed: "Failed",
 };
 
 // How long the simulated Sanctions.io call "runs" behind the loading modal.
 const SCREENING_DURATION_MS = 2000;
+
+// "YYYY-MM-DD HH:mm" — the format screening dates are stored in.
+const nowStamp = () => new Date().toISOString().slice(0, 16).replace("T", " ");
 
 const getStatusBadgeVariant = (status) => {
   switch (status) {
@@ -133,27 +141,28 @@ const SCREENING_MODAL_COPY = {
     id: "Menjalankan pemeriksaan sanksi",
   },
   loadingBody: {
-    en: "Checking the customer against sanctions lists. This only takes a moment.",
-    id: "Memeriksa pelanggan terhadap daftar sanksi. Proses ini hanya sebentar.",
+    en: "Checking the customer against applicable sanctions lists. This may take a moment.",
+    id: "Memeriksa pelanggan terhadap daftar sanksi yang berlaku. Proses ini mungkin memerlukan beberapa saat.",
   },
   failedTitle: {
-    en: "Sanctions screening failed",
-    id: "Pemeriksaan sanksi gagal",
+    en: "Customer did not pass sanctions screening",
+    id: "Pelanggan tidak lolos pemeriksaan sanksi",
   },
   failedBody: {
-    en: "The quote has been rejected automatically and your Labamu Manufacturing account has been suspended. To submit an appeal, contact Labamu Customer Support at cs@labamu.co.id.",
-    id: "Penawaran ditolak secara otomatis dan akun Labamu Manufacturing Anda telah ditangguhkan. Untuk mengajukan banding, hubungi Layanan Pelanggan Labamu di cs@labamu.co.id.",
+    en: "The customer did not pass the required sanctions screening. As a result, the quote has been automatically rejected and your Labamu Manufacturing account has been suspended. Contact Customer Support at cs@labamu.co.id to submit an appeal.",
+    id: "Pelanggan tidak lolos pemeriksaan sanksi yang diwajibkan. Akibatnya, penawaran ditolak secara otomatis dan akun Labamu Manufacturing Anda telah ditangguhkan. Hubungi Layanan Pelanggan di cs@labamu.co.id untuk mengajukan banding.",
   },
   failedAction: { en: "Understood", id: "Mengerti" },
   errorTitle: {
-    en: "Screening could not be completed",
-    id: "Pemeriksaan sanksi belum dapat diselesaikan",
+    en: "Unable to approve quote",
+    id: "Tidak dapat menyetujui penawaran",
   },
   errorBody: {
-    en: "Customer verification could not be completed. The quote has not been accepted. Please try approving the quote again.",
-    id: "Verifikasi pelanggan belum dapat diselesaikan. Penawaran belum disetujui. Silakan coba setujui penawaran lagi.",
+    en: "The sanctions screening could not be completed due to a technical issue. Please try approving the quote again.",
+    id: "Pemeriksaan sanksi tidak dapat diselesaikan karena kendala teknis. Silakan coba setujui penawaran lagi.",
   },
   errorAction: { en: "Close", id: "Tutup" },
+  errorRetry: { en: "Try Again", id: "Coba Lagi" },
 };
 
 // Internal review decision modal (Submitted → Reject / Ask for Revision /
@@ -207,6 +216,9 @@ export const QuoteDetailPage = ({
   const [countryModalValue, setCountryModalValue] = useState("");
   const [countryModalError, setCountryModalError] = useState("");
   const [pendingForcedResult, setPendingForcedResult] = useState(undefined);
+  // What the country modal should resume once a country is saved:
+  // "screening" (Customer Action → Approve) or "submit" (footer Submit).
+  const [pendingCountryAction, setPendingCountryAction] = useState("screening");
   // Internal review decision modal (Submitted status footer).
   const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
   const [decisionType, setDecisionType] = useState(null);
@@ -317,6 +329,14 @@ export const QuoteDetailPage = ({
     }
   };
 
+  // Technical-error retry: the PRD treats each retry as a brand new screening
+  // request, so this re-runs the gate with no forced outcome (i.e. it will
+  // pass) — re-check a Simulate scenario first to make it fail again.
+  const handleRetryScreening = () => {
+    setScreeningResult(null);
+    runScreeningCheck();
+  };
+
   const runScreeningCheck = (forcedResult) => {
     const customer = getCustomerById(quoteData.customerId);
     if (!customer) {
@@ -332,6 +352,7 @@ export const QuoteDetailPage = ({
       // blocking — the user fills it in and saves without leaving the
       // Quote Detail page, then screening resumes automatically.
       setPendingForcedResult(forcedResult);
+      setPendingCountryAction("screening");
       setCountryModalValue("");
       setCountryModalError("");
       setIsCountryModalOpen(true);
@@ -366,7 +387,7 @@ export const QuoteDetailPage = ({
         screeningStatus: "Passed",
         lastScreenedName: customer.name,
         lastScreenedCountry: customer.country,
-        lastScreenedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+        lastScreenedAt: nowStamp(),
       });
       setCustomerVersion((v) => v + 1);
       finalizeApproval();
@@ -386,8 +407,11 @@ export const QuoteDetailPage = ({
     setIsCountryModalOpen(false);
     showSnackbar?.(sm("country_saved"), "success");
 
-    // Country is saved — resume the screening check right where it left
-    // off, using whatever forced result the in-flight Approve click carried.
+    // Country is saved — resume whichever action opened the modal.
+    if (pendingCountryAction === "submit") {
+      submitQuoteForApproval();
+      return;
+    }
     runScreeningCheck(pendingForcedResult);
     setPendingForcedResult(undefined);
   };
@@ -445,8 +469,27 @@ export const QuoteDetailPage = ({
           screeningStatus: "Passed",
           lastScreenedName: `${customer.name} (Old Name Ltd)`,
           lastScreenedCountry: fallbackCountry,
+          // Recent, so the *only* reason this result is invalid is the
+          // name change — not expiry.
+          lastScreenedAt: nowStamp(),
         });
         break;
+      case "expired_passed":
+      case "expired_failed": {
+        // A Passed result screened against the *current* name/country, but
+        // backdated beyond the validity window — so it reads as Not Screened
+        // and Approve has to run a fresh screening.
+        const expiredAt = new Date();
+        expiredAt.setMonth(expiredAt.getMonth() - (SCREENING_VALIDITY_MONTHS + 2));
+        updateCustomerRecord(customer.id, {
+          country: fallbackCountry,
+          screeningStatus: "Passed",
+          lastScreenedName: customer.name,
+          lastScreenedCountry: fallbackCountry,
+          lastScreenedAt: expiredAt.toISOString().slice(0, 16).replace("T", " "),
+        });
+        break;
+      }
       case "missing_country":
         updateCustomerRecord(customer.id, { country: "" });
         break;
@@ -456,6 +499,9 @@ export const QuoteDetailPage = ({
           screeningStatus: "Passed",
           lastScreenedName: customer.name,
           lastScreenedCountry: fallbackCountry,
+          // Must be refreshed too, otherwise an expired date left over from
+          // the expiry scenario would make this "valid" result invalid.
+          lastScreenedAt: nowStamp(),
         });
         break;
       default:
@@ -491,13 +537,28 @@ export const QuoteDetailPage = ({
 
   const handleEditQuote = () => onNavigate("create", quoteData);
 
-  const handleSubmitQuote = () => {
+  const submitQuoteForApproval = () => {
     applyUpdate({ status: "Submitted", sBadge: getStatusBadgeVariant("Submitted") });
     notify("quote", "submitted", {
       entityId: quoteData.quoteNo,
       submitterUser: notifUser,
     });
     showSnackbar?.("Quote submitted for approval.", "success");
+  };
+
+  // Country is required before the quote can enter the approval flow, since
+  // approval is what triggers screening — so ask for it here rather than
+  // letting the quote get all the way to Submitted without one.
+  const handleSubmitQuote = () => {
+    const customer = getCustomerById(quoteData.customerId);
+    if (customer && !customer.country) {
+      setPendingCountryAction("submit");
+      setCountryModalValue("");
+      setCountryModalError("");
+      setIsCountryModalOpen(true);
+      return;
+    }
+    submitQuoteForApproval();
   };
 
   // Internal review decision modal (Submitted → Reject / Ask for Revision /
@@ -639,15 +700,17 @@ export const QuoteDetailPage = ({
   const handleBackNavigation = () => onNavigate("list");
 
   // Status-driven action layout:
-  //   Draft / Rejected / Need Revision → header "Edit Quote", footer "Submit"
+  //   Draft / Need Revision → header "Edit Quote", footer "Submit"
+  //   Rejected              → header "Download" only, no footer
   //   Submitted                        → header "Download", footer Reject /
   //                                      Ask for Revision / Approve
   //   Issued                           → header "Download" + "Customer
   //                                      Action", footer "Send to Customer"
   //   Approved                         → header "Download" only, no footer
   const status = quoteData.status;
-  const isEditableStatus =
-    status === "Draft" || status === "Rejected" || status === "Need Revision";
+  // Rejected is terminal: no Edit Quote / Submit, just Download (same as
+  // Approved). Only Draft and Need Revision can be edited and resubmitted.
+  const isEditableStatus = status === "Draft" || status === "Need Revision";
   const isSubmittedStatus = status === "Submitted";
   const isIssuedStatus = status === "Issued";
 
@@ -780,8 +843,8 @@ export const QuoteDetailPage = ({
                 <LabelValue
                   label="Sanctions Screening Status"
                   badge={{
-                    variant: getScreeningBadgeVariant(linkedCustomer?.screeningStatus),
-                    text: linkedCustomer?.screeningStatus || "Not Screened",
+                    variant: getScreeningBadgeVariant(getEffectiveScreeningStatus(linkedCustomer)),
+                    text: getScreeningStatusLabel(getEffectiveScreeningStatus(linkedCustomer)),
                   }}
                 />
               </div>
@@ -1230,14 +1293,35 @@ export const QuoteDetailPage = ({
         width="440px"
         hideFooterDivider
         footer={
-          <Button
-            variant="filled"
-            size="large"
-            style={{ width: "100%" }}
-            onClick={handleCloseScreeningResult}
-          >
-            {screeningResult === "failed" ? srm("failedAction") : srm("errorAction")}
-          </Button>
+          screeningResult === "failed" ? (
+            <Button
+              variant="filled"
+              size="large"
+              style={{ width: "100%" }}
+              onClick={handleCloseScreeningResult}
+            >
+              {srm("failedAction")}
+            </Button>
+          ) : (
+            <div style={{ display: "flex", gap: "12px", width: "100%" }}>
+              <Button
+                variant="outlined"
+                size="large"
+                style={{ flex: 1 }}
+                onClick={handleCloseScreeningResult}
+              >
+                {srm("errorAction")}
+              </Button>
+              <Button
+                variant="filled"
+                size="large"
+                style={{ flex: 1 }}
+                onClick={handleRetryScreening}
+              >
+                {srm("errorRetry")}
+              </Button>
+            </div>
+          )
         }
       />
 

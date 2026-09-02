@@ -94,7 +94,8 @@ import {
 // Common UI Components
 import { GeneralModal } from "../../../components/modal/GeneralModal.jsx";
 import { Sidebar } from "../../../components/layout/Sidebar.jsx";
-import { addWoActivityLog } from "../../work-order/pages/WorkOrderDetailPage.jsx";
+import { addWoActivityLog, addWoCostingLog } from "../../work-order/pages/WorkOrderDetailPage.jsx";
+import { formatIDR } from "../../bill-of-materials/utils/bomUtils.js";
 
 export const PurchaseOrderDetailPage = ({
   onNavigate,
@@ -701,18 +702,12 @@ export const PurchaseOrderDetailPage = ({
   const hasReceiptHistory =
     receiptLogs.some((log) => !!log.receiptNumber) ||
     (formData?.receiptLogs || []).some((log) => !!log.receiptNumber);
-  // Once items have been released to the vendor on the Work Order assignment
-  // this PO was raised for, the PO is locked in — it can no longer be
-  // cancelled or revised (same treatment as a PO that already has receipts).
-  const hasWorkOrderRelease = MOCK_WO_TABLE_DATA.some((wo) =>
-    (wo.vendors || []).some(
-      (v) =>
-        v.poNumber === poNumber &&
-        ((v.sendHistory?.length || 0) > 0 || (Number(v.sentOutput) || 0) > 0)
-    )
-  );
+  // Once any line on this PO has been released to a vendor (from the linked
+  // Work Order's "Release to Vendor" action), it can no longer be cancelled
+  // or revised — same permanent lock as receipt history.
+  const hasReleaseHistory = !!MOCK_PO_TABLE_DATA.find((p) => p.poNumber === poNumber)?.hasReleaseHistory;
   const showFooterIssuedCancel =
-    currentStatus === "Issued" && !hasReceiptHistory && !hasWorkOrderRelease;
+    currentStatus === "Issued" && !hasReceiptHistory && !hasReleaseHistory;
   const resolvePoStatusKey = (status) => {
     if (status === "Waiting for Approval") return "ready_to_send";
     if (status === "Issued") return "issued";
@@ -1811,23 +1806,18 @@ export const PurchaseOrderDetailPage = ({
             } else if (vendor.receivedOutput > 0) {
               vendor.status = "Partially Received";
             }
-            // Releasing to the vendor added this amount to the In Progress of
-            // the first step the assignment covers; receiving it back has to
-            // take it off again, or the qty stays counted as in progress
-            // forever. Replaces the array rather than mutating rows in place,
-            // so the work-order return-data snapshot below stays independent.
-            const receivedSteps = (vendor.assignedSteps || []).filter((step) =>
-              Number.isFinite(step)
-            );
-            if (receivedSteps.length > 0 && receivedNow > 0 && Array.isArray(wo.routingStages)) {
-              const targetStep = Math.min(...receivedSteps);
-              wo.routingStages = wo.routingStages.map((stage) =>
-                Number(stage.step) === targetStep
-                  ? { ...stage, prog: Math.max(0, (Number(stage.prog) || 0) - receivedNow) }
-                  : stage
-              );
-            }
             addWoActivityLog(line.woRef, "Assignment Receipt", `Received ${receivedNow} items for ${line.assignmentId}`);
+
+            // Outsourcing Cost is Actual COGS, so receiving against this
+            // assignment's PO also lands in the Costing Log, not just the
+            // Activity Log — it's the event that updates the assignment's
+            // Received Qty/Subtotal on the Actual COGS tab.
+            const unitCost = Number(line.price) || 0;
+            addWoCostingLog(
+              line.woRef,
+              "Outsourcing Cost Updated",
+              `Received ${receivedNow} unit(s) for assignment ${line.assignmentId} (${vendor.name}) via PO ${poNumber} at ${formatIDR(unitCost)}/unit.`
+            );
           }
         }
       }
@@ -2025,34 +2015,6 @@ export const PurchaseOrderDetailPage = ({
           };
         }),
       };
-
-      // Same In Progress give-back as above, applied to the snapshot the Work
-      // Order detail page reads when it regains control.
-      const progReturnedByStep = {};
-      (woData.vendors || []).forEach((vendor) => {
-        if (vendor.poNumber !== poNumber) return;
-        const receivedSteps = (vendor.assignedSteps || []).filter((step) =>
-          Number.isFinite(step)
-        );
-        if (receivedSteps.length === 0) return;
-        const vendorReceivedNow = affectedLines.reduce((sum, l) => {
-          if (l.type === "wo" && l.assignmentId === vendor.assignmentId) {
-            return sum + (Number(l.receiveNow) || 0);
-          }
-          return sum;
-        }, 0);
-        if (vendorReceivedNow <= 0) return;
-        const targetStep = Math.min(...receivedSteps);
-        progReturnedByStep[targetStep] = (progReturnedByStep[targetStep] || 0) + vendorReceivedNow;
-      });
-      if (Object.keys(progReturnedByStep).length > 0) {
-        nextRoutingStages = nextRoutingStages.map((stage) => {
-          const returned = progReturnedByStep[Number(stage.step)];
-          return returned
-            ? { ...stage, prog: Math.max(0, (Number(stage.prog) || 0) - returned) }
-            : stage;
-        });
-      }
 
       updatedReturnData.routingStages = nextRoutingStages;
       updatedReturnData.routingUpdates = nextRoutingUpdates;

@@ -552,6 +552,89 @@ export const MOCK_PO_TABLE_DATA = [
     ],
     invoices: [],
     payments: []
+  },
+  // The following three POs back the "WO-2026-04-00099" demo work order (see
+  // FULL_DEMO_LOG_WO in WorkOrderDetailPage.jsx) — together they cover a fully
+  // received assignment, a partially received one, and one issued but not yet
+  // received, so the Outsourcing Cost table's received-qty-driven behavior can
+  // be seen in every state at once.
+  {
+    poNumber: "PO-202604-0099",
+    vendorName: "CV Kayu Makmur",
+    amount: "IDR 3,000,000",
+    createdDate: "2026-04-02",
+    status: "Completed",
+    statusKey: "completed",
+    sBadge: "green",
+    subtotal: 3000000,
+    lines: [
+      {
+        id: 1,
+        type: "wo",
+        item: "Outsourced - Demo Full Log Cabinet",
+        code: "DEMO-LOG-9999",
+        desc: "Generated from WO-2026-04-00099 with assignment WOA-9001. It covers these routing stages:\n• Step 2: Dining Table Making: Processing\n• Step 3: Dining Table Making: Packaging",
+        woRef: "WO-2026-04-00099",
+        assignmentId: "WOA-9001",
+        outsourceSteps: [2, 3],
+        qty: 10,
+        price: 300000,
+      }
+    ],
+    invoices: [],
+    payments: []
+  },
+  {
+    poNumber: "PO-202604-0100",
+    vendorName: "PT Mitra Sejahtera",
+    amount: "IDR 1,500,000",
+    createdDate: "2026-04-03",
+    status: "Issued",
+    statusKey: "issued",
+    sBadge: "blue",
+    subtotal: 1500000,
+    lines: [
+      {
+        id: 1,
+        type: "wo",
+        item: "Outsourced - Demo Full Log Cabinet (Finishing)",
+        code: "DEMO-LOG-9999",
+        desc: "Generated from WO-2026-04-00099 with assignment WOA-9002. It covers these routing stages:\n• Step 3: Dining Table Making: Packaging",
+        woRef: "WO-2026-04-00099",
+        assignmentId: "WOA-9002",
+        outsourceSteps: [3],
+        qty: 6,
+        price: 250000,
+      }
+    ],
+    invoices: [],
+    payments: []
+  },
+  {
+    poNumber: "PO-202604-0101",
+    vendorName: "PT Cahaya Abadi",
+    amount: "IDR 3,200,000",
+    createdDate: "2026-04-04",
+    status: "Issued",
+    statusKey: "issued",
+    sBadge: "blue",
+    subtotal: 3200000,
+    lines: [
+      {
+        id: 1,
+        type: "wo",
+        item: "Outsourced - Demo Full Log Cabinet (Shipping)",
+        code: "DEMO-LOG-9999",
+        desc: "Generated from WO-2026-04-00099 with assignment WOA-9004. It covers these routing stages:\n• Step 4: Dining Table Making: Shipping",
+        woRef: "WO-2026-04-00099",
+        assignmentId: "WOA-9004",
+        outsourceSteps: [4],
+        qty: 8,
+        price: 400000,
+      }
+    ],
+    invoices: [],
+    payments: []
   }
 ];
 

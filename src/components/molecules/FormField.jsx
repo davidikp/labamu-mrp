@@ -56,8 +56,11 @@ export const FormField = ({
     {!error && helperText ? (
       <span
         style={{
-          fontSize: "var(--text-desc)",
-          color: "var(--neutral-on-surface-secondary)",
+          fontSize: "var(--text-body)",
+          // Matches ce-ui TextField's own helper-text color (text-lb-on-surface-3)
+          // so a FormField-wrapped field (e.g. Customer Tag/Phone) reads the
+          // same as one routed through ce-ui's TextField (e.g. Customer Email).
+          color: "#9CA3AF",
           marginTop: "0px",
         }}
       >

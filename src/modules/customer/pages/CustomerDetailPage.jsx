@@ -5,7 +5,16 @@ import { StatusBadge } from "../../../components/common/StatusBadge.jsx";
 import { GeneralModal } from "../../../components/modal/GeneralModal.jsx";
 import { LabelValue } from "../../purchase-order/components/detail/shared/PoDetailSharedComponents.jsx";
 import { PersonInChargeTable } from "../components/PersonInChargeTable.jsx";
-import { deleteCustomer, getCustomerTagLabel, getScreeningBadgeVariant } from "../mock/customerMocks.js";
+import { Tooltip } from "../../../components/index.js";
+import { Info } from "../../../components/icons/Icons.jsx";
+import {
+  deleteCustomer,
+  getCustomerTagLabel,
+  getScreeningBadgeVariant,
+  getEffectiveScreeningStatus,
+  getScreeningStatusLabel,
+  isScreeningExpired,
+} from "../mock/customerMocks.js";
 
 // Plain bold section title (no blue accent bar) — matches "Vendor
 // Information"/"Recipient Information" on PurchaseOrderDetailPage, as
@@ -33,6 +42,9 @@ export const CustomerDetailPage = ({ customer, onNavigate, showSnackbar, t }) =>
       </div>
     );
   }
+
+  const effectiveScreeningStatus = getEffectiveScreeningStatus(customer);
+  const screeningExpired = isScreeningExpired(customer);
 
   const handleDelete = () => {
     deleteCustomer(customer.id);
@@ -101,10 +113,19 @@ export const CustomerDetailPage = ({ customer, onNavigate, showSnackbar, t }) =>
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ fontSize: "var(--text-body)", color: "var(--neutral-on-surface-secondary)" }}>
-              {customer.lastScreenedAt ? `Last screened: ${customer.lastScreenedAt}` : "Not screened yet"}
+              {`Last screened: ${customer.lastScreenedAt || "-"}`}
             </span>
-            <StatusBadge variant={getScreeningBadgeVariant(customer.screeningStatus)}>
-              {customer.screeningStatus || "Not Screened"}
+            {/* An expired Passed result still shows the date it was screened,
+                so explain why the status next to it reads Not Screened. */}
+            {screeningExpired ? (
+              <Tooltip content="Screening expired. A new screening will run on the next quote approval.">
+                <span style={{ display: "inline-flex", alignItems: "center", cursor: "help" }}>
+                  <Info size={16} color="var(--neutral-on-surface-tertiary)" />
+                </span>
+              </Tooltip>
+            ) : null}
+            <StatusBadge variant={getScreeningBadgeVariant(effectiveScreeningStatus)}>
+              {getScreeningStatusLabel(effectiveScreeningStatus)}
             </StatusBadge>
           </div>
         </div>

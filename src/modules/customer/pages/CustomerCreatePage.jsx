@@ -217,7 +217,7 @@ export const CustomerCreatePage = ({ onNavigate, showSnackbar, t, initialData, i
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Enter customer name"
+                placeholder="e.g. PT ABC Manufacturing"
                 error={errors.name}
               />
             </div>
@@ -228,6 +228,7 @@ export const CustomerCreatePage = ({ onNavigate, showSnackbar, t, initialData, i
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 placeholder="customer@example.com"
+                helperText="Use official company email address"
               />
             </div>
             <div style={{ flex: 1 }}>
@@ -235,13 +236,15 @@ export const CustomerCreatePage = ({ onNavigate, showSnackbar, t, initialData, i
                 label="Customer Phone"
                 value={form.phone}
                 onChange={(val) => setForm({ ...form, phone: val })}
+                helperText="Use main office/HQ phone number"
+                shellStyle={{ minHeight: "48px" }}
               />
             </div>
           </div>
 
           <div style={{ display: "flex", gap: "16px" }}>
             <div style={{ flex: 1 }}>
-              <FormField label="Customer Tag">
+              <FormField label="Customer Tag" helperText="Max 5 tags">
                 {/* The ce-ui Dropdown's multi-select trigger is hardcoded to
                     min-h-10 regardless of `size`, so it renders shorter than
                     the single-select Country field next to it (size="lg" ->
@@ -295,9 +298,19 @@ export const CustomerCreatePage = ({ onNavigate, showSnackbar, t, initialData, i
                 maxLength={400}
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="Enter customer address"
+                placeholder="Enter registered company address"
                 error={errors.address}
               />
+              {/* Rendered manually instead of via InputField's `helperText`
+                  prop: ce-ui's TextField gives a multiline field the same 4px
+                  gap as a single-line one, but the textarea's own empty space
+                  above its bottom border reads as a much bigger gap visually
+                  — this gives explicit, guaranteed 4px spacing regardless. */}
+              {!errors.address ? (
+                <span style={{ display: "block", marginTop: "4px", fontSize: "var(--text-body)", color: "#9CA3AF" }}>
+                  Will be used for document purposes
+                </span>
+              ) : null}
             </div>
           </div>
         </div>

@@ -193,16 +193,12 @@ export const WorkOrderEditDrawer = ({ isOpen, onClose, workOrder, onSave }) => {
         <div style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: "24px" }}>
           <div style={{ display: "flex", gap: "16px" }}>
             <Card style={{ padding: "16px", boxShadow: "none", border: "1px solid var(--neutral-line-separator-1)", flex: 1 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
                 <LabelValue label="Work Order Number" value={workOrder?.wo || "-"} />
                 <LabelValue label="Order Number" value={workOrder?.ord || "-"} />
                 <LabelValue
                   label="Target Type"
                   value={workOrder?.targetType === "Product" ? "Product" : "Material"}
-                />
-                <LabelValue
-                  label="Fulfillment Type"
-                  value={workOrder?.fulfillmentType === "StockBuild" ? "Stock Build" : "Customer Order"}
                 />
               </div>
             </Card>

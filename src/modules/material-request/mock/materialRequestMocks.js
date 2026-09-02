@@ -781,6 +781,54 @@ const INITIAL_REQUESTS = [
       { statusKey: "cancelled", title: "Request Cancelled", by: "Natasha Smith", timestamp: "2025-08-02; 17:30" },
     ],
   },
+  {
+    // Fully fulfilled request backing the "WO-2026-04-00099" demo work order —
+    // that WO exists purely to demo every Activity Log and Costing Log entry
+    // type in one place (see FULL_DEMO_LOG_WO in WorkOrderDetailPage.jsx).
+    id: "REQ-8D3A9F02",
+    requestId: "REQ0199099",
+    requestedDate: "01/04/2026; 09:00",
+    requestedDateRaw: "2026-04-01",
+    requestedBy: "Natasha Smith",
+    workOrderNo: "WO-2026-04-00099",
+    workOrderShort: "WO2026-04-00099",
+    status: "completed",
+    items: [
+      makeItem({
+        type: "BOM",
+        name: "Plywood Board 18mm",
+        sku: "PLY-18-001",
+        requestedQty: 45,
+        unit: "Sheet",
+        availableBatches: [{ batch: "BAT-260401-000091", available: 45 }],
+        allocation: buildAllocation(45, 45, [{ batch: "BAT-260401-000091", used: 45 }]),
+      }),
+      makeItem({
+        type: "BOM",
+        name: "Teak Veneer Sheet",
+        sku: "VEN-TEAK-12",
+        requestedQty: 45,
+        unit: "Sheet",
+        availableBatches: [{ batch: "BAT-260401-000092", available: 45 }],
+        allocation: buildAllocation(45, 45, [{ batch: "BAT-260401-000092", used: 45 }]),
+      }),
+      makeItem({
+        type: "BOM",
+        name: "Steel Plate 2mm",
+        sku: "MTL-001",
+        requestedQty: 15,
+        unit: "Sheet",
+        availableBatches: [{ batch: "BAT-260401-000093", available: 15 }],
+        allocation: buildAllocation(15, 15, [{ batch: "BAT-260401-000093", used: 15 }]),
+      }),
+    ],
+    logs: [
+      { statusKey: "new_request", title: "Request Created", by: "Natasha Smith", timestamp: "2026-04-01; 09:00" },
+      { statusKey: "preparing", title: "Status changed to Preparing", by: "Natasha Smith", timestamp: "2026-04-01; 10:00" },
+      { statusKey: "transferring", title: "Status changed to Transferring", by: "Natasha Smith", timestamp: "2026-04-01; 11:00" },
+      { statusKey: "completed", title: "Status changed to Completed", by: "Natasha Smith", timestamp: "2026-04-01; 12:00" },
+    ],
+  },
 ];
 
 // Runtime-created requests (e.g. from the Work Order request flow) are persisted to

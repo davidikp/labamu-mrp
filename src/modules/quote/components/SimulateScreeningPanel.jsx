@@ -14,6 +14,8 @@ const SCENARIOS = [
   { key: "never_screened_error", label: "Never screened → Technical Error" },
   { key: "stale_passed", label: "Stale Passed (name/country changed) → Passed" },
   { key: "stale_failed", label: "Stale Passed (name/country changed) → Failed" },
+  { key: "expired_passed", label: "Passed but expired (>3 months) → Passed" },
+  { key: "expired_failed", label: "Passed but expired (>3 months) → Failed" },
   { key: "missing_country", label: "Missing country (blocks screening)" },
   { key: "valid_passed_reuse", label: "Already has valid Passed result (reuse)" },
 ];

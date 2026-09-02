@@ -48,10 +48,15 @@ export const MOCK_CUSTOMERS = [
     country: "South Korea",
     address: "123 Gangnam-daero, Seoul",
     tags: ["tag-3"],
+    // Screened more than SCREENING_VALIDITY_MONTHS ago, so this customer
+    // demonstrates the expiry reset in the customer module: the stored status
+    // is still Passed but it displays as Not Screened with an explanatory
+    // tooltip. Not linked to any quote, so it doesn't affect the quote
+    // screening scenarios.
     screeningStatus: "Passed",
     lastScreenedName: "Ideal For Living",
     lastScreenedCountry: "South Korea",
-    lastScreenedAt: "2026-07-22 14:02",
+    lastScreenedAt: "2026-04-02 14:02",
     pics: [
       {
         id: "pic-2-1",
@@ -75,7 +80,9 @@ export const MOCK_CUSTOMERS = [
     lastScreenedName: "Apple Inc.",
     lastScreenedCountry: "United States",
     lastScreenedAt: "2026-08-20 11:15",
-    pics: [],
+    pics: [
+      { id: "pic-3-1", primary: true, name: "Daniel Reyes", email: "daniel.reyes@mail.com", role: "Approver", phone: "+62 87789678263" },
+    ],
   },
   {
     id: "cust-4",
@@ -139,19 +146,60 @@ export const MOCK_CUSTOMERS = [
     lastScreenedName: null,
     lastScreenedCountry: null,
     lastScreenedAt: null,
-    pics: [],
+    pics: [
+      { id: "pic-7-1", primary: true, name: "Aria Dwitolio", email: "aria.dwitolio@mail.com", role: "Approver", phone: "+62 81234567890" },
+    ],
   },
 ];
 
+// How long a Passed screening result stays valid before the customer must be
+// re-screened (PRD: Periodic Customer Sanctions Re-screening — default
+// interval is 3 calendar months).
+export const SCREENING_VALIDITY_MONTHS = 3;
+
+// `lastScreenedAt` is stored as "YYYY-MM-DD HH:mm" — normalise to a form
+// every engine parses consistently.
+const parseScreenedAt = (value) => {
+  if (!value) return null;
+  const parsed = new Date(String(value).replace(" ", "T"));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+// True once a Passed result is older than the validity interval. The record
+// itself is left untouched: the expiry is derived on read so `lastScreenedAt`
+// survives and the UI can explain *why* the status went back to Not Screened.
+export const isScreeningExpired = (customer) => {
+  if (!customer || customer.screeningStatus !== "Passed") return false;
+  const screenedAt = parseScreenedAt(customer.lastScreenedAt);
+  if (!screenedAt) return false;
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - SCREENING_VALIDITY_MONTHS);
+  return screenedAt < cutoff;
+};
+
+// The status to display and act on — an expired Passed result reads as
+// "Not Screened" everywhere without rewriting the stored record.
+export const getEffectiveScreeningStatus = (customer) => {
+  if (!customer) return "Not Screened";
+  if (isScreeningExpired(customer)) return "Not Screened";
+  return customer.screeningStatus || "Not Screened";
+};
+
+// Display label — the stored value keeps the PRD's full "Sanctions Screening
+// Failed" wording, but the UI shows the shorter "Failed".
+export const getScreeningStatusLabel = (screeningStatus) =>
+  screeningStatus === "Sanctions Screening Failed" ? "Failed" : screeningStatus || "Not Screened";
+
 // A Passed result is only reusable while it was screened against the exact
 // name + country the customer currently has (PRD: Customer — Country and
-// Screening Validity, ACs 4–6).
+// Screening Validity, ACs 4–6) and is still within the validity interval.
 export const isScreeningValid = (customer) =>
   !!customer &&
   customer.screeningStatus === "Passed" &&
   !!customer.country &&
   customer.lastScreenedName === customer.name &&
-  customer.lastScreenedCountry === customer.country;
+  customer.lastScreenedCountry === customer.country &&
+  !isScreeningExpired(customer);
 
 export const getScreeningBadgeVariant = (screeningStatus) => {
   switch (screeningStatus) {
@@ -160,7 +208,7 @@ export const getScreeningBadgeVariant = (screeningStatus) => {
     case "Sanctions Screening Failed":
       return "red";
     default:
-      return "grey-light";
+      return "grey";
   }
 };
 

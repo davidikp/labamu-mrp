@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx eslint *)",
+      "Bash(npx vite *)",
+      "Bash(echo \"exit: $?\")",
+      "Read(//tmp/**)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp"
+    ]
+  }
+}

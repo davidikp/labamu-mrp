@@ -5,7 +5,12 @@ import { Button } from "../../../components/common/Button.jsx";
 import { TablePaginationFooter } from "../../../components/table/TablePaginationFooter.jsx";
 import { TableSearchField } from "../../../components/table/TableSearchField.jsx";
 import { StatusBadge } from "../../../components/common/StatusBadge.jsx";
-import { MOCK_CUSTOMERS, getScreeningBadgeVariant } from "../mock/customerMocks.js";
+import {
+  MOCK_CUSTOMERS,
+  getScreeningBadgeVariant,
+  getEffectiveScreeningStatus,
+  getScreeningStatusLabel,
+} from "../mock/customerMocks.js";
 
 const cellStyle = (overrides) => ({
   minWidth: 0,
@@ -180,8 +185,8 @@ export const CustomerListPage = ({ onNavigate, showSnackbar, t }) => {
                     <span style={wrapTextStyle}>{row.country || "-"}</span>
                   </div>
                   <div style={cellStyle({ flex: tableColumns[4].flex })}>
-                    <StatusBadge variant={getScreeningBadgeVariant(row.screeningStatus)}>
-                      {row.screeningStatus || "Not Screened"}
+                    <StatusBadge variant={getScreeningBadgeVariant(getEffectiveScreeningStatus(row))}>
+                      {getScreeningStatusLabel(getEffectiveScreeningStatus(row))}
                     </StatusBadge>
                   </div>
                 </div>

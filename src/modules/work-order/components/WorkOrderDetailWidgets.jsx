@@ -897,6 +897,7 @@ const UploadDescriptionCard = ({
   hideDescriptionField = false,
 }) => (
   <div
+    id={file?.id}
     style={{
       border: "1px solid var(--neutral-line-separator-1)",
       borderRadius: "24px",

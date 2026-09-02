@@ -95,7 +95,9 @@ export const MOCK_QUOTES = [
     validUntil: "2026-05-30",
     customerApprovalStatus: "Pending",
     customer: { name: "Aria Dwitolio", email: "", phone: "+62", address: "-", tags: [] },
-    pics: [],
+    pics: [
+      { id: "quo-2-pic-1", primary: true, name: "Aria Dwitolio", email: "aria.dwitolio@mail.com", phone: "+6281234567890", role: "Approver" },
+    ],
     products: [],
     taxRatePercent: 0,
     shippingFee: 0,
@@ -229,7 +231,9 @@ export const MOCK_QUOTES = [
     validUntil: "2026-04-24",
     customerApprovalStatus: "Pending",
     customer: { name: "Aria Dwitolio", email: "", phone: "+62", address: "Tangerang", tags: [] },
-    pics: [],
+    pics: [
+      { id: "quo-7-pic-1", primary: true, name: "Aria Dwitolio", email: "aria.dwitolio@mail.com", phone: "+6281234567890", role: "Approver" },
+    ],
     products: [{ id: "quo-7-prod-1", image: null, name: "Sofa Tamu", sku: "PROD-3BD4D6DA-000009", notes: "", attachments: "", qty: 1, uom: "set", unitPrice: 3500000, discountPercent: 0 }],
     taxRatePercent: 0,
     shippingFee: 0,
@@ -286,3 +290,49 @@ export const getQuoteProductTotal = (product) => {
 
 export const getQuoteSubtotal = (products = []) =>
   products.reduce((sum, p) => sum + getQuoteProductTotal(p), 0);
+
+// --- Create/Edit form option sources -------------------------------------
+// The bank accounts a quote can be issued against. `currencies` is the
+// comma-separated list the detail page already renders as "Supported
+// Currencies"; the create form compares the quote currency against it to warn
+// (non-blocking) about a mismatch.
+export const MOCK_BANK_ACCOUNTS = [
+  {
+    id: "bank-1",
+    accountName: "PT. Rajawali Citra",
+    accountNumber: "42396439123",
+    bankName: "BCA",
+    currencies: "IDR",
+    swiftCode: "CITIUS33XXX",
+    branch: "Setiabudi One",
+    branchAddress:
+      "Plaza Setiabudi, Gd.Setiabudi Atrium Lt.1, Jl. H. R. Rasuna Said No.Kav.62 Suite 101 A, Kuningan, Daerah Khusus Ibukota Jakarta 12920",
+  },
+  {
+    id: "bank-2",
+    accountName: "PT. Rajawali Citra",
+    accountNumber: "8820045511",
+    bankName: "Mandiri",
+    currencies: "IDR, USD",
+    swiftCode: "BMRIIDJA",
+    branch: "Sudirman",
+    branchAddress: "Wisma Mandiri I, Jl. M.H. Thamrin No.5, Jakarta Pusat 10340",
+  },
+  {
+    id: "bank-3",
+    accountName: "Rajawali Citra International",
+    accountNumber: "0091223344",
+    bankName: "Citibank",
+    currencies: "USD",
+    swiftCode: "CITIUS33XXX",
+    branch: "Jakarta Branch",
+    branchAddress: "Citibank Tower, Jl. Jend. Sudirman Kav.54-55, Jakarta 12190",
+  },
+];
+
+export const getBankAccountById = (id) => MOCK_BANK_ACCOUNTS.find((b) => b.id === id) || null;
+
+export const PAYMENT_TERMS_OPTIONS = ["Net 15", "Net 30", "Net 60", "Net 90", "Cash on Delivery", "Advance Payment"];
+export const INCOTERMS_OPTIONS = ["EXW", "FOB", "CIF", "CFR", "DAP", "DDP"];
+export const SHIPPING_METHOD_OPTIONS = ["Sea Freight", "Air Freight", "Land Freight", "Courier", "Customer Pickup"];
+export const DISPUTE_RESOLUTION_OPTIONS = ["Arbitration", "Mediation", "Litigation", "Negotiation"];

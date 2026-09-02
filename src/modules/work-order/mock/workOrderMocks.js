@@ -659,6 +659,218 @@ export const MOCK_WO_TABLE_DATA = [
       { step: 2, route: "Main", op: "Assembly", prog: 0, comp: 0 },
     ],
   },
+  {
+    // Demo work order that exists purely to show every Activity Log and
+    // Costing Log entry type in one place (see FULL_DEMO_LOG_WO in
+    // WorkOrderDetailPage.jsx). Its outsourcing vendors deliberately span every
+    // receipt state: fully received (CV Kayu Makmur), partially received (PT
+    // Mitra Sejahtera), sent but not yet received (PT Cahaya Abadi), and
+    // assigned but not yet sent (Bintang Sejahtera) — the last two must NOT
+    // show up in the Outsourcing Cost table's Actual COGS.
+    wo: "WO-2026-04-00099",
+    ord: "ORD-2026-04-00099",
+    targetType: "Product",
+    fulfillmentType: "CustomerOrder",
+    postedToStock: false,
+    product: "Demo Full Log Cabinet",
+    sku: "DEMO-LOG-9999",
+    qty: 15,
+    priority: "Medium",
+    pColor: "var(--status-orange-primary)",
+    pBadge: "yellow-light",
+    start: "2026-04-01",
+    end: "2026-04-10",
+    createdBy: "Natasha Smith",
+    status: "Completed",
+    statusKey: "completed",
+    sBadge: "green",
+    bomId: "BOM-000002",
+    completedDate: "2026-04-10",
+    outsourceSteps: [2, 3, 4],
+    requestHistory: [
+      { id: "REQ0199099", date: "01/04/2026; 09:00", by: "Natasha Smith", status: "Completed" },
+    ],
+    vendors: [
+      {
+        id: 1,
+        name: "Internal",
+        output: "5",
+        receivedOutput: 5,
+        date: "2026-04-09",
+        status: "Completed",
+        receivedDate: "2026-04-09",
+        assignedSteps: [1],
+        receipts: [
+          {
+            receiptId: "RCT-202604-901",
+            amount: 5,
+            date: "2026-04-09",
+            time: "09:00",
+            attachment: "Internal routing completion",
+            note: "Work Order-recorded from internal routing completion.",
+          },
+        ],
+      },
+      {
+        // Fully received — shows in the Outsourcing Cost table with Received Qty 10.
+        id: 2,
+        assignmentId: "WOA-9001",
+        name: "CV Kayu Makmur",
+        output: "10",
+        sentOutput: "10",
+        receivedOutput: 10,
+        date: "2026-04-02",
+        status: "Completed",
+        receivedDate: "2026-04-08",
+        attachment: "proof_of_delivery_demo01.pdf",
+        poNumber: "PO-202604-0099",
+        isPoApproved: true,
+        assignedSteps: [2, 3],
+        receipts: [
+          {
+            receiptId: "RCT-202604-902",
+            amount: 10,
+            date: "2026-04-08",
+            time: "10:00",
+            attachment: "proof_of_delivery_demo01.pdf",
+            note: "Delivered in full and received in good condition.",
+          },
+        ],
+        sendHistory: [
+          {
+            releaseId: "RLS-9001",
+            time: "09:00",
+            amount: "10",
+            date: "2026-04-02",
+            note: "Materials successfully sent to vendor.",
+            sentBy: "Natasha Smith",
+            attachments: [
+              { id: "send-doc-9001", name: "delivery_note_demo01.pdf", size: 512000, type: "application/pdf" },
+            ],
+          },
+        ],
+      },
+      {
+        // Partially received — shows in the Outsourcing Cost table with Received Qty 3 (not the assigned 6).
+        id: 3,
+        assignmentId: "WOA-9002",
+        name: "PT Mitra Sejahtera",
+        output: "6",
+        sentOutput: "6",
+        receivedOutput: 3,
+        date: "2026-04-03",
+        status: "Partially Received",
+        receivedDate: "2026-04-07",
+        poNumber: "PO-202604-0100",
+        isPoApproved: true,
+        assignedSteps: [3],
+        receipts: [
+          {
+            receiptId: "RCT-202604-903",
+            amount: 3,
+            date: "2026-04-07",
+            time: "11:00",
+            attachment: "proof_of_delivery_demo02.pdf",
+            note: "Partial delivery received; remaining balance still in transit.",
+          },
+        ],
+        sendHistory: [
+          {
+            releaseId: "RLS-9002",
+            time: "08:30",
+            amount: "6",
+            date: "2026-04-03",
+            note: "Materials successfully sent to vendor.",
+            sentBy: "Natasha Smith",
+            attachments: [
+              { id: "send-doc-9002", name: "delivery_note_demo02.pdf", size: 480000, type: "application/pdf" },
+            ],
+          },
+        ],
+      },
+      {
+        // Assigned but not yet sent/released — excluded from the Outsourcing
+        // Cost table entirely (no cost incurred yet).
+        id: 4,
+        assignmentId: "WOA-9003",
+        name: "Bintang Sejahtera",
+        output: "4",
+        sentOutput: "0",
+        receivedOutput: 0,
+        date: "2026-04-04",
+        status: "Not Started",
+        assignedSteps: [3],
+        receipts: [],
+      },
+      {
+        // Sent to vendor but not yet received — appears in "hasOutsourcing"
+        // gating but must NOT appear as an Outsourcing Cost row/subtotal yet.
+        id: 5,
+        assignmentId: "WOA-9004",
+        name: "PT Cahaya Abadi",
+        output: "8",
+        sentOutput: "8",
+        receivedOutput: 0,
+        date: "2026-04-04",
+        status: "In Progress",
+        poNumber: "PO-202604-0101",
+        isPoApproved: true,
+        assignedSteps: [4],
+        receipts: [],
+        sendHistory: [
+          {
+            releaseId: "RLS-9004",
+            time: "09:15",
+            amount: "8",
+            date: "2026-04-04",
+            note: "Materials successfully sent to vendor.",
+            sentBy: "Natasha Smith",
+            attachments: [
+              { id: "send-doc-9004", name: "delivery_note_demo04.pdf", size: 495000, type: "application/pdf" },
+            ],
+          },
+        ],
+      },
+    ],
+    routingStages: [
+      { step: 1, route: "Dining Table Making", op: "Inbound", prog: 0, comp: 15 },
+      { step: 2, route: "Dining Table Making", op: "Processing", prog: 0, comp: 10 },
+      { step: 3, route: "Dining Table Making", op: "Packaging", prog: 0, comp: 9 },
+      { step: 4, route: "Dining Table Making", op: "Shipping", prog: 0, comp: 0 },
+    ],
+    // Actual COGS breakdown lines, so the Actual COGS tab has real data to
+    // pair with every "{Cost Type} Item Added/Edited/Deleted" Costing Log entry.
+    actualCogs: {
+      labour: {
+        mode: "breakdown",
+        amount: 0,
+        lines: [
+          { id: "demo-cogs-labour-1", label: "Assembly labour", amount: 3200000 },
+          { id: "demo-cogs-labour-2", label: "Finishing labour", amount: 500000 },
+        ],
+      },
+      packing: {
+        mode: "breakdown",
+        amount: 0,
+        lines: [{ id: "demo-cogs-packing-1", label: "Packing labour & materials", amount: 350000 }],
+      },
+      shipping: {
+        mode: "breakdown",
+        amount: 0,
+        lines: [{ id: "demo-cogs-shipping-1", label: "Inbound - Supplier to Factory", amount: 200000 }],
+      },
+      overhead: {
+        mode: "breakdown",
+        amount: 0,
+        lines: [{ id: "demo-cogs-overhead-1", label: "Factory overhead allocation", amount: 180000 }],
+      },
+      other: {
+        mode: "breakdown",
+        amount: 0,
+        lines: [{ id: "demo-cogs-other-1", label: "Finishing consumables", amount: 150000 }],
+      },
+    },
+  },
 ];
 
 // Costing status derivation — whether Actual COGS gets gated by routing
@@ -694,8 +906,6 @@ const nextWoId = () => {
   return `${prefix}-${String(seq).padStart(3, "0")}`;
 };
 
-// Stock Build is disabled — no UI entry point calls this any more. Kept for
-// reference in case the flow is restored.
 export const createWorkOrder = (data) => {
   const record = {
     wo: nextWoId(),

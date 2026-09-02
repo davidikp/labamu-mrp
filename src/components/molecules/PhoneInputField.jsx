@@ -18,6 +18,10 @@ export const PhoneInputField = ({
   disabled,
   error,
   helperText,
+  // Merged into the underlying UnifiedInputShell's own style — e.g. to
+  // bump minHeight when a neighboring field renders taller (UnifiedInputShell
+  // defaults to 46px, while ce-ui's TextField/Dropdown "lg" size is 48px).
+  shellStyle,
 }) => {
   const normalizePhoneValue = (input) => {
     if (!input) return { countryCode: "+62", number: "" };
@@ -82,7 +86,7 @@ export const PhoneInputField = ({
       <UnifiedInputShell
         disabled={disabled}
         hasError={!!error}
-        style={{ position: "relative", zIndex: isOpen ? 200 : "auto" }}
+        style={{ position: "relative", zIndex: isOpen ? 200 : "auto", ...shellStyle }}
         onFocus={(e) => focusInputFrame(e.currentTarget)}
         onBlur={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget)) {
