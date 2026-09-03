@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Settings, ChevronDownIcon, SearchNotFoundIllustration } from "../../../components/icons/Icons.jsx";
+import { Settings, ChevronDownIcon, SearchNotFoundIllustration, OverdueWarningIcon } from "../../../components/icons/Icons.jsx";
 import { EmptyState } from "../../../ce-ui";
 import { Button } from "../../../components/common/Button.jsx";
 import { FilterMenu } from "../../../components/molecules/FilterMenu.jsx";
@@ -7,6 +7,7 @@ import { ListStatusCounterCard } from "../../../components/common/ListStatusCoun
 import { StatusBadge } from "../../../components/common/StatusBadge.jsx";
 import { TablePaginationFooter } from "../../../components/table/TablePaginationFooter.jsx";
 import { TableSearchField } from "../../../components/table/TableSearchField.jsx";
+import { Tooltip } from "../../../components/atoms/Tooltip.jsx";
 import { MOCK_WO_TABLE_DATA } from "../mock/workOrderMocks.js";
 // Stock Build is disabled: the "New WO" entry point and its create drawer are
 // hidden. WorkOrderCreateDrawer.jsx is kept in place (it also exports shared
@@ -75,7 +76,7 @@ export const WorkOrderListPage = ({ onNavigate, t, showSnackbar }) => {
   const tableColumns = [
     { label: "Work Order No.", key: "wo", flex: "1.6", sortable: true },
     { label: "Order No", key: "ord", flex: "1.6", sortable: true },
-    { label: "Target", key: "product", flex: "1.4", sortable: true },
+    { label: "Product", key: "product", flex: "1.4", sortable: true },
     { label: "Qty", key: "qty", flex: "0.6", sortable: false },
     { label: "Priority", key: "priority", flex: "0.8", sortable: false },
     { label: "Planned Date", key: "plannedDate", flex: "1.6", sortable: false },
@@ -95,6 +96,15 @@ export const WorkOrderListPage = ({ onNavigate, t, showSnackbar }) => {
     return Number.isNaN(d.getTime()) ? null : d;
   };
   const referenceNow = new Date("2026-03-31");
+  // A work order is overdue once its planned end date has passed and it's
+  // still open — a Completed/Cancelled row already has its outcome settled,
+  // so a past end date there isn't a warning, just history.
+  const isOverdue = (row) => {
+    if (!row.end) return false;
+    if (row.statusKey === "completed" || row.statusKey === "cancelled") return false;
+    const endDate = parsedDate(row.end);
+    return !!endDate && endDate < referenceNow;
+  };
   const matchesDateFilter = (rowDateValue, filterType, customDateFrom, customDateTo) => {
     if (filterType === "all") return true;
     const rowDate = parsedDate(rowDateValue);
@@ -465,19 +475,9 @@ export const WorkOrderListPage = ({ onNavigate, t, showSnackbar }) => {
                       {row.fulfillmentType === "StockBuild" ? "-" : row.ord}
                     </span>
                   </div>
-                  <div style={cellStyle({ flex: tableColumns[2].flex, flexDirection: "column", alignItems: "flex-start", justifyContent: "center", gap: "2px", minHeight: "56px" })}>
+                  <div style={cellStyle({ flex: tableColumns[2].flex })}>
                     <span style={{ ...wrapTextStyle, maxWidth: "100%" }}>
                       {row.product}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "var(--text-body)",
-                        color: "var(--neutral-on-surface-secondary)",
-                        ...wrapTextStyle,
-                        maxWidth: "100%",
-                      }}
-                    >
-                      {row.targetType === "Material" ? "Material" : "Product"}
                     </span>
                   </div>
                   <div style={cellStyle({ flex: tableColumns[3].flex })}>
@@ -494,6 +494,11 @@ export const WorkOrderListPage = ({ onNavigate, t, showSnackbar }) => {
                   <div style={cellStyle({ flex: tableColumns[5].flex })}>
                       <span style={wrapTextStyle}>
                       {row.start || row.end ? `${row.start || "-"} → ${row.end || "-"}` : "-"}
+                      {isOverdue(row) ? (
+                        <Tooltip content="Deadline overdue">
+                          <OverdueWarningIcon size={14} style={{ marginLeft: "6px", verticalAlign: "middle" }} />
+                        </Tooltip>
+                      ) : null}
                       </span>
                   </div>
                   <div style={cellStyle({ flex: tableColumns[6].flex })}>

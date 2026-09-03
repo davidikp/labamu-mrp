@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Send, Truck } from "lucide-react";
-import { AddIcon, Box, Building2, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, CircleDollarSign, CloseIcon, DeleteIcon, DocumentIcon, DownloadIcon, EditIcon, FileText, Info, Minus, Plus, Upload, Users } from "../../../components/icons/Icons.jsx";
+import { AddIcon, Box, Building2, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, CircleDollarSign, CloseIcon, DeleteIcon, DocumentIcon, DownloadIcon, EditIcon, FileText, Info, Minus, OverdueWarningIcon, Plus, Upload, Users } from "../../../components/icons/Icons.jsx";
 import { Button } from "../../../components/common/Button.jsx";
 import { Checkbox } from "../../../components/common/Checkbox.jsx";
 import { ClampedDescriptionText } from "../../../components/common/ClampedDescriptionText.jsx";
@@ -556,7 +556,7 @@ const SearchableVendorSelect = ({
 
 const PRIORITY_BADGE_VARIANT = {
   High: "red-light",
-  Medium: "yellow-light",
+  Normal: "yellow-light",
   Low: "grey-light",
 };
 
@@ -569,7 +569,7 @@ export const WorkOrderDetailPage = ({ onNavigate, isSidebarCollapsed, initialDat
   const [mainQty, setMainQty] = useState(initialData?.qty || 100);
   const [product, setProduct] = useState(initialData?.product || "");
   const [sku, setSku] = useState(initialData?.sku || "");
-  const [priority, setPriority] = useState(initialData?.priority || "Medium");
+  const [priority, setPriority] = useState(initialData?.priority || "Normal");
   const [notes, setNotes] = useState(initialData?.notes || "");
   const [orderType, setOrderType] = useState(initialData?.orderType || "Internal");
   const [outputs, setOutputs] = useState(
@@ -1123,6 +1123,17 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
     initialData?.statusKey || "not_started"
   );
   const isCancelled = woStatus === "cancelled";
+
+  // A work order is overdue once its planned end date has passed a fixed
+  // reference "today" — matches the Work Order list page's Planned Date
+  // warning so the same WO reads the same way on both pages. Not Started has
+  // no actual dates to show it against, and Completed/Cancelled are settled.
+  const isDeadlineOverdue =
+    woStatus !== "not_started" &&
+    woStatus !== "completed" &&
+    !isCancelled &&
+    !!displayEndDate &&
+    new Date(displayEndDate) < new Date("2026-03-31");
 
   // Costing Status ("Open" → "Ready to Finalize" → "Confirmed") is driven by
   // the global Actual COGS setting (Work Order Settings) — read live here, not
@@ -4768,11 +4779,23 @@ const [isUploadProofModalOpen, setIsUploadProofModalOpen] = useState(false);
             <LabelValue
               label="Actual Start - End Date"
               value={
-                woStatus === "not_started"
-                  ? "-"
-                  : woStatus === "completed"
-                  ? `${displayStartDate || "-"} - ${displayEndDate || "-"}`
-                  : `${displayStartDate || "-"} - Not Defined`
+                woStatus === "not_started" ? (
+                  "-"
+                ) : (
+                  <span>
+                    {woStatus === "completed"
+                      ? `${displayStartDate || "-"} - ${displayEndDate || "-"}`
+                      : `${displayStartDate || "-"} - Not Defined`}
+                    {isDeadlineOverdue ? (
+                      <Tooltip content="Deadline overdue">
+                        <OverdueWarningIcon
+                          size={16}
+                          style={{ marginLeft: "6px", verticalAlign: "middle" }}
+                        />
+                      </Tooltip>
+                    ) : null}
+                  </span>
+                )
               }
             />
             <LabelValue

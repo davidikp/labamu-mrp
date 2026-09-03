@@ -38,7 +38,7 @@ const buildFormState = ({ orderType, priority, notes, start, end, outputs }) => 
   const rest = list.filter((o) => o !== main);
   return {
     orderType: orderType || "Internal",
-    priority: priority || "Medium",
+    priority: priority || "Normal",
     notes: notes || "",
     start: start || "",
     end: end || "",

@@ -13,7 +13,7 @@ import { createWorkOrder } from "../mock/workOrderMocks.js";
 
 export const PRIORITY_OPTIONS = [
   { value: "High", label: "High" },
-  { value: "Medium", label: "Medium" },
+  { value: "Normal", label: "Normal" },
   { value: "Low", label: "Low" },
 ];
 
@@ -21,7 +21,7 @@ const EMPTY_FORM = {
   materialId: "",
   materialSearchText: "",
   quantity: "",
-  priority: "Medium",
+  priority: "Normal",
   notes: "",
   enableMultipleOutput: false,
   additionalOutputs: [],
