@@ -15,6 +15,15 @@
 const quote = (s) => `"${s ?? ""}"`;
 const quoteId = (s) => `“${s ?? ""}”`;
 
+// Wrap a catalog entry, swapping in a custom {en,id} title while leaving its
+// body/cta (and email) untouched. Used to give a handful of Need-To-Do
+// entries clearer wording without rewriting the shared lifecycle templates
+// that other modules also rely on.
+const withTitle = (entry, titleFn) => ({
+  ...entry,
+  inApp: (c) => ({ ...entry.inApp(c), title: titleFn(c) }),
+});
+
 // Build the full internal-approval lifecycle (submitted → one approved →
 // all approved → rejected → need revision) for a module that follows the
 // standard "all approvers must approve" pattern.
@@ -275,11 +284,45 @@ const NOUNS = {
   invoice: { en: "Invoice", id: "Invoice" },
 };
 
+// Built once so both the shared lifecycle stages and the Need-To-Do title
+// overrides below read from the same underlying entries.
+const rfqLifecycle = makeApprovalLifecycle(NOUNS.rfq, { en: "Approved", id: "Approved" });
+const quoteApproval = makeApprovalLifecycle(NOUNS.quote, { en: "Issued", id: "Issued" });
+const quoteCustomer = makeCustomerLifecycle(NOUNS.quote);
+const invoiceCustomer = makeCustomerLifecycle(NOUNS.invoice);
+
 export const NOTIFICATION_CATALOG = {
-  rfq: makeApprovalLifecycle(NOUNS.rfq, { en: "Approved", id: "Approved" }),
+  rfq: {
+    ...rfqLifecycle,
+    // Need-To-Do title spells out "Request for Quote" instead of the RFQ
+    // acronym for clarity; body/cta/email keep the standard lifecycle wording.
+    submitted: withTitle(rfqLifecycle.submitted, (c) => ({
+      en: `Request for Quote ${c.number} needs your approval`,
+      id: `Request for Quote ${c.number} perlu persetujuan kamu`,
+    })),
+    need_revision: withTitle(rfqLifecycle.need_revision, (c) => ({
+      en: `Request for Quote ${c.number} needs revision`,
+      id: `Request for Quote ${c.number} perlu revisi`,
+    })),
+  },
   quote: {
-    ...makeApprovalLifecycle(NOUNS.quote, { en: "Issued", id: "Issued" }),
-    ...makeCustomerLifecycle(NOUNS.quote),
+    ...quoteApproval,
+    ...quoteCustomer,
+    // Need-To-Do titles use the Indonesian "Penawaran" and casual tone,
+    // and (for customer_revision) match the "needs revision" phrasing
+    // used elsewhere instead of "Customer requested changes on...".
+    submitted: withTitle(quoteApproval.submitted, (c) => ({
+      en: `Quote ${c.number} needs your approval`,
+      id: `Penawaran ${c.number} perlu persetujuan kamu`,
+    })),
+    need_revision: withTitle(quoteApproval.need_revision, (c) => ({
+      en: `Quote ${c.number} needs revision`,
+      id: `Penawaran ${c.number} perlu revisi`,
+    })),
+    customer_revision: withTitle(quoteCustomer.customer_revision, (c) => ({
+      en: `Quote ${c.number} needs revision`,
+      id: `Penawaran ${c.number} perlu revisi`,
+    })),
   },
   order: makeApprovalLifecycle(NOUNS.order, { en: "Confirmed", id: "Confirmed" }),
   purchase_order: {
@@ -322,7 +365,13 @@ export const NOTIFICATION_CATALOG = {
   }),
 
   invoice: {
-    ...makeCustomerLifecycle(NOUNS.invoice),
+    ...invoiceCustomer,
+    // Need-To-Do title matches the "needs revision" phrasing used
+    // elsewhere instead of "Customer requested changes on...".
+    customer_revision: withTitle(invoiceCustomer.customer_revision, (c) => ({
+      en: `Invoice ${c.number} needs revision`,
+      id: `Invoice ${c.number} perlu revisi`,
+    })),
     // Payment proof — portal upload notifies the invoice owner (PIC).
     proof_uploaded: {
       recipientRule: "entity_pic",
@@ -334,8 +383,8 @@ export const NOTIFICATION_CATALOG = {
       },
       inApp: (c) => ({
         title: {
-          en: `Payment proof uploaded — Invoice ${c.number}`,
-          id: `Bukti pembayaran telah diunggah — Invoice ${c.number}`,
+          en: `Invoice ${c.number} needs payment proof review`,
+          id: `Invoice ${c.number} perlu peninjauan bukti pembayaran`,
         },
         body: {
           en: `${c.customerPicName} from ${c.customerCompany} uploaded a payment proof. Please review and confirm.`,
@@ -386,8 +435,8 @@ export const NOTIFICATION_CATALOG = {
       },
       inApp: (c) => ({
         title: {
-          en: `Materials transferred — confirm receipt for ${c.requestId}`,
-          id: `Material telah ditransfer — konfirmasi penerimaan untuk ${c.requestId}`,
+          en: `Material Request ${c.requestId} needs receipt confirmation`,
+          id: `Permintaan Material ${c.requestId} perlu konfirmasi penerimaan`,
         },
         body: {
           en: `${c.preparerName} has transferred materials for your request from ${c.workOrderNo}. Please confirm you have received the items.`,
