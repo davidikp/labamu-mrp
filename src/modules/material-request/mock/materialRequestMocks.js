@@ -886,6 +886,61 @@ const STOCK_BY_SKU = {
   "GLU-400500600": [{ batch: "BAT-260126-000202", available: 12 }],
   "VAR-700800900": [{ batch: "BAT-260126-000203", available: 6 }],
   "SND-110220330": [{ batch: "BAT-260126-000204", available: 40 }],
+  // BOM material SKUs (see bill-of-materials/mock/bomMocks.js) — mirrors each
+  // material's onHandStock in materials/mock/materialsMocks.js, split across
+  // two batches, so requesting BOM materials from a work order actually has
+  // stock to allocate instead of always coming back Not Available.
+  // COP-W-15 (Copper Wire 1.5mm) is deliberately left unlisted — it's seeded
+  // Out of Stock in the Materials module and one work order (WO-2024-09-015-
+  // 00003, via BOM-000006) intentionally exercises that shortage.
+  "ALU-SH-2MM": [
+    { batch: "BAT-260126-000205", available: 90 },
+    { batch: "BAT-260126-000206", available: 60 },
+  ],
+  "STL-PIPE-05": [
+    { batch: "BAT-260126-000207", available: 30 },
+    { batch: "BAT-260126-000208", available: 15 },
+  ],
+  "PLAS-HDPE-GR": [
+    { batch: "BAT-260126-000209", available: 800 },
+    { batch: "BAT-260126-000210", available: 400 },
+  ],
+  "FAST-M6-HEX": [
+    { batch: "BAT-260126-000211", available: 3000 },
+    { batch: "BAT-260126-000212", available: 2000 },
+  ],
+  "PLY-18-001": [
+    { batch: "BAT-260126-000213", available: 80 },
+    { batch: "BAT-260126-000214", available: 40 },
+  ],
+  "GLU-5KG-009": [
+    { batch: "BAT-260126-000215", available: 20 },
+    { batch: "BAT-260126-000216", available: 10 },
+  ],
+  "VEN-TEAK-12": [
+    { batch: "BAT-260126-000217", available: 40 },
+    { batch: "BAT-260126-000218", available: 20 },
+  ],
+  "FOM-ROL-04": [
+    { batch: "BAT-260126-000219", available: 16 },
+    { batch: "BAT-260126-000220", available: 8 },
+  ],
+  "STL-BOLT-M8": [
+    { batch: "BAT-260126-000221", available: 70 },
+    { batch: "BAT-260126-000222", available: 50 },
+  ],
+  "MTL-001": [
+    { batch: "BAT-260126-000223", available: 50 },
+    { batch: "BAT-260126-000224", available: 30 },
+  ],
+  "MTL-002": [
+    { batch: "BAT-260126-000225", available: 25 },
+    { batch: "BAT-260126-000226", available: 15 },
+  ],
+  "MRB-ITL-CAR-01": [
+    { batch: "BAT-260126-000227", available: 25 },
+    { batch: "BAT-260126-000228", available: 15 },
+  ],
 };
 
 // Fresh copies so callers can't mutate the shared mock stock.

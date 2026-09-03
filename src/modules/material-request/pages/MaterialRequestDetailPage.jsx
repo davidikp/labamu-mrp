@@ -12,6 +12,9 @@ import { ChipTabBar } from "../../../components/molecules/ChipTabBar.jsx";
 import { UploadDescriptionCard } from "../../purchase-order/components/detail/shared/PoDetailSharedComponents.jsx";
 import { DocumentTypeBadge } from "../../purchase-order/components/DocumentTypeBadge.jsx";
 import { MaterialPreparationDrawer } from "../components/MaterialPreparationDrawer.jsx";
+import { addWoActivityLog, addWoCostingLog } from "../../work-order/pages/WorkOrderDetailPage.jsx";
+import { MOCK_MATERIALS_DATA } from "../../materials/mock/materialsMocks.js";
+import { formatIDR } from "../../bill-of-materials/utils/bomUtils.js";
 import {
   getRequest,
   getRequests,
@@ -373,6 +376,40 @@ export const MaterialRequestDetailPage = ({ onNavigate, initialData, requestId, 
     setRequest({ ...updated });
     setIsReceiptModalOpen(false);
     showSnackbar("Material request successfully completed", "success");
+
+    // Actual COGS material cost is priced off received quantities, so this
+    // receipt also lands in the linked Work Order's Activity Log (Material
+    // Received) and Costing Log (Material Cost Updated) — mirrors the seeded
+    // demo entries in WorkOrderDetailPage.jsx (see buildReceivedMaterials).
+    if (updated.workOrderNo) {
+      const receivedItems = (updated.items || [])
+        .map((it) => ({
+          name: it.name,
+          unit: it.unit,
+          qty: it.allocation?.fulfillableQty ?? it.requestedQty ?? 0,
+          requestedQty: it.requestedQty ?? 0,
+          unitCost: MOCK_MATERIALS_DATA.find((m) => m.sku === it.sku)?.averageCost || 0,
+          batch: (it.allocation?.batches || []).map((b) => b.batch).filter(Boolean).join(", ") || "N/A",
+        }))
+        .filter((it) => it.qty > 0);
+
+      if (receivedItems.length > 0) {
+        const itemLines = receivedItems
+          .map((it) => `• ${it.name}: ${it.qty}${it.requestedQty && it.requestedQty !== it.qty ? `/${it.requestedQty}` : ""} ${it.unit} (${it.batch})`)
+          .join("\n");
+        addWoActivityLog(updated.workOrderNo, "Material Received", `${request.requestId} received:\n${itemLines}`);
+
+        const totalCost = receivedItems.reduce((sum, it) => sum + it.qty * it.unitCost, 0);
+        const costLines = receivedItems
+          .map((it) => `• ${it.name}: ${formatIDR(it.qty * it.unitCost)} (${it.qty} ${it.unit})`)
+          .join("\n");
+        addWoCostingLog(
+          updated.workOrderNo,
+          "Material Cost Updated",
+          `${request.requestId} received, adding ${formatIDR(totalCost)} to Actual COGS material cost:\n${costLines}`
+        );
+      }
+    }
 
     // The requester has acted — clear their "Confirm receipt" Todo.
     resolveMrTodo("material_request", request.id, "receipt");
